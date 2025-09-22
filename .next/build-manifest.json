@@ -22,10 +22,15 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/admin/login": [
+    "/admin/dashboard": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/login.js"
+      "static/chunks/pages/admin/dashboard.js"
+    ],
+    "/caregiver/dashboard": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/caregiver/dashboard.js"
     ],
     "/onboarding": [
       "static/chunks/webpack.js",

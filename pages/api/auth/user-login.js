@@ -1,6 +1,6 @@
-import dbConnect from '../../lib/mongodb';
-import Caregiver from '../../models/Caregiver';
-import Patient from '../../models/Patient';
+import dbConnect from '../../../lib/mongodb';
+import Caregiver from '../../../models/Caregiver';
+import Patient from '../../../models/Patient';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,50 +18,100 @@ export default async function handler(req, res) {
 
     let user;
     if (userType === 'caregiver') {
-      user = await Caregiver.findOne({ caregiverId: userId });
+      // Find caregiver and populate assigned patient details
+      user = await Caregiver.findOne({ caregiverId: userId }).populate('assignedPatient');
+
+      if (!user) {
+        return res.status(404).json({ message: 'Caregiver not found' });
+      }
+
+      // Check if caregiver is assigned to a patient
+      if (!user.isAssigned || !user.assignedPatient) {
+        return res.status(403).json({
+          message: 'Access denied. You have not been assigned to a patient yet. Please contact the administrator.',
+          needsAssignment: true,
+          caregiverStatus: 'unassigned'
+        });
+      }
+
     } else if (userType === 'patient') {
       user = await Patient.findOne({ patientId: userId }).populate('assignedCaregiver');
+
+      if (!user) {
+        return res.status(404).json({ message: 'Patient not found' });
+      }
+
+      // Check if patient is assigned (patients can only login after assignment)
+      if (!user.isAssigned) {
+        return res.status(403).json({
+          message: 'Account not yet activated. Please wait for admin approval.',
+          needsApproval: true
+        });
+      }
+
     } else {
       return res.status(400).json({ message: 'Invalid user type' });
-    }
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Check if user is assigned (patients can only login after assignment)
-    if (userType === 'patient' && !user.isAssigned) {
-      return res.status(403).json({
-        message: 'Account not yet activated. Please wait for admin approval.',
-        needsApproval: true
-      });
     }
 
     // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    res.status(200).json({
+    // Prepare response data
+    const responseData = {
       success: true,
       message: 'Login successful',
       user: {
         id: userType === 'caregiver' ? user.caregiverId : user.patientId,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         userType,
         isAssigned: user.isAssigned,
-        assignedTo: userType === 'patient' ? user.assignedCaregiver : user.assignedPatient,
-        programProgress: userType === 'caregiver' ? user.programProgress : undefined,
-        postTestAvailable: userType === 'patient' ? user.postTestAvailable : undefined,
-        postTestCompleted: userType === 'patient' ? user.postTestCompleted : undefined,
+        lastLogin: user.lastLogin,
+        programProgress: user.programProgress
       }
-    });
+    };
+
+    // Add specific data based on user type
+    if (userType === 'caregiver') {
+      responseData.user.assignedPatient = {
+        id: user.assignedPatient.patientId,
+        name: user.assignedPatient.name,
+        email: user.assignedPatient.email,
+        age: user.assignedPatient.age,
+        cancerType: user.assignedPatient.cancerType,
+        stage: user.assignedPatient.stage,
+        treatmentStatus: user.assignedPatient.treatmentStatus,
+        diagnosisDate: user.assignedPatient.diagnosisDate
+      };
+      responseData.user.experience = user.experience;
+      responseData.user.specialization = user.specialization;
+      responseData.user.relationshipToPatient = user.relationshipToPatient;
+    } else if (userType === 'patient') {
+      if (user.assignedCaregiver) {
+        responseData.user.assignedCaregiver = {
+          id: user.assignedCaregiver.caregiverId,
+          name: user.assignedCaregiver.name,
+          email: user.assignedCaregiver.email
+        };
+      }
+      responseData.user.age = user.age;
+      responseData.user.cancerType = user.cancerType;
+      responseData.user.stage = user.stage;
+      responseData.user.treatmentStatus = user.treatmentStatus;
+      responseData.user.diagnosisDate = user.diagnosisDate;
+      responseData.user.postTestAvailable = user.postTestAvailable;
+    }
+
+    res.status(200).json(responseData);
 
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
-      message: 'Login failed',
-      error: error.message
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
     });
   }
 }

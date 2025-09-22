@@ -1,81 +1,56 @@
-// Run this script to create an initial admin user
-// Usage: node scripts/create-admin.js
-
+require('dotenv').config({ path: '.env.local' });
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-// Admin Schema (copied from models)
-const AdminSchema = new mongoose.Schema({
-  adminId: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  email: {
-    type: String,
-    required: true,
-  },
-  password: {
-    type: String,
-    required: true,
-  },
-  role: {
-    type: String,
-    default: 'admin',
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  lastLogin: {
-    type: Date,
-    default: null,
-  },
+// Admin schema
+const adminSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  lastLogin: { type: Date }
 });
 
-const Admin = mongoose.models.Admin || mongoose.model('Admin', AdminSchema);
+const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
 
 async function createAdmin() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/cancer-care-app');
-    console.log('Connected to MongoDB');
+    console.log('Connecting to MongoDB...');
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+
+    console.log('Connected successfully!');
 
     // Check if admin already exists
     const existingAdmin = await Admin.findOne({ username: 'admin' });
     if (existingAdmin) {
       console.log('Admin user already exists');
-      process.exit(0);
+      return;
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash('admin123', salt);
-
     // Create admin user
-    const admin = new Admin({
-      adminId: 'ADMIN001',
+    const hashedPassword = await bcrypt.hash('admin123', 12);
+
+    const adminUser = new Admin({
       username: 'admin',
-      email: 'admin@cancercare.com',
       password: hashedPassword,
-      role: 'admin'
+      name: 'System Administrator',
+      email: 'admin@cancercare.com'
     });
 
-    await admin.save();
-    console.log('Admin user created successfully!');
+    await adminUser.save();
+    console.log('✅ Admin user created successfully!');
     console.log('Username: admin');
     console.log('Password: admin123');
-    console.log('Please change the password after first login');
+    console.log('⚠️  Please change the default password after first login');
 
-    process.exit(0);
   } catch (error) {
-    console.error('Error creating admin:', error);
-    process.exit(1);
+    console.error('❌ Error creating admin:', error.message);
+  } finally {
+    await mongoose.disconnect();
   }
 }
 

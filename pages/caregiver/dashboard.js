@@ -34,9 +34,9 @@ import {
   FaCheckCircle,
   FaPlayCircle,
   FaLightbulb,
-  FaExpandMore,
-  FaNotes,
-  FaCalendarDay
+  FaChevronDown,
+  FaFileAlt,
+  FaCalendarAlt
 } from 'react-icons/fa';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useRouter } from 'next/router';
@@ -465,7 +465,7 @@ export default function CaregiverDashboard() {
           >
             <Tab
               label="10-Day Program"
-              icon={<FaCalendarDay />}
+              icon={<FaCalendarAlt />}
               iconPosition="start"
             />
             <Tab
@@ -510,7 +510,7 @@ export default function CaregiverDashboard() {
                           color: isCompleted ? 'white' : 'text.primary'
                         }}>
                           <Accordion disabled={isLocked}>
-                            <AccordionSummary expandIcon={<FaExpandMore />}>
+                            <AccordionSummary expandIcon={<FaChevronDown />}>
                               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                 <Box sx={{ mr: 2 }}>
                                   {isCompleted ? (
@@ -655,7 +655,7 @@ export default function CaregiverDashboard() {
       <Dialog open={completionDialog} onClose={() => setCompletionDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <FaNotes style={{ marginRight: '8px' }} />
+            <FaFileAlt style={{ marginRight: '8px' }} />
             Complete Day {currentDay}
           </Box>
         </DialogTitle>
