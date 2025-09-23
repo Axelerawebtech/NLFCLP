@@ -2,7 +2,12 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
+  "/admin/login": "pages/admin/login.js",
   "/": "pages/index.js",
   "/login": "pages/login.js",
-  "/admin/login": "pages/admin/login.js"
+  "/admin/dashboard": "pages/admin/dashboard.js",
+  "/api/auth/admin-login": "pages/api/auth/admin-login.js",
+  "/api/admin/manage-users": "pages/api/admin/manage-users.js",
+  "/api/auth/user-login": "pages/api/auth/user-login.js",
+  "/caregiver/dashboard": "pages/caregiver/dashboard.js"
 }
