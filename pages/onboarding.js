@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Box,
+  TextField,
   Container,
   Typography,
   Button,
@@ -27,9 +28,10 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useRouter } from 'next/router';
 
-const steps = ['Choose Role', 'Answer Questions', 'Consent Form', 'Complete Registration'];
-
 import ConsentForm from '../components/ConsentForm';
+import CaregiverQuestions from '../components/CaregiverQuestions';
+
+const steps = ['Choose Role', 'Consent Form', 'Demographic Questions', 'Complete Registration'];
 
 export default function Onboarding() {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -196,8 +198,7 @@ export default function Onboarding() {
 
   const handleConsent = () => {
     if (accepted) {
-      onAccept();
-      router.push('/login');
+      onAccept(); // This will trigger setActiveStep(2) to show demographic questions
     }
   };
 
@@ -411,22 +412,22 @@ const CompletionStep = () => (
         <AnimatePresence mode="wait">
           {activeStep === 0 && <UserTypeSelection />}
           {activeStep === 1 && (
-            userType === 'caregiver' ? 
-              <CaregiverForm formData={formData} setFormData={setFormData} onNext={() => setActiveStep(2)} /> :
-              <PatientForm formData={formData} setFormData={setFormData} onNext={() => setActiveStep(2)} />
-          )}
-          {activeStep === 2 && (
             <ConsentForm 
               userType={userType} 
               formData={formData}
-              onAccept={() => setActiveStep(3)} 
+              onAccept={() => setActiveStep(2)} 
             />
+          )}
+          {activeStep === 2 && (
+            userType === 'caregiver' ? 
+              <CaregiverForm formData={formData} setFormData={setFormData} onNext={() => setActiveStep(3)} /> :
+              <PatientForm formData={formData} setFormData={setFormData} onNext={() => setActiveStep(3)} />
           )}
           {activeStep === 3 && <CompletionStep formData={formData} />}
         </AnimatePresence>
 
         {/* Navigation */}
-        {activeStep > 0 && activeStep < 2 && (
+        {activeStep > 0 && activeStep < 3 && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
             <Button
               startIcon={<FaArrowLeft />}
@@ -443,50 +444,163 @@ const CompletionStep = () => (
 }
 
 // Caregiver Form Component
-const CaregiverForm = ({ formData, setFormData, onNext }) => {
+function CaregiverForm({ formData, setFormData, onNext }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
 
+  const handleSubmitAnswer = (value) => {
+    const currentQ = questions[currentQuestion];
+    let finalValue = value;
+
+    // Handle 'Other' option for fields that allow it
+    if (currentQ.allowOther && value === 'Other') {
+      finalValue = answers[`${currentQ.id}Other`] || 'Other';
+    }
+
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    } else {
+      // Generate ID and complete registration
+      const generatedId = `CG${Date.now().toString(36).toUpperCase()}`;
+      setFormData({ ...answers, [currentQ.id]: finalValue, userType: 'caregiver', generatedId });
+      onNext();
+    }
+  };
+
   const questions = [
     {
+      section: 'Personal Details',
       id: 'name',
       question: 'What is your full name?',
       type: 'text',
+      placeholder: 'Enter your full name',
+      pattern: '^[a-zA-Z ]+$',
       required: true
     },
     {
-      id: 'email',
-      question: 'What is your email address?',
-      type: 'email',
-      required: true
-    },
-    {
+      section: 'Personal Details',
       id: 'phone',
       question: 'What is your phone number?',
       type: 'tel',
+      placeholder: 'Enter your phone number',
+      pattern: '^[0-9]{10}$',
+      required: true
+    },
+
+    {
+      section: 'Personal Details',
+      id: 'age',
+      question: 'Age (in years):',
+      type: 'radio',
+      options: ['18-30', '31-40', '41-50', '51-60', '61 and above'],
+      allowOther: true,
+      required: true
+    },
+  
+    {
+      section: 'Personal Details',
+      id: 'gender',
+      question: 'Gender:',
+      type: 'radio',
+      options: ['Male', 'Female', 'Non-binary', 'Prefer not to say', 'Other'],
+      allowOther: true,
       required: true
     },
     {
-      id: 'experience',
-      question: 'How many years of caregiving experience do you have?',
-      type: 'select',
-      options: ['0-1 years', '1-3 years', '3-5 years', '5+ years'],
+      section: 'Personal Details',
+      id: 'maritalStatus',
+      question: 'Marital Status:',
+      type: 'radio',
+      options: ['Single', 'Married', 'Widowed', 'Divorced', 'Separated'],
       required: true
     },
     {
-      id: 'specialization',
-      question: 'What is your area of specialization?',
-      type: 'select',
-      options: ['General Care', 'Oncology', 'Mental Health', 'Palliative Care', 'Other'],
+      section: 'Personal Details',
+      id: 'educationLevel',
+      question: 'Educational Level:',
+      type: 'radio',
+      options: ['No formal education', 'Primary education', 'Secondary education', 'Higher secondary', 'Undergraduate degree', 'Postgraduate degree'],
       required: true
     },
     {
+      section: 'Personal Details',
+      id: 'employmentStatus',
+      question: 'Employment Status:',
+      type: 'radio',
+      options: ['Full-time employed', 'Part-time employed', 'Self-employed', 'Unemployed', 'Retired', 'Student', 'Homemaker'],
+      required: true
+    },
+    {
+      section: 'Personal Details',
+      id: 'residentialArea',
+      question: 'Residential Area:',
+      type: 'radio',
+      options: ['Urban', 'Rural', 'Suburban'],
+      required: true
+    },
+  
+
+    {
+      section: 'Caregiving Information',
       id: 'relationshipToPatient',
-      question: 'What is your relationship to cancer patients?',
-      type: 'select',
-      options: ['Professional Caregiver', 'Family Member', 'Friend', 'Volunteer'],
+      question: 'Relationship to the Patient:',
+      type: 'radio',
+      options: ['Spouse', 'Parent', 'Child', 'Sibling', 'Other'],
+      allowOther: true,
       required: true
-    }
+    },
+    {
+      section: 'Caregiving Information',
+      id: 'hoursPerDay',
+      question: 'Hours Spent Caring per Day:',
+      type: 'radio',
+      options: ['Less than 2 hours', '2-4 hours', '5-8 hours', 'More than 8 hours'],
+      required: true
+    },
+    {
+      section: 'Caregiving Information',
+      id: 'durationOfCaregiving',
+      question: 'Duration of Caregiving:',
+      type: 'radio',
+      options: ['Less than 6 months', '6-12 months', '1-2 years', '2-5 years', 'More than 5 years'],
+      required: true
+    },
+    {
+      section: 'Caregiving Information',
+      id: 'previousExperience',
+      question: 'Previous Experience as a Caregiver:',
+      type: 'radio',
+      options: ['Yes', 'No'],
+      required: true
+    },
+   
+    {
+      section: 'Caregiving Information',
+      id: 'supportSystem',
+      question: 'Support System Available (select all that apply):',
+      type: 'multiSelect',
+      options: ['Family Support', 'Friends', 'Community Support Groups', 'Religious/Spiritual Support', 'Professional Support Services', 'None'],
+      required: true
+    },
+    {
+      section: 'Health and Well-being',
+      id: 'physicalHealth',
+      question: 'Physical Health Conditions (select all that apply):',
+      type: 'multiSelect',
+      options: ['None', 'Diabetes', 'Hypertension', 'Heart Disease', 'Arthritis', 'Back Pain', 'Respiratory Issues', 'Other'],
+      allowOther: true,
+      required: true
+    },
+    {
+      section: 'Health and Well-being',
+      id: 'mentalHealth',
+      question: 'Mental Health Conditions (select all that apply):',
+      type: 'multiSelect',
+      options: ['None', 'Depression', 'Anxiety', 'Stress-related disorder', 'Sleep Issues', 'Other'],
+      allowOther: true,
+      required: true
+    },
+  
   ];
 
   const handleAnswer = (value) => {
@@ -519,6 +633,300 @@ const CaregiverForm = ({ formData, setFormData, onNext }) => {
     }
   };
 
+  const renderField = () => {
+    const question = questions[currentQuestion];
+    const currentValue = answers[question.id] || (question.type === 'multiSelect' ? [] : '');
+
+    switch (question.type) {
+      case 'multiSelect':
+        return (
+          <Grid container spacing={2}>
+            {question.options.map((option) => {
+              const isSelected = currentValue.includes(option);
+              const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
+              
+              return (
+                <Grid item xs={12} sm={6} key={option}>
+                  <Button
+                    fullWidth
+                    variant={isSelected ? "contained" : "outlined"}
+                    onClick={() => {
+                      let newValue;
+                      if (option === 'None') {
+                        newValue = isSelected ? [] : ['None'];
+                      } else {
+                        if (isNoneSelected) {
+                          newValue = [option];
+                        } else {
+                          newValue = isSelected
+                            ? currentValue.filter(val => val !== option)
+                            : [...currentValue, option];
+                        }
+                      }
+                      setAnswers({ ...answers, [question.id]: newValue });
+                    }}
+                    disabled={option !== 'None' && isNoneSelected}
+                    sx={{
+                      p: 2,
+                      textAlign: 'left',
+                      backgroundColor: isSelected ? 'primary.main' : 'transparent',
+                      color: isSelected ? 'white' : 'inherit',
+                      '&:hover': isSelected 
+                        ? { backgroundColor: 'primary.dark' }
+                        : { backgroundColor: 'primary.main', color: 'white' }
+                    }}
+                  >
+                    {option}
+                  </Button>
+                </Grid>
+              );
+            })}
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => handleAnswer(currentValue)}
+                disabled={!currentValue.length}
+                sx={{ mt: 2 }}
+              >
+                {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+              </Button>
+            </Grid>
+          </Grid>
+        );
+
+      case 'radio':
+        return (
+          <Grid container spacing={2}>
+            {question.options.map((option) => (
+              <Grid item xs={12} sm={6} key={option}>
+                <Button
+                  fullWidth
+                  variant={currentValue === option ? "contained" : "outlined"}
+                  onClick={() => handleAnswer(option)}
+                  sx={{
+                    p: 2,
+                    textAlign: 'left',
+                    backgroundColor: currentValue === option ? 'primary.main' : 'transparent',
+                    color: currentValue === option ? 'white' : 'inherit',
+                    '&:hover': { backgroundColor: 'primary.main', color: 'white' }
+                  }}
+                >
+                  {option}
+                </Button>
+              </Grid>
+            ))}
+            {question.allowOther && currentValue === 'Other' && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  placeholder="Please specify"
+                  value={answers[`${question.id}Other`] || ''}
+                  onChange={(e) => setAnswers({
+                    ...answers,
+                    [`${question.id}Other`]: e.target.value
+                  })}
+                  sx={{ mt: 2 }}
+                />
+              </Grid>
+            )}
+          </Grid>
+        );
+
+      case 'textarea':
+        return (
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            placeholder={question.placeholder}
+            value={currentValue}
+            onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) {
+                e.preventDefault();
+                handleAnswer(e.target.value.trim());
+              }
+            }}
+          />
+        );
+
+      default:
+        return (
+          <TextField
+            fullWidth
+            type={question.type}
+            placeholder={question.placeholder}
+            value={currentValue}
+            inputProps={{
+              min: question.min,
+              max: question.max,
+              pattern: question.pattern
+            }}
+            onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && e.target.value.trim()) {
+                e.preventDefault();
+                handleAnswer(e.target.value.trim());
+              }
+            }}
+          />
+        );
+    }
+  };
+
+  const renderQuestionField = () => {
+    const question = questions[currentQuestion];
+    const currentValue = answers[question.id] || (question.type === 'multiSelect' ? [] : '');
+
+    switch (question.type) {
+      case 'multiSelect':
+        return (
+          <Grid container spacing={2}>
+            {question.options.map((option) => {
+              const isSelected = currentValue.includes(option);
+              const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
+              
+              return (
+                <Grid item xs={12} sm={6} key={option}>
+                  <Button
+                    fullWidth
+                    variant={isSelected ? "contained" : "outlined"}
+                    onClick={() => {
+                      let newValue;
+                      if (option === 'None') {
+                        newValue = isSelected ? [] : ['None'];
+                      } else {
+                        if (isNoneSelected) {
+                          newValue = [option];
+                        } else {
+                          newValue = isSelected
+                            ? currentValue.filter(val => val !== option)
+                            : [...currentValue, option];
+                        }
+                      }
+                      setAnswers({ ...answers, [question.id]: newValue });
+                    }}
+                    disabled={option !== 'None' && isNoneSelected}
+                    sx={{
+                      p: 2,
+                      textAlign: 'left',
+                      backgroundColor: isSelected ? 'primary.main' : 'transparent',
+                      color: isSelected ? 'white' : 'inherit',
+                      '&:hover': isSelected 
+                        ? { backgroundColor: 'primary.dark' }
+                        : { backgroundColor: 'primary.main', color: 'white' }
+                    }}
+                  >
+                    {option}
+                  </Button>
+                </Grid>
+              );
+            })}
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => handleSubmitAnswer(currentValue)}
+                disabled={!currentValue.length}
+                sx={{ mt: 2 }}
+              >
+                {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+              </Button>
+            </Grid>
+          </Grid>
+        );
+
+      case 'radio':
+        return (
+          <Grid container spacing={2}>
+            {question.options.map((option) => (
+              <Grid item xs={12} sm={6} key={option}>
+                <Button
+                  fullWidth
+                  variant={currentValue === option ? "contained" : "outlined"}
+                  onClick={() => handleSubmitAnswer(option)}
+                  sx={{
+                    p: 2,
+                    textAlign: 'left',
+                    backgroundColor: currentValue === option ? 'primary.main' : 'transparent',
+                    color: currentValue === option ? 'white' : 'inherit',
+                    '&:hover': { backgroundColor: 'primary.main', color: 'white' }
+                  }}
+                >
+                  {option}
+                </Button>
+              </Grid>
+            ))}
+            {question.allowOther && currentValue === 'Other' && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  placeholder="Please specify"
+                  value={answers[`${question.id}Other`] || ''}
+                  onChange={(e) => setAnswers({
+                    ...answers,
+                    [`${question.id}Other`]: e.target.value
+                  })}
+                  sx={{ mt: 2 }}
+                />
+              </Grid>
+            )}
+          </Grid>
+        );
+
+      case 'textarea':
+        return (
+          <>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              placeholder={question.placeholder}
+              value={currentValue}
+              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+            />
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => handleSubmitAnswer(currentValue)}
+              disabled={!currentValue.trim()}
+              sx={{ mt: 2 }}
+            >
+              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+            </Button>
+          </>
+        );
+
+      default:
+        return (
+          <>
+            <TextField
+              fullWidth
+              type={question.type}
+              placeholder={question.placeholder}
+              value={currentValue}
+              inputProps={{
+                min: question.min,
+                max: question.max,
+                pattern: question.pattern
+              }}
+              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+            />
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => handleSubmitAnswer(currentValue)}
+              disabled={!currentValue.trim()}
+              sx={{ mt: 2 }}
+            >
+              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+            </Button>
+          </>
+        );
+    }
+  };
+
   return (
     <motion.div
       key={currentQuestion}
@@ -534,60 +942,7 @@ const CaregiverForm = ({ formData, setFormData, onNext }) => {
         <Typography variant="h6" sx={{ mb: 4 }}>
           {questions[currentQuestion].question}
         </Typography>
-
-        {questions[currentQuestion].type === 'select' ? (
-          <Grid container spacing={2}>
-            {questions[currentQuestion].options.map((option) => (
-              <Grid item xs={12} sm={6} key={option}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={() => handleAnswer(option)}
-                  sx={{
-                    p: 2,
-                    textAlign: 'left',
-                    '&:hover': { backgroundColor: 'primary.main', color: 'white' }
-                  }}
-                >
-                  {option}
-                </Button>
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          <Box>
-            <input
-              type={questions[currentQuestion].type}
-              placeholder="Enter your answer..."
-              style={{
-                width: '100%',
-                padding: '16px',
-                fontSize: '16px',
-                border: '2px solid #e0e0e0',
-                borderRadius: '8px',
-                marginBottom: '16px'
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                  handleAnswer(e.target.value.trim());
-                }
-              }}
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              endIcon={<FaArrowRight />}
-              onClick={() => {
-                const input = document.querySelector('input');
-                if (input.value.trim()) {
-                  handleAnswer(input.value.trim());
-                }
-              }}
-            >
-              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
-            </Button>
-          </Box>
-        )}
+        {renderQuestionField()}
       </Card>
     </motion.div>
   );
@@ -698,59 +1053,147 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
           {questions[currentQuestion].question}
         </Typography>
 
-        {questions[currentQuestion].type === 'select' ? (
-          <Grid container spacing={2}>
-            {questions[currentQuestion].options.map((option) => (
-              <Grid item xs={12} sm={6} key={option}>
-                <Button
+        {(() => {
+          const question = questions[currentQuestion];
+          const currentValue = answers[question.id] || (question.type === 'multiSelect' ? [] : '');
+
+          switch (question.type) {
+            case 'multiSelect':
+              return (
+                <Grid container spacing={2}>
+                  {question.options.map((option) => {
+                    const isSelected = currentValue.includes(option);
+                    const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
+                    
+                    return (
+                      <Grid item xs={12} sm={6} key={option}>
+                        <Button
+                          fullWidth
+                          variant={isSelected ? "contained" : "outlined"}
+                          onClick={() => {
+                            let newValue;
+                            if (option === 'None') {
+                              newValue = isSelected ? [] : ['None'];
+                            } else {
+                              if (isNoneSelected) {
+                                newValue = [option];
+                              } else {
+                                newValue = isSelected
+                                  ? currentValue.filter(val => val !== option)
+                                  : [...currentValue, option];
+                              }
+                            }
+                            setAnswers({ ...answers, [question.id]: newValue });
+                          }}
+                          disabled={option !== 'None' && isNoneSelected}
+                          sx={{
+                            p: 2,
+                            textAlign: 'left',
+                            backgroundColor: isSelected ? 'primary.main' : 'transparent',
+                            color: isSelected ? 'white' : 'inherit',
+                            '&:hover': isSelected 
+                              ? { backgroundColor: 'primary.dark' }
+                              : { backgroundColor: 'primary.main', color: 'white' }
+                          }}
+                        >
+                          {option}
+                        </Button>
+                      </Grid>
+                    );
+                  })}
+                  <Grid item xs={12}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={() => handleAnswer(currentValue)}
+                      disabled={!currentValue.length}
+                      sx={{ mt: 2 }}
+                    >
+                      {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                    </Button>
+                  </Grid>
+                </Grid>
+              );
+
+            case 'radio':
+              return (
+                <Grid container spacing={2}>
+                  {question.options.map((option) => (
+                    <Grid item xs={12} sm={6} key={option}>
+                      <Button
+                        fullWidth
+                        variant={currentValue === option ? "contained" : "outlined"}
+                        onClick={() => handleAnswer(option)}
+                        sx={{
+                          p: 2,
+                          textAlign: 'left',
+                          backgroundColor: currentValue === option ? 'primary.main' : 'transparent',
+                          color: currentValue === option ? 'white' : 'inherit',
+                          '&:hover': { backgroundColor: 'primary.main', color: 'white' }
+                        }}
+                      >
+                        {option}
+                      </Button>
+                    </Grid>
+                  ))}
+                  {question.allowOther && currentValue === 'Other' && (
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        placeholder="Please specify"
+                        value={answers[`${question.id}Other`] || ''}
+                        onChange={(e) => setAnswers({
+                          ...answers,
+                          [`${question.id}Other`]: e.target.value
+                        })}
+                        sx={{ mt: 2 }}
+                      />
+                    </Grid>
+                  )}
+                </Grid>
+              );
+
+            case 'textarea':
+              return (
+                <TextField
                   fullWidth
-                  variant="outlined"
-                  onClick={() => handleAnswer(option)}
-                  sx={{
-                    p: 2,
-                    textAlign: 'left',
-                    '&:hover': { backgroundColor: 'primary.main', color: 'white' }
+                  multiline
+                  rows={4}
+                  placeholder={question.placeholder}
+                  value={currentValue}
+                  onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) {
+                      e.preventDefault();
+                      handleAnswer(e.target.value.trim());
+                    }
                   }}
-                >
-                  {option}
-                </Button>
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          <Box>
-            <input
-              type={questions[currentQuestion].type}
-              placeholder="Enter your answer..."
-              style={{
-                width: '100%',
-                padding: '16px',
-                fontSize: '16px',
-                border: '2px solid #e0e0e0',
-                borderRadius: '8px',
-                marginBottom: '16px'
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                  handleAnswer(e.target.value.trim());
-                }
-              }}
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              endIcon={<FaArrowRight />}
-              onClick={() => {
-                const input = document.querySelector('input');
-                if (input.value.trim()) {
-                  handleAnswer(input.value.trim());
-                }
-              }}
-            >
-              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
-            </Button>
-          </Box>
-        )}
+                />
+              );
+
+            default:
+              return (
+                <TextField
+                  fullWidth
+                  type={question.type}
+                  placeholder={question.placeholder}
+                  value={currentValue}
+                  inputProps={{
+                    min: question.min,
+                    max: question.max,
+                    pattern: question.pattern
+                  }}
+                  onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      e.preventDefault();
+                      handleAnswer(e.target.value.trim());
+                    }
+                  }}
+                />
+              );
+          }
+        })()}
       </Card>
     </motion.div>
   );
