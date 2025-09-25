@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -30,7 +30,20 @@ export default function UserLogin() {
   const [credentials, setCredentials] = useState({ userId: '', userType: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
   const router = useRouter();
+
+  // Handle URL parameters for auto-filling form
+  useEffect(() => {
+    if (router.isReady) {
+      const { userId, userType, auto } = router.query;
+      
+      if (userId && userType && auto === 'true') {
+        setCredentials({ userId, userType });
+        setIsAutoFilled(true);
+      }
+    }
+  }, [router.isReady, router.query]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -150,6 +163,18 @@ export default function UserLogin() {
                 </motion.div>
               )}
 
+              {isAutoFilled && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <Alert severity="success" sx={{ mb: 3 }}>
+                    Welcome! Your registration was successful. Your login details have been pre-filled.
+                  </Alert>
+                </motion.div>
+              )}
+
               <form onSubmit={handleSubmit}>
                 <Box sx={{ mb: 3 }}>
                   <FormControl fullWidth>
@@ -159,6 +184,14 @@ export default function UserLogin() {
                       onChange={(e) => setCredentials({ ...credentials, userType: e.target.value })}
                       label="I am a"
                       required
+                      sx={isAutoFilled ? {
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                          '& fieldset': {
+                            borderColor: '#2563eb',
+                          }
+                        }
+                      } : {}}
                     >
                       <MenuItem value="caregiver">
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -187,8 +220,9 @@ export default function UserLogin() {
                     required
                     sx={{
                       '& .MuiOutlinedInput-root': {
+                        backgroundColor: isAutoFilled ? 'rgba(37, 99, 235, 0.05)' : 'transparent',
                         '& fieldset': {
-                          borderColor: 'rgba(0, 0, 0, 0.23)',
+                          borderColor: isAutoFilled ? '#2563eb' : 'rgba(0, 0, 0, 0.23)',
                         },
                         '&:hover fieldset': {
                           borderColor: '#2563eb',
