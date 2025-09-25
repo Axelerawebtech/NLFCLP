@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   TextField,
@@ -349,7 +349,35 @@ export default function Onboarding() {
   );
 };
 
-const CompletionStep = () => (
+const CompletionStep = ({ formData }) => {
+  const router = useRouter();
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    // Only start countdown if we have the required data
+    if (formData?.generatedId && formData?.userType) {
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            // Redirect to login with pre-filled data
+            router.push(`/login?userId=${formData.generatedId}&userType=${formData.userType}&auto=true`);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [formData?.generatedId, formData?.userType, router]);
+
+  const handleLoginNow = () => {
+    if (formData?.generatedId && formData?.userType) {
+      router.push(`/login?userId=${formData.generatedId}&userType=${formData.userType}&auto=true`);
+    }
+  };
+
+  return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -361,22 +389,66 @@ const CompletionStep = () => (
           Registration Complete!
         </Typography>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
-          Your account has been created successfully. Please wait for admin approval to access your dashboard.
+          Your account has been created successfully. You will be automatically redirected to login.
         </Typography>
-        <Typography variant="body1" sx={{ mb: 4, p: 3, backgroundColor: 'action.hover', borderRadius: 2 }}>
-          <strong>Your ID:</strong> {formData.generatedId}
-        </Typography>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={() => router.push('/')}
-          sx={{ px: 4, py: 2 }}
-        >
-          Back to Home
-        </Button>
+        {formData?.generatedId ? (
+          <>
+            <Typography variant="body1" sx={{ mb: 2, p: 3, backgroundColor: 'action.hover', borderRadius: 2 }}>
+              <strong>Your ID:</strong> {formData.generatedId}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+              Please save this ID for future logins
+            </Typography>
+            
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Redirecting to login in {countdown} seconds...
+              </Typography>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleLoginNow}
+                sx={{ px: 4, py: 2, mr: 2 }}
+              >
+                Login Now
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => router.push('/')}
+                sx={{ px: 4, py: 2 }}
+              >
+                Back to Home
+              </Button>
+            </Box>
+          </>
+        ) : (
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+              Registration completed successfully!
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => router.push('/login')}
+              sx={{ px: 4, py: 2, mr: 2 }}
+            >
+              Go to Login
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => router.push('/')}
+              sx={{ px: 4, py: 2 }}
+            >
+              Back to Home
+            </Button>
+          </Box>
+        )}
       </Box>
     </motion.div>
   );
+};
 
   return (
     <Box sx={{
@@ -617,6 +689,12 @@ function CaregiverForm({ formData, setFormData, onNext }) {
       // Submit to API
       submitRegistration({ ...newAnswers, userType: 'caregiver', caregiverId: generatedId });
       onNext();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
     }
   };
 
@@ -983,6 +1061,20 @@ function CaregiverForm({ formData, setFormData, onNext }) {
           {questions[currentQuestion].question}
         </Typography>
         {renderQuestionField()}
+        
+        {/* Back Button */}
+        {currentQuestion > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3 }}>
+            <Button
+              startIcon={<FaArrowLeft />}
+              onClick={handlePrevious}
+              variant="outlined"
+              sx={{ mr: 2 }}
+            >
+              Previous Question
+            </Button>
+          </Box>
+        )}
       </Card>
     </motion.div>
   );
@@ -1127,6 +1219,12 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
       // Submit to API
       submitRegistration({ ...newAnswers, userType: 'patient', patientId: generatedId });
       onNext();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
     }
   };
 
@@ -1361,6 +1459,20 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
               );
           }
         })()}
+        
+        {/* Back Button */}
+        {currentQuestion > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3 }}>
+            <Button
+              startIcon={<FaArrowLeft />}
+              onClick={handlePrevious}
+              variant="outlined"
+              sx={{ mr: 2 }}
+            >
+              Previous Question
+            </Button>
+          </Box>
+        )}
       </Card>
     </motion.div>
   );
