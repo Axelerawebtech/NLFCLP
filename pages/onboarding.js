@@ -681,12 +681,46 @@ function CaregiverForm({ formData, setFormData, onNext }) {
                 </Grid>
               );
             })}
+            {question.allowOther && currentValue.includes('Other') && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  placeholder="Please specify other condition"
+                  value={answers[`${question.id}Other`] || ''}
+                  onChange={(e) => setAnswers({
+                    ...answers,
+                    [`${question.id}Other`]: e.target.value
+                  })}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      e.preventDefault();
+                      // Replace "Other" with the custom text in the current value
+                      let finalValue = currentValue.map(val => 
+                        val === 'Other' ? e.target.value.trim() : val
+                      );
+                      handleAnswer(finalValue);
+                    }
+                  }}
+                  sx={{ mt: 2 }}
+                  label="Please specify"
+                />
+              </Grid>
+            )}
             <Grid item xs={12}>
               <Button
                 fullWidth
                 variant="contained"
-                onClick={() => handleAnswer(currentValue)}
-                disabled={!currentValue.length}
+                onClick={() => {
+                  let finalValue = currentValue;
+                  // If "Other" is selected and there's text in the other field, replace "Other" with the custom text
+                  if (question.allowOther && currentValue.includes('Other') && answers[`${question.id}Other`]) {
+                    finalValue = currentValue.map(val => 
+                      val === 'Other' ? answers[`${question.id}Other`] : val
+                    );
+                  }
+                  handleAnswer(finalValue);
+                }}
+                disabled={!currentValue.length || (question.allowOther && currentValue.includes('Other') && !answers[`${question.id}Other`])}
                 sx={{ mt: 2 }}
               >
                 {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
@@ -726,6 +760,12 @@ function CaregiverForm({ formData, setFormData, onNext }) {
                     ...answers,
                     [`${question.id}Other`]: e.target.value
                   })}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      e.preventDefault();
+                      handleAnswer(e.target.value.trim());
+                    }
+                  }}
                   sx={{ mt: 2 }}
                 />
               </Grid>
@@ -954,55 +994,121 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
   const [answers, setAnswers] = useState({});
 
   const questions = [
+    // Basic Information
     {
       id: 'name',
       question: 'What is your full name?',
       type: 'text',
-      required: true
-    },
-    {
-      id: 'email',
-      question: 'What is your email address?',
-      type: 'email',
+      section: 'Basic Information',
       required: true
     },
     {
       id: 'phone',
       question: 'What is your phone number?',
       type: 'tel',
+      section: 'Basic Information',
       required: true
     },
+
+    // Section I: Demographic Questions
     {
       id: 'age',
-      question: 'What is your age?',
-      type: 'number',
+      question: '1. Age (in years):',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['18-30', '31-40', '41-50', '51-60', '61 and above'],
       required: true
     },
+    {
+      id: 'gender',
+      question: '2. Gender:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['Male', 'Female', 'Other'],
+      required: true
+    },
+    {
+      id: 'maritalStatus',
+      question: '3. Marital Status:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['Single', 'Married', 'Widowed', 'Divorced', 'Separated'],
+      required: true
+    },
+    {
+      id: 'educationLevel',
+      question: '4. Educational Level:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['No formal education', 'Primary education', 'Secondary education', 'Higher secondary', 'Undergraduate degree', 'Postgraduate degree'],
+      required: true
+    },
+    {
+      id: 'employmentStatus',
+      question: '5. Employment Status:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['Employed (Full-time/Part-time)', 'Unemployed', 'Retired', 'Homemaker', 'Student'],
+      required: true
+    },
+    {
+      id: 'residentialArea',
+      question: '6. Residential Area:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['Urban', 'Rural'],
+      required: true
+    },
+
+    // Section II: Medical Information
     {
       id: 'cancerType',
-      question: 'What type of cancer have you been diagnosed with?',
-      type: 'select',
-      options: ['Breast Cancer', 'Lung Cancer', 'Prostate Cancer', 'Colorectal Cancer', 'Other'],
+      question: '7. Type of Cancer:',
+      type: 'text',
+      section: 'Medical Information',
+      placeholder: 'Please specify your cancer type',
       required: true
     },
     {
-      id: 'stage',
-      question: 'What stage is your cancer?',
-      type: 'select',
-      options: ['Stage I', 'Stage II', 'Stage III', 'Stage IV', 'Unknown'],
+      id: 'cancerStage',
+      question: '8. Stage of Cancer:',
+      type: 'radio',
+      section: 'Medical Information',
+      options: ['Stage I', 'Stage II', 'Stage III', 'Stage IV'],
       required: true
     },
     {
-      id: 'treatmentStatus',
-      question: 'What is your current treatment status?',
-      type: 'select',
-      options: ['Newly Diagnosed', 'Currently in Treatment', 'Post Treatment', 'Remission'],
+      id: 'treatmentModality',
+      question: '9. Current Treatment Modality (check all that apply):',
+      type: 'multiSelect',
+      section: 'Medical Information',
+      options: ['Chemotherapy', 'Radiation Therapy', 'Surgery', 'Immunotherapy', 'Hormone Therapy', 'Other'],
+      allowOther: true,
       required: true
     },
     {
-      id: 'diagnosisDate',
-      question: 'When were you diagnosed? (Approximate date)',
-      type: 'date',
+      id: 'illnessDuration',
+      question: '10. Duration of Illness (since diagnosis):',
+      type: 'radio',
+      section: 'Medical Information',
+      options: ['Less than 6 months', '6-12 months', '1-2 years', 'More than 2 years'],
+      required: true
+    },
+    {
+      id: 'comorbidities',
+      question: '11. Other Comorbidities (check all that apply):',
+      type: 'multiSelect',
+      section: 'Medical Information',
+      options: ['Diabetes', 'Hypertension', 'Cardiovascular disease', 'Respiratory Disorders', 'None', 'Other'],
+      allowOther: true,
+      required: true
+    },
+    {
+      id: 'healthInsurance',
+      question: '12. Health Insurance Coverage:',
+      type: 'radio',
+      section: 'Medical Information',
+      options: ['Yes - Government', 'Yes - Private', 'No'],
       required: true
     }
   ];
@@ -1049,6 +1155,11 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
         <Typography variant="h5" sx={{ mb: 3, textAlign: 'center' }}>
           Question {currentQuestion + 1} of {questions.length}
         </Typography>
+        {questions[currentQuestion].section && (
+          <Typography variant="subtitle1" sx={{ mb: 2, color: 'primary.main', textAlign: 'center', fontWeight: 600 }}>
+            {questions[currentQuestion].section}
+          </Typography>
+        )}
         <Typography variant="h6" sx={{ mb: 4 }}>
           {questions[currentQuestion].question}
         </Typography>
@@ -1101,12 +1212,46 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
                       </Grid>
                     );
                   })}
+                  {question.allowOther && currentValue.includes('Other') && (
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        placeholder="Please specify other treatment/condition"
+                        value={answers[`${question.id}Other`] || ''}
+                        onChange={(e) => setAnswers({
+                          ...answers,
+                          [`${question.id}Other`]: e.target.value
+                        })}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            e.preventDefault();
+                            // Replace "Other" with the custom text in the current value
+                            let finalValue = currentValue.map(val => 
+                              val === 'Other' ? e.target.value.trim() : val
+                            );
+                            handleAnswer(finalValue);
+                          }
+                        }}
+                        sx={{ mt: 2 }}
+                        label="Please specify"
+                      />
+                    </Grid>
+                  )}
                   <Grid item xs={12}>
                     <Button
                       fullWidth
                       variant="contained"
-                      onClick={() => handleAnswer(currentValue)}
-                      disabled={!currentValue.length}
+                      onClick={() => {
+                        let finalValue = currentValue;
+                        // If "Other" is selected and there's text in the other field, replace "Other" with the custom text
+                        if (question.allowOther && currentValue.includes('Other') && answers[`${question.id}Other`]) {
+                          finalValue = currentValue.map(val => 
+                            val === 'Other' ? answers[`${question.id}Other`] : val
+                          );
+                        }
+                        handleAnswer(finalValue);
+                      }}
+                      disabled={!currentValue.length || (currentValue.includes('Other') && question.allowOther && !answers[`${question.id}Other`])}
                       sx={{ mt: 2 }}
                     >
                       {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
@@ -1123,7 +1268,13 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
                       <Button
                         fullWidth
                         variant={currentValue === option ? "contained" : "outlined"}
-                        onClick={() => handleAnswer(option)}
+                        onClick={() => {
+                          if (option === 'Other' && question.allowOther) {
+                            setAnswers({ ...answers, [question.id]: option });
+                          } else {
+                            handleAnswer(option);
+                          }
+                        }}
                         sx={{
                           p: 2,
                           textAlign: 'left',
@@ -1146,8 +1297,24 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
                           ...answers,
                           [`${question.id}Other`]: e.target.value
                         })}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            e.preventDefault();
+                            handleAnswer(e.target.value.trim());
+                          }
+                        }}
                         sx={{ mt: 2 }}
+                        label="Please specify"
                       />
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={() => handleAnswer(answers[`${question.id}Other`] || 'Other')}
+                        disabled={!answers[`${question.id}Other`]}
+                        sx={{ mt: 2 }}
+                      >
+                        {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                      </Button>
                     </Grid>
                   )}
                 </Grid>
