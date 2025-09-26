@@ -10,32 +10,56 @@ const PatientSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  email: {
-    type: String,
-    required: true,
-  },
   phone: {
     type: String,
     required: true,
   },
   age: {
-    type: Number,
+    type: String,
+    required: true,
+  },
+  gender: {
+    type: String,
+    required: true,
+  },
+  maritalStatus: {
+    type: String,
+    required: true,
+  },
+  educationLevel: {
+    type: String,
+    required: true,
+  },
+  employmentStatus: {
+    type: String,
+    required: true,
+  },
+  residentialArea: {
+    type: String,
     required: true,
   },
   cancerType: {
     type: String,
     required: true,
   },
-  stage: {
+  cancerStage: {
     type: String,
     required: true,
   },
-  treatmentStatus: {
+  treatmentModality: {
+    type: [String],
+    required: true,
+  },
+  illnessDuration: {
     type: String,
     required: true,
   },
-  diagnosisDate: {
-    type: Date,
+  comorbidities: {
+    type: [String],
+    required: true,
+  },
+  healthInsurance: {
+    type: String,
     required: true,
   },
   isAssigned: {
@@ -46,6 +70,20 @@ const PatientSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Caregiver',
     default: null,
+  },
+  // Consent Form Status
+  consentAccepted: {
+    type: Boolean,
+    default: true, // Since they complete registration, consent is accepted
+  },
+  consentAcceptedAt: {
+    type: Date,
+    default: Date.now,
+  },
+  // Questionnaire Answers
+  questionnaireAnswers: {
+    type: Object,
+    default: {},
   },
   postTestAvailable: {
     type: Boolean,

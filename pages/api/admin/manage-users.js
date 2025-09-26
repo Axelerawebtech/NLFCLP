@@ -3,12 +3,19 @@ import Caregiver from '../../../models/Caregiver';
 import Patient from '../../../models/Patient';
 
 export default async function handler(req, res) {
+  console.log('Admin API: Connecting to database...');
   await dbConnect();
+  console.log('Admin API: Database connected');
 
   if (req.method === 'GET') {
     try {
+      console.log('Admin API: Fetching users...');
+      
       const caregivers = await Caregiver.find({}).populate('assignedPatient');
       const patients = await Patient.find({}).populate('assignedCaregiver');
+
+      console.log('Admin API - Found caregivers:', caregivers.length);
+      console.log('Admin API - Found patients:', patients.length);
 
       res.status(200).json({
         success: true,
@@ -19,6 +26,8 @@ export default async function handler(req, res) {
           totalPatients: patients.length,
           assignedCaregivers: caregivers.filter(c => c.isAssigned).length,
           assignedPatients: patients.filter(p => p.isAssigned).length,
+          consentedCaregivers: caregivers.filter(c => c.consentAccepted).length,
+          consentedPatients: patients.filter(p => p.consentAccepted).length,
         }
       });
     } catch (error) {

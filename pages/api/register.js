@@ -9,23 +9,46 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Attempting to connect to database...');
     await dbConnect();
+    console.log('Database connection successful');
 
-    const { userType, ...userData } = req.body;
+    console.log('Registration API received:', req.body);
+    const { userType, consentAccepted, questionnaireAnswers, ...userData } = req.body;
 
     if (userType === 'caregiver') {
-      const caregiver = new Caregiver({
+      console.log('Creating caregiver with data:', userData);
+      
+      const caregiverData = {
         ...userData,
         caregiverId: userData.caregiverId || generateUniqueId('CG'),
         isAssigned: false,
+        consentAccepted: consentAccepted || false,
+        consentAcceptedAt: consentAccepted ? new Date() : null,
+        questionnaireAnswers: questionnaireAnswers || {},
         programProgress: {
           currentDay: 1,
           completedDays: [],
           isCompleted: false,
         },
-      });
-
-      await caregiver.save();
+      };
+      
+      console.log('Final caregiver data before save:', caregiverData);
+      const caregiver = new Caregiver(caregiverData);
+      
+      // Validate the caregiver data before saving
+      try {
+        await caregiver.validate();
+        console.log('Caregiver validation successful');
+      } catch (validationError) {
+        console.error('Caregiver validation failed:', validationError.message);
+        console.error('Validation errors:', validationError.errors);
+        throw validationError;
+      }
+      
+      console.log('Attempting to save caregiver...');
+      const savedCaregiver = await caregiver.save();
+      console.log('Caregiver saved successfully:', savedCaregiver._id, savedCaregiver.caregiverId);
 
       res.status(201).json({
         success: true,
@@ -35,17 +58,35 @@ export default async function handler(req, res) {
       });
 
     } else if (userType === 'patient') {
-      const patient = new Patient({
+      console.log('Creating patient with data:', userData);
+      
+      const patientData = {
         ...userData,
         patientId: userData.patientId || generateUniqueId('PT'),
-        age: parseInt(userData.age),
-        diagnosisDate: new Date(userData.diagnosisDate),
         isAssigned: false,
+        consentAccepted: consentAccepted || false,
+        consentAcceptedAt: consentAccepted ? new Date() : null,
+        questionnaireAnswers: questionnaireAnswers || {},
         postTestAvailable: false,
         postTestCompleted: false,
-      });
-
-      await patient.save();
+      };
+      
+      console.log('Final patient data before save:', patientData);
+      const patient = new Patient(patientData);
+      
+      // Validate the patient data before saving
+      try {
+        await patient.validate();
+        console.log('Patient validation successful');
+      } catch (validationError) {
+        console.error('Patient validation failed:', validationError.message);
+        console.error('Validation errors:', validationError.errors);
+        throw validationError;
+      }
+      
+      console.log('Attempting to save patient...');
+      const savedPatient = await patient.save();
+      console.log('Patient saved successfully:', savedPatient._id, savedPatient.patientId);
 
       res.status(201).json({
         success: true,
@@ -60,9 +101,11 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Registration error:', error);
+    console.error('Error details:', error.stack);
     res.status(500).json({
       message: 'Registration failed',
-      error: error.message
+      error: error.message,
+      details: error.stack
     });
   }
 }

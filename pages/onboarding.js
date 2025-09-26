@@ -38,6 +38,7 @@ export default function Onboarding() {
   const [activeStep, setActiveStep] = useState(0);
   const [userType, setUserType] = useState('');
   const [formData, setFormData] = useState({});
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const router = useRouter();
 
   const handleUserTypeSelection = (type) => {
@@ -487,36 +488,38 @@ const CompletionStep = ({ formData }) => {
             <ConsentForm 
               userType={userType} 
               formData={formData}
-              onAccept={() => setActiveStep(2)} 
+              onAccept={() => {
+                setConsentAccepted(true);
+                setActiveStep(2);
+              }} 
             />
           )}
           {activeStep === 2 && (
             userType === 'caregiver' ? 
-              <CaregiverForm formData={formData} setFormData={setFormData} onNext={() => setActiveStep(3)} /> :
-              <PatientForm formData={formData} setFormData={setFormData} onNext={() => setActiveStep(3)} />
+              <CaregiverForm 
+                formData={formData} 
+                setFormData={setFormData} 
+                onNext={() => setActiveStep(3)} 
+                onBack={() => setActiveStep(1)}
+              /> :
+              <PatientForm 
+                formData={formData} 
+                setFormData={setFormData} 
+                onNext={() => setActiveStep(3)} 
+                onBack={() => setActiveStep(1)}
+              />
           )}
           {activeStep === 3 && <CompletionStep formData={formData} />}
         </AnimatePresence>
 
-        {/* Navigation */}
-        {activeStep > 0 && activeStep < 3 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <Button
-              startIcon={<FaArrowLeft />}
-              onClick={handleBack}
-              sx={{ mr: 2 }}
-            >
-              Back
-            </Button>
-          </Box>
-        )}
+
       </Container>
     </Box>
   );
 }
 
 // Caregiver Form Component
-function CaregiverForm({ formData, setFormData, onNext }) {
+function CaregiverForm({ formData, setFormData, onNext, onBack }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
 
@@ -687,7 +690,13 @@ function CaregiverForm({ formData, setFormData, onNext }) {
       setFormData({ ...newAnswers, userType: 'caregiver', generatedId });
 
       // Submit to API
-      submitRegistration({ ...newAnswers, userType: 'caregiver', caregiverId: generatedId });
+      submitRegistration({ 
+        ...newAnswers, 
+        userType: 'caregiver', 
+        caregiverId: generatedId,
+        consentAccepted: consentAccepted,
+        questionnaireAnswers: newAnswers
+      });
       onNext();
     }
   };
@@ -695,19 +704,32 @@ function CaregiverForm({ formData, setFormData, onNext }) {
   const handlePrevious = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
+    } else {
+      // If on first question, go back to consent form
+      onBack();
     }
   };
 
   const submitRegistration = async (data) => {
     try {
+      console.log('Submitting caregiver registration data:', data);
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!response.ok) throw new Error('Registration failed');
+      
+      const result = await response.json();
+      console.log('Caregiver registration response:', result);
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Registration failed');
+      }
+      
+      console.log('Caregiver registration successful:', result);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Caregiver registration error:', error);
+      alert('Registration failed: ' + error.message);
     }
   };
 
@@ -1061,27 +1083,25 @@ function CaregiverForm({ formData, setFormData, onNext }) {
           {questions[currentQuestion].question}
         </Typography>
         {renderQuestionField()}
-        
-        {/* Back Button */}
-        {currentQuestion > 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3 }}>
-            <Button
-              startIcon={<FaArrowLeft />}
-              onClick={handlePrevious}
-              variant="outlined"
-              sx={{ mr: 2 }}
-            >
-              Previous Question
-            </Button>
-          </Box>
-        )}
       </Card>
+      
+      {/* Back Button - Outside the card */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3, maxWidth: 600, mx: 'auto' }}>
+        <Button
+          startIcon={<FaArrowLeft />}
+          onClick={handlePrevious}
+          variant="outlined"
+          sx={{ mr: 2 }}
+        >
+          {currentQuestion === 0 ? 'Back to Consent Form' : 'Previous Question'}
+        </Button>
+      </Box>
     </motion.div>
   );
 };
 
 // Patient Form Component
-const PatientForm = ({ formData, setFormData, onNext }) => {
+const PatientForm = ({ formData, setFormData, onNext, onBack }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
 
@@ -1217,7 +1237,13 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
       setFormData({ ...newAnswers, userType: 'patient', generatedId });
 
       // Submit to API
-      submitRegistration({ ...newAnswers, userType: 'patient', patientId: generatedId });
+      submitRegistration({ 
+        ...newAnswers, 
+        userType: 'patient', 
+        patientId: generatedId,
+        consentAccepted: consentAccepted,
+        questionnaireAnswers: newAnswers
+      });
       onNext();
     }
   };
@@ -1225,19 +1251,32 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
   const handlePrevious = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
+    } else {
+      // If on first question, go back to consent form
+      onBack();
     }
   };
 
   const submitRegistration = async (data) => {
     try {
+      console.log('Submitting patient registration data:', data);
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!response.ok) throw new Error('Registration failed');
+      
+      const result = await response.json();
+      console.log('Patient registration response:', result);
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Registration failed');
+      }
+      
+      console.log('Patient registration successful:', result);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Patient registration error:', error);
+      alert('Registration failed: ' + error.message);
     }
   };
 
@@ -1459,21 +1498,19 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
               );
           }
         })()}
-        
-        {/* Back Button */}
-        {currentQuestion > 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3 }}>
-            <Button
-              startIcon={<FaArrowLeft />}
-              onClick={handlePrevious}
-              variant="outlined"
-              sx={{ mr: 2 }}
-            >
-              Previous Question
-            </Button>
-          </Box>
-        )}
       </Card>
+      
+      {/* Back Button - Outside the card */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3, maxWidth: 600, mx: 'auto' }}>
+        <Button
+          startIcon={<FaArrowLeft />}
+          onClick={handlePrevious}
+          variant="outlined"
+          sx={{ mr: 2 }}
+        >
+          {currentQuestion === 0 ? 'Back to Consent Form' : 'Previous Question'}
+        </Button>
+      </Box>
     </motion.div>
   );
 };
