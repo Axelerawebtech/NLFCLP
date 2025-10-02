@@ -501,12 +501,14 @@ const CompletionStep = ({ formData }) => {
                 setFormData={setFormData} 
                 onNext={() => setActiveStep(3)} 
                 onBack={() => setActiveStep(1)}
+                consentAccepted={consentAccepted}
               /> :
               <PatientForm 
                 formData={formData} 
                 setFormData={setFormData} 
                 onNext={() => setActiveStep(3)} 
                 onBack={() => setActiveStep(1)}
+                consentAccepted={consentAccepted}
               />
           )}
           {activeStep === 3 && <CompletionStep formData={formData} />}
@@ -519,7 +521,7 @@ const CompletionStep = ({ formData }) => {
 }
 
 // Caregiver Form Component
-function CaregiverForm({ formData, setFormData, onNext, onBack }) {
+function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
 
@@ -532,12 +534,26 @@ function CaregiverForm({ formData, setFormData, onNext, onBack }) {
       finalValue = answers[`${currentQ.id}Other`] || 'Other';
     }
 
+    // Merge current answer into state
+    const mergedAnswers = { ...answers, [currentQ.id]: finalValue };
+
     if (currentQuestion < questions.length - 1) {
+      setAnswers(mergedAnswers);
       setCurrentQuestion(currentQuestion + 1);
     } else {
       // Generate ID and complete registration
       const generatedId = `CG${Date.now().toString(36).toUpperCase()}`;
-      setFormData({ ...answers, [currentQ.id]: finalValue, userType: 'caregiver', generatedId });
+      setFormData({ ...mergedAnswers, userType: 'caregiver', generatedId });
+
+      // Submit to API with full caregiver payload
+      submitRegistration({
+        ...mergedAnswers,
+        userType: 'caregiver',
+        caregiverId: generatedId,
+        consentAccepted: !!consentAccepted,
+        questionnaireAnswers: mergedAnswers
+      });
+
       onNext();
     }
   };
@@ -1101,7 +1117,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack }) {
 };
 
 // Patient Form Component
-const PatientForm = ({ formData, setFormData, onNext, onBack }) => {
+const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
 
@@ -1241,7 +1257,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack }) => {
         ...newAnswers, 
         userType: 'patient', 
         patientId: generatedId,
-        consentAccepted: consentAccepted,
+        consentAccepted: !!consentAccepted,
         questionnaireAnswers: newAnswers
       });
       onNext();
@@ -1459,47 +1475,57 @@ const PatientForm = ({ formData, setFormData, onNext, onBack }) => {
 
             case 'textarea':
               return (
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={4}
-                  placeholder={question.placeholder}
-                  value={currentValue}
-                  onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) {
-                      e.preventDefault();
-                      handleAnswer(e.target.value.trim());
-                    }
-                  }}
-                />
+                <>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    placeholder={question.placeholder}
+                    value={currentValue}
+                    onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                  />
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => handleAnswer((currentValue || '').trim())}
+                    disabled={!((currentValue || '').trim())}
+                    sx={{ mt: 2 }}
+                  >
+                    {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                  </Button>
+                </>
               );
 
             default:
               return (
-                <TextField
-                  fullWidth
-                  type={question.type}
-                  placeholder={question.placeholder}
-                  value={currentValue}
-                  inputProps={{
-                    min: question.min,
-                    max: question.max,
-                    pattern: question.pattern
-                  }}
-                  onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
-                      e.preventDefault();
-                      handleAnswer(e.target.value.trim());
-                    }
-                  }}
-                />
+                <>
+                  <TextField
+                    fullWidth
+                    type={question.type}
+                    placeholder={question.placeholder}
+                    value={currentValue}
+                    inputProps={{
+                      min: question.min,
+                      max: question.max,
+                      pattern: question.pattern
+                    }}
+                    onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                  />
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => handleAnswer((currentValue || '').trim())}
+                    disabled={!((currentValue || '').trim())}
+                    sx={{ mt: 2 }}
+                  >
+                    {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                  </Button>
+                </>
               );
           }
         })()}
       </Card>
-      
+
       {/* Back Button - Outside the card */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3, maxWidth: 600, mx: 'auto' }}>
         <Button

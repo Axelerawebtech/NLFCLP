@@ -49,11 +49,12 @@ export default async function handler(req, res) {
     let { caregiverId, action, adminId, adminName, reason, delayHours, forceUnlockDay } = req.body || {};
 
     // If adminId wasn't provided in the body, allow Bearer token in Authorization header as fallback
+    let decoded = null;
     if (!adminId) {
       const authHeader = req.headers?.authorization || req.headers?.Authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.split(' ')[1];
-        const decoded = verifyToken(token);
+        decoded = verifyToken(token);
         if (decoded && decoded.adminId) {
           adminId = decoded.adminId;
           adminName = adminName || decoded.username || adminName;
@@ -64,7 +65,7 @@ export default async function handler(req, res) {
     const missing = [];
     if (!caregiverId) missing.push('caregiverId');
     if (!action) missing.push('action');
-    if (!adminId) missing.push('adminId');
+    if (!adminId && !(decoded && decoded.id)) missing.push('adminId');
     if (missing.length > 0) {
       return res.status(400).json({
         success: false,
@@ -73,8 +74,17 @@ export default async function handler(req, res) {
       });
     }
 
-    // Verify admin exists
-    const admin = await Admin.findOne({ adminId });
+    // Verify admin exists (by adminId or by _id from token)
+    let admin = null;
+    if (adminId) {
+      admin = await Admin.findOne({ adminId });
+    }
+    if (!admin && decoded && decoded.id) {
+      admin = await Admin.findById(decoded.id);
+      if (admin && !adminId) {
+        adminId = admin.adminId || String(admin._id);
+      }
+    }
     if (!admin) {
       return res.status(403).json({ success: false, message: 'Invalid admin' });
     }

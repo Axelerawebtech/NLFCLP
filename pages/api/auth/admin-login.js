@@ -65,6 +65,7 @@ export default async function handler(req, res) {
     // Generate token
     const token = generateToken({
       id: admin._id,
+      adminId: admin.adminId,
       username: admin.username,
       role: 'admin'
     });
@@ -75,6 +76,7 @@ export default async function handler(req, res) {
       token,
       admin: {
         id: admin._id,
+        adminId: admin.adminId,
         username: admin.username,
         name: admin.name,
         email: admin.email
