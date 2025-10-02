@@ -54,6 +54,21 @@ const CaregiverSchema = new mongoose.Schema({
       default: false,
     },
   },
+  programControl: {
+    status: {
+      type: String,
+      enum: ['active', 'paused', 'terminated'],
+      default: 'active',
+    },
+    delayHours: {
+      type: Number,
+      default: 24,
+    },
+    pausedAt: { type: Date, default: null },
+    resumedAt: { type: Date, default: null },
+    terminatedAt: { type: Date, default: null },
+  },
+  programAssignedAt: { type: Date, default: null },
   createdAt: {
     type: Date,
     default: Date.now,

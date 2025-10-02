@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
   else if (req.method === 'POST') {
     try {
-      const { caregiverId, patientId } = req.body;
+      const { caregiverId, patientId, delayHours } = req.body;
 
       if (!caregiverId || !patientId) {
         return res.status(400).json({ message: 'Caregiver ID and Patient ID are required' });
@@ -48,6 +48,22 @@ export default async function handler(req, res) {
       // Assign caregiver to patient
       caregiver.isAssigned = true;
       caregiver.assignedPatient = patient._id;
+
+      // Initialize program scheduling defaults on assignment
+      caregiver.programAssignedAt = new Date();
+      caregiver.programProgress = {
+        currentDay: 1,
+        completedDays: [],
+        isCompleted: false,
+      };
+      caregiver.programControl = {
+        status: 'active',
+        delayHours: typeof delayHours === 'number' && delayHours > 0 ? delayHours : 24,
+        pausedAt: null,
+        resumedAt: null,
+        terminatedAt: null,
+      };
+
       await caregiver.save();
 
       patient.isAssigned = true;
@@ -59,7 +75,12 @@ export default async function handler(req, res) {
         message: 'Assignment successful',
         assignment: {
           caregiver: { id: caregiverId, name: caregiver.name },
-          patient: { id: patientId, name: patient.name }
+          patient: { id: patientId, name: patient.name },
+          program: {
+            delayHours: caregiver.programControl.delayHours,
+            status: caregiver.programControl.status,
+            assignedAt: caregiver.programAssignedAt,
+          }
         }
       });
 
