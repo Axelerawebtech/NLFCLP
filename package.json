@@ -13,6 +13,7 @@
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.3",
     "@mui/material": "^5.14.5",
+    "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
     "dotenv": "^17.2.2",
     "framer-motion": "^10.16.4",

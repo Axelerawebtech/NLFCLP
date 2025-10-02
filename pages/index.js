@@ -92,7 +92,7 @@ export default function Home() {
                 textShadow: '0 2px 4px rgba(0,0,0,0.3)'
               }}
             >
-              Cancer Care Support
+              Cancer Care Support- Nurse-Led Family Caregiver Program (NLFCP)
             </Typography>
             <Typography
               variant="h4"
@@ -151,10 +151,34 @@ export default function Home() {
                     '&:hover': {
                       borderColor: 'white',
                       backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    }
+                    },
+                    mr: 2
                   }}
                 >
                   Admin Login
+                </Button>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={() => router.push('/login')}
+                  sx={{
+                    backgroundColor: 'white',
+                    color: '#764ba2',
+                    px: 4,
+                    py: 2,
+                    fontSize: '1.1rem',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    }
+                  }}
+                >
+                  User Login
                 </Button>
               </motion.div>
             </Box>

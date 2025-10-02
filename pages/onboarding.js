@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
+  TextField,
   Container,
   Typography,
   Button,
@@ -10,7 +11,9 @@ import {
   IconButton,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -25,13 +28,17 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useRouter } from 'next/router';
 
-const steps = ['Choose Role', 'Answer Questions', 'Complete Registration'];
+import ConsentForm from '../components/ConsentForm';
+import CaregiverQuestions from '../components/CaregiverQuestions';
+
+const steps = ['Choose Role', 'Consent Form', 'Demographic Questions', 'Complete Registration'];
 
 export default function Onboarding() {
   const { isDarkMode, toggleTheme } = useTheme();
   const [activeStep, setActiveStep] = useState(0);
   const [userType, setUserType] = useState('');
   const [formData, setFormData] = useState({});
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const router = useRouter();
 
   const handleUserTypeSelection = (type) => {
@@ -159,7 +166,219 @@ export default function Onboarding() {
     }
   };
 
-  const CompletionStep = () => (
+  const ConsentForm = ({ userType, onAccept, formData }) => {
+  const [accepted, setAccepted] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const router = useRouter();
+
+  const studyDetails = {
+    title: "The Impact of a Nurse-led Family Caregiver Program Among Cancer Patients at a Tertiary Care Hospital in Bangalore.",
+    investigator: {
+      name: "MR. James Raj K",
+      role: "PHD Scholar",
+      institution: "KLE Institute of Nursing Science, Belgaum",
+      contact: "9500482944"
+    },
+    purpose: "The purpose of this study is to evaluate the impact of a nurse-led family caregiver program on alleviating caregiver burden, improving quality of life, and reducing stress among cancer patients and their caregivers.",
+    procedures: [
+      "Pre-test Assessment: to assess baseline caregiver burden, quality of life, and stress levels using standardized tools.",
+      "Intervention: Participation in a nurse-led family caregiver program designed to address areas identified in the pre-test.",
+      "Immediate Post-test Assessment: immediately following the intervention to reassess caregiver burden, quality of life, and stress levels.",
+      "Follow-up Post-test Assessment: 12 weeks after the intervention to assess the long-term impact on caregiver burden, quality of life, and stress levels."
+    ],
+    duration: "Participation will last approximately 12 weeks, including the pre-test, intervention, and the two post-test assessments.",
+    risks: [
+      "There may be some emotional discomfort when discussing personal experiences and stressors.",
+      "Participation in the program requires a time commitment that might be challenging for some caregivers."
+    ],
+    benefits: [
+      "Potential improvement in caregiver burden, quality of life, and stress levels.",
+      "Contribution to research that may help other caregivers in the future."
+    ]
+  };
+
+  const handleConsent = () => {
+    if (accepted) {
+      onAccept(); // This will trigger setActiveStep(2) to show demographic questions
+    }
+  };
+
+  const handleDecline = () => {
+    setDeclined(true);
+  };
+
+  if (declined) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Card sx={{ maxWidth: 600, mx: 'auto', p: 4, textAlign: 'center' }}>
+          <Typography variant="h5" sx={{ mb: 3 }}>
+            Thank you for your response
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 4 }}>
+            Take your time and come back when you're ready.
+          </Typography>
+          <Button
+            variant="contained"
+            onClick={() => router.push('/')}
+          >
+            Return to Home
+          </Button>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      <Card sx={{ maxWidth: 800, mx: 'auto', p: 4 }}>
+        <Typography variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
+          Consent Form
+        </Typography>
+        
+        <Typography variant="h5" sx={{ mb: 2 }}>
+          Title of Study:
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          {studyDetails.title}
+        </Typography>
+
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Principal Investigator:
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          {studyDetails.investigator.name}<br />
+          {studyDetails.investigator.role}<br />
+          {studyDetails.investigator.institution}
+        </Typography>
+
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Purpose of the Study:
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          {studyDetails.purpose}
+        </Typography>
+
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Study Procedures:
+        </Typography>
+        <Box sx={{ mb: 3 }}>
+          {studyDetails.procedures.map((proc, index) => (
+            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
+              • {proc}
+            </Typography>
+          ))}
+        </Box>
+
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Duration:
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          {studyDetails.duration}
+        </Typography>
+
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Risks and Discomforts:
+        </Typography>
+        <Box sx={{ mb: 3 }}>
+          {studyDetails.risks.map((risk, index) => (
+            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
+              • {risk}
+            </Typography>
+          ))}
+        </Box>
+
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Benefits:
+        </Typography>
+        <Box sx={{ mb: 3 }}>
+          {studyDetails.benefits.map((benefit, index) => (
+            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
+              • {benefit}
+            </Typography>
+          ))}
+        </Box>
+
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Contact Information:
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          For questions or concerns, contact:<br />
+          {studyDetails.investigator.name}<br />
+          {studyDetails.investigator.role}<br />
+          {studyDetails.investigator.institution}<br />
+          Mob: {studyDetails.investigator.contact}
+        </Typography>
+
+        <Box sx={{ mb: 3 }}>
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+              />
+            }
+            label="I have read and understood the information above. I voluntarily agree to participate in this study and understand I can withdraw at any time without penalty."
+          />
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDecline}
+          >
+            Decline
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!accepted}
+            onClick={handleConsent}
+          >
+            Accept and Continue to Login
+          </Button>
+        </Box>
+      </Card>
+    </motion.div>
+  );
+};
+
+const CompletionStep = ({ formData }) => {
+  const router = useRouter();
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    // Only start countdown if we have the required data
+    if (formData?.generatedId && formData?.userType) {
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            // Redirect to login with pre-filled data
+            router.push(`/login?userId=${formData.generatedId}&userType=${formData.userType}&auto=true`);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [formData?.generatedId, formData?.userType, router]);
+
+  const handleLoginNow = () => {
+    if (formData?.generatedId && formData?.userType) {
+      router.push(`/login?userId=${formData.generatedId}&userType=${formData.userType}&auto=true`);
+    }
+  };
+
+  return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -171,22 +390,66 @@ export default function Onboarding() {
           Registration Complete!
         </Typography>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
-          Your account has been created successfully. Please wait for admin approval to access your dashboard.
+          Your account has been created successfully. You will be automatically redirected to login.
         </Typography>
-        <Typography variant="body1" sx={{ mb: 4, p: 3, backgroundColor: 'action.hover', borderRadius: 2 }}>
-          <strong>Your ID:</strong> {formData.generatedId}
-        </Typography>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={() => router.push('/')}
-          sx={{ px: 4, py: 2 }}
-        >
-          Back to Home
-        </Button>
+        {formData?.generatedId ? (
+          <>
+            <Typography variant="body1" sx={{ mb: 2, p: 3, backgroundColor: 'action.hover', borderRadius: 2 }}>
+              <strong>Your ID:</strong> {formData.generatedId}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+              Please save this ID for future logins
+            </Typography>
+            
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Redirecting to login in {countdown} seconds...
+              </Typography>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleLoginNow}
+                sx={{ px: 4, py: 2, mr: 2 }}
+              >
+                Login Now
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => router.push('/')}
+                sx={{ px: 4, py: 2 }}
+              >
+                Back to Home
+              </Button>
+            </Box>
+          </>
+        ) : (
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+              Registration completed successfully!
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => router.push('/login')}
+              sx={{ px: 4, py: 2, mr: 2 }}
+            >
+              Go to Login
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => router.push('/')}
+              sx={{ px: 4, py: 2 }}
+            >
+              Back to Home
+            </Button>
+          </Box>
+        )}
       </Box>
     </motion.div>
   );
+};
 
   return (
     <Box sx={{
@@ -221,72 +484,198 @@ export default function Onboarding() {
         {/* Content */}
         <AnimatePresence mode="wait">
           {activeStep === 0 && <UserTypeSelection />}
-          {activeStep === 1 && <QuestionnaireForm />}
-          {activeStep === 2 && <CompletionStep />}
+          {activeStep === 1 && (
+            <ConsentForm 
+              userType={userType} 
+              formData={formData}
+              onAccept={() => {
+                setConsentAccepted(true);
+                setActiveStep(2);
+              }} 
+            />
+          )}
+          {activeStep === 2 && (
+            userType === 'caregiver' ? 
+              <CaregiverForm 
+                formData={formData} 
+                setFormData={setFormData} 
+                onNext={() => setActiveStep(3)} 
+                onBack={() => setActiveStep(1)}
+              /> :
+              <PatientForm 
+                formData={formData} 
+                setFormData={setFormData} 
+                onNext={() => setActiveStep(3)} 
+                onBack={() => setActiveStep(1)}
+              />
+          )}
+          {activeStep === 3 && <CompletionStep formData={formData} />}
         </AnimatePresence>
 
-        {/* Navigation */}
-        {activeStep > 0 && activeStep < 2 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <Button
-              startIcon={<FaArrowLeft />}
-              onClick={handleBack}
-              sx={{ mr: 2 }}
-            >
-              Back
-            </Button>
-          </Box>
-        )}
+
       </Container>
     </Box>
   );
 }
 
 // Caregiver Form Component
-const CaregiverForm = ({ formData, setFormData, onNext }) => {
+function CaregiverForm({ formData, setFormData, onNext, onBack }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
 
+  const handleSubmitAnswer = (value) => {
+    const currentQ = questions[currentQuestion];
+    let finalValue = value;
+
+    // Handle 'Other' option for fields that allow it
+    if (currentQ.allowOther && value === 'Other') {
+      finalValue = answers[`${currentQ.id}Other`] || 'Other';
+    }
+
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    } else {
+      // Generate ID and complete registration
+      const generatedId = `CG${Date.now().toString(36).toUpperCase()}`;
+      setFormData({ ...answers, [currentQ.id]: finalValue, userType: 'caregiver', generatedId });
+      onNext();
+    }
+  };
+
   const questions = [
     {
+      section: 'Personal Details',
       id: 'name',
       question: 'What is your full name?',
       type: 'text',
+      placeholder: 'Enter your full name',
+      pattern: '^[a-zA-Z ]+$',
       required: true
     },
     {
-      id: 'email',
-      question: 'What is your email address?',
-      type: 'email',
-      required: true
-    },
-    {
+      section: 'Personal Details',
       id: 'phone',
       question: 'What is your phone number?',
       type: 'tel',
+      placeholder: 'Enter your phone number',
+      pattern: '^[0-9]{10}$',
+      required: true
+    },
+
+    {
+      section: 'Personal Details',
+      id: 'age',
+      question: 'Age (in years):',
+      type: 'radio',
+      options: ['18-30', '31-40', '41-50', '51-60', '61 and above'],
+      allowOther: true,
+      required: true
+    },
+  
+    {
+      section: 'Personal Details',
+      id: 'gender',
+      question: 'Gender:',
+      type: 'radio',
+      options: ['Male', 'Female', 'Non-binary', 'Prefer not to say', 'Other'],
+      allowOther: true,
       required: true
     },
     {
-      id: 'experience',
-      question: 'How many years of caregiving experience do you have?',
-      type: 'select',
-      options: ['0-1 years', '1-3 years', '3-5 years', '5+ years'],
+      section: 'Personal Details',
+      id: 'maritalStatus',
+      question: 'Marital Status:',
+      type: 'radio',
+      options: ['Single', 'Married', 'Widowed', 'Divorced', 'Separated'],
       required: true
     },
     {
-      id: 'specialization',
-      question: 'What is your area of specialization?',
-      type: 'select',
-      options: ['General Care', 'Oncology', 'Mental Health', 'Palliative Care', 'Other'],
+      section: 'Personal Details',
+      id: 'educationLevel',
+      question: 'Educational Level:',
+      type: 'radio',
+      options: ['No formal education', 'Primary education', 'Secondary education', 'Higher secondary', 'Undergraduate degree', 'Postgraduate degree'],
       required: true
     },
     {
+      section: 'Personal Details',
+      id: 'employmentStatus',
+      question: 'Employment Status:',
+      type: 'radio',
+      options: ['Full-time employed', 'Part-time employed', 'Self-employed', 'Unemployed', 'Retired', 'Student', 'Homemaker'],
+      required: true
+    },
+    {
+      section: 'Personal Details',
+      id: 'residentialArea',
+      question: 'Residential Area:',
+      type: 'radio',
+      options: ['Urban', 'Rural', 'Suburban'],
+      required: true
+    },
+  
+
+    {
+      section: 'Caregiving Information',
       id: 'relationshipToPatient',
-      question: 'What is your relationship to cancer patients?',
-      type: 'select',
-      options: ['Professional Caregiver', 'Family Member', 'Friend', 'Volunteer'],
+      question: 'Relationship to the Patient:',
+      type: 'radio',
+      options: ['Spouse', 'Parent', 'Child', 'Sibling', 'Other'],
+      allowOther: true,
       required: true
-    }
+    },
+    {
+      section: 'Caregiving Information',
+      id: 'hoursPerDay',
+      question: 'Hours Spent Caring per Day:',
+      type: 'radio',
+      options: ['Less than 2 hours', '2-4 hours', '5-8 hours', 'More than 8 hours'],
+      required: true
+    },
+    {
+      section: 'Caregiving Information',
+      id: 'durationOfCaregiving',
+      question: 'Duration of Caregiving:',
+      type: 'radio',
+      options: ['Less than 6 months', '6-12 months', '1-2 years', '2-5 years', 'More than 5 years'],
+      required: true
+    },
+    {
+      section: 'Caregiving Information',
+      id: 'previousExperience',
+      question: 'Previous Experience as a Caregiver:',
+      type: 'radio',
+      options: ['Yes', 'No'],
+      required: true
+    },
+   
+    {
+      section: 'Caregiving Information',
+      id: 'supportSystem',
+      question: 'Support System Available (select all that apply):',
+      type: 'multiSelect',
+      options: ['Family Support', 'Friends', 'Community Support Groups', 'Religious/Spiritual Support', 'Professional Support Services', 'None'],
+      required: true
+    },
+    {
+      section: 'Health and Well-being',
+      id: 'physicalHealth',
+      question: 'Physical Health Conditions (select all that apply):',
+      type: 'multiSelect',
+      options: ['None', 'Diabetes', 'Hypertension', 'Heart Disease', 'Arthritis', 'Back Pain', 'Respiratory Issues', 'Other'],
+      allowOther: true,
+      required: true
+    },
+    {
+      section: 'Health and Well-being',
+      id: 'mentalHealth',
+      question: 'Mental Health Conditions (select all that apply):',
+      type: 'multiSelect',
+      options: ['None', 'Depression', 'Anxiety', 'Stress-related disorder', 'Sleep Issues', 'Other'],
+      allowOther: true,
+      required: true
+    },
+  
   ];
 
   const handleAnswer = (value) => {
@@ -301,21 +690,380 @@ const CaregiverForm = ({ formData, setFormData, onNext }) => {
       setFormData({ ...newAnswers, userType: 'caregiver', generatedId });
 
       // Submit to API
-      submitRegistration({ ...newAnswers, userType: 'caregiver', caregiverId: generatedId });
+      submitRegistration({ 
+        ...newAnswers, 
+        userType: 'caregiver', 
+        caregiverId: generatedId,
+        consentAccepted: consentAccepted,
+        questionnaireAnswers: newAnswers
+      });
       onNext();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+    } else {
+      // If on first question, go back to consent form
+      onBack();
     }
   };
 
   const submitRegistration = async (data) => {
     try {
+      console.log('Submitting caregiver registration data:', data);
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!response.ok) throw new Error('Registration failed');
+      
+      const result = await response.json();
+      console.log('Caregiver registration response:', result);
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Registration failed');
+      }
+      
+      console.log('Caregiver registration successful:', result);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Caregiver registration error:', error);
+      alert('Registration failed: ' + error.message);
+    }
+  };
+
+  const renderField = () => {
+    const question = questions[currentQuestion];
+    const currentValue = answers[question.id] || (question.type === 'multiSelect' ? [] : '');
+
+    switch (question.type) {
+      case 'multiSelect':
+        return (
+          <Grid container spacing={2}>
+            {question.options.map((option) => {
+              const isSelected = currentValue.includes(option);
+              const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
+              
+              return (
+                <Grid item xs={12} sm={6} key={option}>
+                  <Button
+                    fullWidth
+                    variant={isSelected ? "contained" : "outlined"}
+                    onClick={() => {
+                      let newValue;
+                      if (option === 'None') {
+                        newValue = isSelected ? [] : ['None'];
+                      } else {
+                        if (isNoneSelected) {
+                          newValue = [option];
+                        } else {
+                          newValue = isSelected
+                            ? currentValue.filter(val => val !== option)
+                            : [...currentValue, option];
+                        }
+                      }
+                      setAnswers({ ...answers, [question.id]: newValue });
+                    }}
+                    disabled={option !== 'None' && isNoneSelected}
+                    sx={{
+                      p: 2,
+                      textAlign: 'left',
+                      backgroundColor: isSelected ? 'primary.main' : 'transparent',
+                      color: isSelected ? 'white' : 'inherit',
+                      '&:hover': isSelected 
+                        ? { backgroundColor: 'primary.dark' }
+                        : { backgroundColor: 'primary.main', color: 'white' }
+                    }}
+                  >
+                    {option}
+                  </Button>
+                </Grid>
+              );
+            })}
+            {question.allowOther && currentValue.includes('Other') && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  placeholder="Please specify other condition"
+                  value={answers[`${question.id}Other`] || ''}
+                  onChange={(e) => setAnswers({
+                    ...answers,
+                    [`${question.id}Other`]: e.target.value
+                  })}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      e.preventDefault();
+                      // Replace "Other" with the custom text in the current value
+                      let finalValue = currentValue.map(val => 
+                        val === 'Other' ? e.target.value.trim() : val
+                      );
+                      handleAnswer(finalValue);
+                    }
+                  }}
+                  sx={{ mt: 2 }}
+                  label="Please specify"
+                />
+              </Grid>
+            )}
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => {
+                  let finalValue = currentValue;
+                  // If "Other" is selected and there's text in the other field, replace "Other" with the custom text
+                  if (question.allowOther && currentValue.includes('Other') && answers[`${question.id}Other`]) {
+                    finalValue = currentValue.map(val => 
+                      val === 'Other' ? answers[`${question.id}Other`] : val
+                    );
+                  }
+                  handleAnswer(finalValue);
+                }}
+                disabled={!currentValue.length || (question.allowOther && currentValue.includes('Other') && !answers[`${question.id}Other`])}
+                sx={{ mt: 2 }}
+              >
+                {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+              </Button>
+            </Grid>
+          </Grid>
+        );
+
+      case 'radio':
+        return (
+          <Grid container spacing={2}>
+            {question.options.map((option) => (
+              <Grid item xs={12} sm={6} key={option}>
+                <Button
+                  fullWidth
+                  variant={currentValue === option ? "contained" : "outlined"}
+                  onClick={() => handleAnswer(option)}
+                  sx={{
+                    p: 2,
+                    textAlign: 'left',
+                    backgroundColor: currentValue === option ? 'primary.main' : 'transparent',
+                    color: currentValue === option ? 'white' : 'inherit',
+                    '&:hover': { backgroundColor: 'primary.main', color: 'white' }
+                  }}
+                >
+                  {option}
+                </Button>
+              </Grid>
+            ))}
+            {question.allowOther && currentValue === 'Other' && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  placeholder="Please specify"
+                  value={answers[`${question.id}Other`] || ''}
+                  onChange={(e) => setAnswers({
+                    ...answers,
+                    [`${question.id}Other`]: e.target.value
+                  })}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      e.preventDefault();
+                      handleAnswer(e.target.value.trim());
+                    }
+                  }}
+                  sx={{ mt: 2 }}
+                />
+              </Grid>
+            )}
+          </Grid>
+        );
+
+      case 'textarea':
+        return (
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            placeholder={question.placeholder}
+            value={currentValue}
+            onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) {
+                e.preventDefault();
+                handleAnswer(e.target.value.trim());
+              }
+            }}
+          />
+        );
+
+      default:
+        return (
+          <TextField
+            fullWidth
+            type={question.type}
+            placeholder={question.placeholder}
+            value={currentValue}
+            inputProps={{
+              min: question.min,
+              max: question.max,
+              pattern: question.pattern
+            }}
+            onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && e.target.value.trim()) {
+                e.preventDefault();
+                handleAnswer(e.target.value.trim());
+              }
+            }}
+          />
+        );
+    }
+  };
+
+  const renderQuestionField = () => {
+    const question = questions[currentQuestion];
+    const currentValue = answers[question.id] || (question.type === 'multiSelect' ? [] : '');
+
+    switch (question.type) {
+      case 'multiSelect':
+        return (
+          <Grid container spacing={2}>
+            {question.options.map((option) => {
+              const isSelected = currentValue.includes(option);
+              const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
+              
+              return (
+                <Grid item xs={12} sm={6} key={option}>
+                  <Button
+                    fullWidth
+                    variant={isSelected ? "contained" : "outlined"}
+                    onClick={() => {
+                      let newValue;
+                      if (option === 'None') {
+                        newValue = isSelected ? [] : ['None'];
+                      } else {
+                        if (isNoneSelected) {
+                          newValue = [option];
+                        } else {
+                          newValue = isSelected
+                            ? currentValue.filter(val => val !== option)
+                            : [...currentValue, option];
+                        }
+                      }
+                      setAnswers({ ...answers, [question.id]: newValue });
+                    }}
+                    disabled={option !== 'None' && isNoneSelected}
+                    sx={{
+                      p: 2,
+                      textAlign: 'left',
+                      backgroundColor: isSelected ? 'primary.main' : 'transparent',
+                      color: isSelected ? 'white' : 'inherit',
+                      '&:hover': isSelected 
+                        ? { backgroundColor: 'primary.dark' }
+                        : { backgroundColor: 'primary.main', color: 'white' }
+                    }}
+                  >
+                    {option}
+                  </Button>
+                </Grid>
+              );
+            })}
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => handleSubmitAnswer(currentValue)}
+                disabled={!currentValue.length}
+                sx={{ mt: 2 }}
+              >
+                {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+              </Button>
+            </Grid>
+          </Grid>
+        );
+
+      case 'radio':
+        return (
+          <Grid container spacing={2}>
+            {question.options.map((option) => (
+              <Grid item xs={12} sm={6} key={option}>
+                <Button
+                  fullWidth
+                  variant={currentValue === option ? "contained" : "outlined"}
+                  onClick={() => handleSubmitAnswer(option)}
+                  sx={{
+                    p: 2,
+                    textAlign: 'left',
+                    backgroundColor: currentValue === option ? 'primary.main' : 'transparent',
+                    color: currentValue === option ? 'white' : 'inherit',
+                    '&:hover': { backgroundColor: 'primary.main', color: 'white' }
+                  }}
+                >
+                  {option}
+                </Button>
+              </Grid>
+            ))}
+            {question.allowOther && currentValue === 'Other' && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  placeholder="Please specify"
+                  value={answers[`${question.id}Other`] || ''}
+                  onChange={(e) => setAnswers({
+                    ...answers,
+                    [`${question.id}Other`]: e.target.value
+                  })}
+                  sx={{ mt: 2 }}
+                />
+              </Grid>
+            )}
+          </Grid>
+        );
+
+      case 'textarea':
+        return (
+          <>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              placeholder={question.placeholder}
+              value={currentValue}
+              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+            />
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => handleSubmitAnswer(currentValue)}
+              disabled={!currentValue.trim()}
+              sx={{ mt: 2 }}
+            >
+              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+            </Button>
+          </>
+        );
+
+      default:
+        return (
+          <>
+            <TextField
+              fullWidth
+              type={question.type}
+              placeholder={question.placeholder}
+              value={currentValue}
+              inputProps={{
+                min: question.min,
+                max: question.max,
+                pattern: question.pattern
+              }}
+              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+            />
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => handleSubmitAnswer(currentValue)}
+              disabled={!currentValue.trim()}
+              sx={{ mt: 2 }}
+            >
+              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+            </Button>
+          </>
+        );
     }
   };
 
@@ -334,120 +1082,145 @@ const CaregiverForm = ({ formData, setFormData, onNext }) => {
         <Typography variant="h6" sx={{ mb: 4 }}>
           {questions[currentQuestion].question}
         </Typography>
-
-        {questions[currentQuestion].type === 'select' ? (
-          <Grid container spacing={2}>
-            {questions[currentQuestion].options.map((option) => (
-              <Grid item xs={12} sm={6} key={option}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={() => handleAnswer(option)}
-                  sx={{
-                    p: 2,
-                    textAlign: 'left',
-                    '&:hover': { backgroundColor: 'primary.main', color: 'white' }
-                  }}
-                >
-                  {option}
-                </Button>
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          <Box>
-            <input
-              type={questions[currentQuestion].type}
-              placeholder="Enter your answer..."
-              style={{
-                width: '100%',
-                padding: '16px',
-                fontSize: '16px',
-                border: '2px solid #e0e0e0',
-                borderRadius: '8px',
-                marginBottom: '16px'
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                  handleAnswer(e.target.value.trim());
-                }
-              }}
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              endIcon={<FaArrowRight />}
-              onClick={() => {
-                const input = document.querySelector('input');
-                if (input.value.trim()) {
-                  handleAnswer(input.value.trim());
-                }
-              }}
-            >
-              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
-            </Button>
-          </Box>
-        )}
+        {renderQuestionField()}
       </Card>
+      
+      {/* Back Button - Outside the card */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3, maxWidth: 600, mx: 'auto' }}>
+        <Button
+          startIcon={<FaArrowLeft />}
+          onClick={handlePrevious}
+          variant="outlined"
+          sx={{ mr: 2 }}
+        >
+          {currentQuestion === 0 ? 'Back to Consent Form' : 'Previous Question'}
+        </Button>
+      </Box>
     </motion.div>
   );
 };
 
 // Patient Form Component
-const PatientForm = ({ formData, setFormData, onNext }) => {
+const PatientForm = ({ formData, setFormData, onNext, onBack }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
 
   const questions = [
+    // Basic Information
     {
       id: 'name',
       question: 'What is your full name?',
       type: 'text',
-      required: true
-    },
-    {
-      id: 'email',
-      question: 'What is your email address?',
-      type: 'email',
+      section: 'Basic Information',
       required: true
     },
     {
       id: 'phone',
       question: 'What is your phone number?',
       type: 'tel',
+      section: 'Basic Information',
       required: true
     },
+
+    // Section I: Demographic Questions
     {
       id: 'age',
-      question: 'What is your age?',
-      type: 'number',
+      question: '1. Age (in years):',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['18-30', '31-40', '41-50', '51-60', '61 and above'],
       required: true
     },
+    {
+      id: 'gender',
+      question: '2. Gender:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['Male', 'Female', 'Other'],
+      required: true
+    },
+    {
+      id: 'maritalStatus',
+      question: '3. Marital Status:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['Single', 'Married', 'Widowed', 'Divorced', 'Separated'],
+      required: true
+    },
+    {
+      id: 'educationLevel',
+      question: '4. Educational Level:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['No formal education', 'Primary education', 'Secondary education', 'Higher secondary', 'Undergraduate degree', 'Postgraduate degree'],
+      required: true
+    },
+    {
+      id: 'employmentStatus',
+      question: '5. Employment Status:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['Employed (Full-time/Part-time)', 'Unemployed', 'Retired', 'Homemaker', 'Student'],
+      required: true
+    },
+    {
+      id: 'residentialArea',
+      question: '6. Residential Area:',
+      type: 'radio',
+      section: 'Demographic Information',
+      options: ['Urban', 'Rural'],
+      required: true
+    },
+
+    // Section II: Medical Information
     {
       id: 'cancerType',
-      question: 'What type of cancer have you been diagnosed with?',
-      type: 'select',
-      options: ['Breast Cancer', 'Lung Cancer', 'Prostate Cancer', 'Colorectal Cancer', 'Other'],
+      question: '7. Type of Cancer:',
+      type: 'text',
+      section: 'Medical Information',
+      placeholder: 'Please specify your cancer type',
       required: true
     },
     {
-      id: 'stage',
-      question: 'What stage is your cancer?',
-      type: 'select',
-      options: ['Stage I', 'Stage II', 'Stage III', 'Stage IV', 'Unknown'],
+      id: 'cancerStage',
+      question: '8. Stage of Cancer:',
+      type: 'radio',
+      section: 'Medical Information',
+      options: ['Stage I', 'Stage II', 'Stage III', 'Stage IV'],
       required: true
     },
     {
-      id: 'treatmentStatus',
-      question: 'What is your current treatment status?',
-      type: 'select',
-      options: ['Newly Diagnosed', 'Currently in Treatment', 'Post Treatment', 'Remission'],
+      id: 'treatmentModality',
+      question: '9. Current Treatment Modality (check all that apply):',
+      type: 'multiSelect',
+      section: 'Medical Information',
+      options: ['Chemotherapy', 'Radiation Therapy', 'Surgery', 'Immunotherapy', 'Hormone Therapy', 'Other'],
+      allowOther: true,
       required: true
     },
     {
-      id: 'diagnosisDate',
-      question: 'When were you diagnosed? (Approximate date)',
-      type: 'date',
+      id: 'illnessDuration',
+      question: '10. Duration of Illness (since diagnosis):',
+      type: 'radio',
+      section: 'Medical Information',
+      options: ['Less than 6 months', '6-12 months', '1-2 years', 'More than 2 years'],
+      required: true
+    },
+    {
+      id: 'comorbidities',
+      question: '11. Other Comorbidities (check all that apply):',
+      type: 'multiSelect',
+      section: 'Medical Information',
+      options: ['Diabetes', 'Hypertension', 'Cardiovascular disease', 'Respiratory Disorders', 'None', 'Other'],
+      allowOther: true,
+      required: true
+    },
+    {
+      id: 'healthInsurance',
+      question: '12. Health Insurance Coverage:',
+      type: 'radio',
+      section: 'Medical Information',
+      options: ['Yes - Government', 'Yes - Private', 'No'],
       required: true
     }
   ];
@@ -464,21 +1237,46 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
       setFormData({ ...newAnswers, userType: 'patient', generatedId });
 
       // Submit to API
-      submitRegistration({ ...newAnswers, userType: 'patient', patientId: generatedId });
+      submitRegistration({ 
+        ...newAnswers, 
+        userType: 'patient', 
+        patientId: generatedId,
+        consentAccepted: consentAccepted,
+        questionnaireAnswers: newAnswers
+      });
       onNext();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+    } else {
+      // If on first question, go back to consent form
+      onBack();
     }
   };
 
   const submitRegistration = async (data) => {
     try {
+      console.log('Submitting patient registration data:', data);
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!response.ok) throw new Error('Registration failed');
+      
+      const result = await response.json();
+      console.log('Patient registration response:', result);
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Registration failed');
+      }
+      
+      console.log('Patient registration successful:', result);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Patient registration error:', error);
+      alert('Registration failed: ' + error.message);
     }
   };
 
@@ -494,64 +1292,225 @@ const PatientForm = ({ formData, setFormData, onNext }) => {
         <Typography variant="h5" sx={{ mb: 3, textAlign: 'center' }}>
           Question {currentQuestion + 1} of {questions.length}
         </Typography>
+        {questions[currentQuestion].section && (
+          <Typography variant="subtitle1" sx={{ mb: 2, color: 'primary.main', textAlign: 'center', fontWeight: 600 }}>
+            {questions[currentQuestion].section}
+          </Typography>
+        )}
         <Typography variant="h6" sx={{ mb: 4 }}>
           {questions[currentQuestion].question}
         </Typography>
 
-        {questions[currentQuestion].type === 'select' ? (
-          <Grid container spacing={2}>
-            {questions[currentQuestion].options.map((option) => (
-              <Grid item xs={12} sm={6} key={option}>
-                <Button
+        {(() => {
+          const question = questions[currentQuestion];
+          const currentValue = answers[question.id] || (question.type === 'multiSelect' ? [] : '');
+
+          switch (question.type) {
+            case 'multiSelect':
+              return (
+                <Grid container spacing={2}>
+                  {question.options.map((option) => {
+                    const isSelected = currentValue.includes(option);
+                    const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
+                    
+                    return (
+                      <Grid item xs={12} sm={6} key={option}>
+                        <Button
+                          fullWidth
+                          variant={isSelected ? "contained" : "outlined"}
+                          onClick={() => {
+                            let newValue;
+                            if (option === 'None') {
+                              newValue = isSelected ? [] : ['None'];
+                            } else {
+                              if (isNoneSelected) {
+                                newValue = [option];
+                              } else {
+                                newValue = isSelected
+                                  ? currentValue.filter(val => val !== option)
+                                  : [...currentValue, option];
+                              }
+                            }
+                            setAnswers({ ...answers, [question.id]: newValue });
+                          }}
+                          disabled={option !== 'None' && isNoneSelected}
+                          sx={{
+                            p: 2,
+                            textAlign: 'left',
+                            backgroundColor: isSelected ? 'primary.main' : 'transparent',
+                            color: isSelected ? 'white' : 'inherit',
+                            '&:hover': isSelected 
+                              ? { backgroundColor: 'primary.dark' }
+                              : { backgroundColor: 'primary.main', color: 'white' }
+                          }}
+                        >
+                          {option}
+                        </Button>
+                      </Grid>
+                    );
+                  })}
+                  {question.allowOther && currentValue.includes('Other') && (
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        placeholder="Please specify other treatment/condition"
+                        value={answers[`${question.id}Other`] || ''}
+                        onChange={(e) => setAnswers({
+                          ...answers,
+                          [`${question.id}Other`]: e.target.value
+                        })}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            e.preventDefault();
+                            // Replace "Other" with the custom text in the current value
+                            let finalValue = currentValue.map(val => 
+                              val === 'Other' ? e.target.value.trim() : val
+                            );
+                            handleAnswer(finalValue);
+                          }
+                        }}
+                        sx={{ mt: 2 }}
+                        label="Please specify"
+                      />
+                    </Grid>
+                  )}
+                  <Grid item xs={12}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={() => {
+                        let finalValue = currentValue;
+                        // If "Other" is selected and there's text in the other field, replace "Other" with the custom text
+                        if (question.allowOther && currentValue.includes('Other') && answers[`${question.id}Other`]) {
+                          finalValue = currentValue.map(val => 
+                            val === 'Other' ? answers[`${question.id}Other`] : val
+                          );
+                        }
+                        handleAnswer(finalValue);
+                      }}
+                      disabled={!currentValue.length || (currentValue.includes('Other') && question.allowOther && !answers[`${question.id}Other`])}
+                      sx={{ mt: 2 }}
+                    >
+                      {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                    </Button>
+                  </Grid>
+                </Grid>
+              );
+
+            case 'radio':
+              return (
+                <Grid container spacing={2}>
+                  {question.options.map((option) => (
+                    <Grid item xs={12} sm={6} key={option}>
+                      <Button
+                        fullWidth
+                        variant={currentValue === option ? "contained" : "outlined"}
+                        onClick={() => {
+                          if (option === 'Other' && question.allowOther) {
+                            setAnswers({ ...answers, [question.id]: option });
+                          } else {
+                            handleAnswer(option);
+                          }
+                        }}
+                        sx={{
+                          p: 2,
+                          textAlign: 'left',
+                          backgroundColor: currentValue === option ? 'primary.main' : 'transparent',
+                          color: currentValue === option ? 'white' : 'inherit',
+                          '&:hover': { backgroundColor: 'primary.main', color: 'white' }
+                        }}
+                      >
+                        {option}
+                      </Button>
+                    </Grid>
+                  ))}
+                  {question.allowOther && currentValue === 'Other' && (
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        placeholder="Please specify"
+                        value={answers[`${question.id}Other`] || ''}
+                        onChange={(e) => setAnswers({
+                          ...answers,
+                          [`${question.id}Other`]: e.target.value
+                        })}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            e.preventDefault();
+                            handleAnswer(e.target.value.trim());
+                          }
+                        }}
+                        sx={{ mt: 2 }}
+                        label="Please specify"
+                      />
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={() => handleAnswer(answers[`${question.id}Other`] || 'Other')}
+                        disabled={!answers[`${question.id}Other`]}
+                        sx={{ mt: 2 }}
+                      >
+                        {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                      </Button>
+                    </Grid>
+                  )}
+                </Grid>
+              );
+
+            case 'textarea':
+              return (
+                <TextField
                   fullWidth
-                  variant="outlined"
-                  onClick={() => handleAnswer(option)}
-                  sx={{
-                    p: 2,
-                    textAlign: 'left',
-                    '&:hover': { backgroundColor: 'primary.main', color: 'white' }
+                  multiline
+                  rows={4}
+                  placeholder={question.placeholder}
+                  value={currentValue}
+                  onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) {
+                      e.preventDefault();
+                      handleAnswer(e.target.value.trim());
+                    }
                   }}
-                >
-                  {option}
-                </Button>
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          <Box>
-            <input
-              type={questions[currentQuestion].type}
-              placeholder="Enter your answer..."
-              style={{
-                width: '100%',
-                padding: '16px',
-                fontSize: '16px',
-                border: '2px solid #e0e0e0',
-                borderRadius: '8px',
-                marginBottom: '16px'
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                  handleAnswer(e.target.value.trim());
-                }
-              }}
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              endIcon={<FaArrowRight />}
-              onClick={() => {
-                const input = document.querySelector('input');
-                if (input.value.trim()) {
-                  handleAnswer(input.value.trim());
-                }
-              }}
-            >
-              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
-            </Button>
-          </Box>
-        )}
+                />
+              );
+
+            default:
+              return (
+                <TextField
+                  fullWidth
+                  type={question.type}
+                  placeholder={question.placeholder}
+                  value={currentValue}
+                  inputProps={{
+                    min: question.min,
+                    max: question.max,
+                    pattern: question.pattern
+                  }}
+                  onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      e.preventDefault();
+                      handleAnswer(e.target.value.trim());
+                    }
+                  }}
+                />
+              );
+          }
+        })()}
       </Card>
+      
+      {/* Back Button - Outside the card */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3, maxWidth: 600, mx: 'auto' }}>
+        <Button
+          startIcon={<FaArrowLeft />}
+          onClick={handlePrevious}
+          variant="outlined"
+          sx={{ mr: 2 }}
+        >
+          {currentQuestion === 0 ? 'Back to Consent Form' : 'Previous Question'}
+        </Button>
+      </Box>
     </motion.div>
   );
 };
