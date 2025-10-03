@@ -37,23 +37,40 @@ export default async function handler(req, res) {
 
   else if (req.method === 'POST') {
     try {
+      console.log('=== ASSIGNMENT API DEBUG ===');
       const { caregiverId, patientId, delayHours } = req.body;
+      console.log('Request body:', req.body);
+      console.log('Caregiver ID:', caregiverId);
+      console.log('Patient ID:', patientId);
 
       if (!caregiverId || !patientId) {
-        return res.status(400).json({ message: 'Caregiver ID and Patient ID are required' });
+        console.log('Validation failed: Missing IDs');
+        return res.status(400).json({ success: false, message: 'Caregiver ID and Patient ID are required' });
       }
 
+      console.log('Finding caregiver with ID:', caregiverId);
       const caregiver = await Caregiver.findOne({ caregiverId });
+      console.log('Found caregiver:', caregiver ? caregiver.name : 'NOT FOUND');
+      
+      console.log('Finding patient with ID:', patientId);
       const patient = await Patient.findOne({ patientId });
+      console.log('Found patient:', patient ? patient.name : 'NOT FOUND');
 
       if (!caregiver || !patient) {
-        return res.status(404).json({ message: 'Caregiver or Patient not found' });
+        console.log('User lookup failed');
+        return res.status(404).json({ success: false, message: 'Caregiver or Patient not found' });
       }
+
+      console.log('Checking assignment status...');
+      console.log('Caregiver assigned:', caregiver.isAssigned);
+      console.log('Patient assigned:', patient.isAssigned);
 
       if (caregiver.isAssigned || patient.isAssigned) {
-        return res.status(400).json({ message: 'User is already assigned' });
+        console.log('Assignment blocked: User already assigned');
+        return res.status(400).json({ success: false, message: 'User is already assigned' });
       }
 
+      console.log('Updating caregiver assignment...');
       // Assign caregiver to patient
       caregiver.isAssigned = true;
       caregiver.assignedPatient = patient._id;
@@ -74,11 +91,15 @@ export default async function handler(req, res) {
       };
 
       await caregiver.save();
+      console.log('Caregiver updated successfully');
 
+      console.log('Updating patient assignment...');
       patient.isAssigned = true;
       patient.assignedCaregiver = caregiver._id;
       await patient.save();
+      console.log('Patient updated successfully');
 
+      console.log('Assignment completed successfully');
       res.status(200).json({
         success: true,
         message: 'Assignment successful',
@@ -94,7 +115,8 @@ export default async function handler(req, res) {
       });
 
     } catch (error) {
-      res.status(500).json({ message: 'Assignment failed', error: error.message });
+      console.error('Assignment API error:', error);
+      res.status(500).json({ success: false, message: 'Assignment failed', error: error.message });
     }
   }
 

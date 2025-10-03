@@ -83,34 +83,50 @@ export default function AdminDashboard() {
   };
 
   const handleAssignment = async () => {
+    console.log('=== ASSIGNMENT DEBUG ===');
+    console.log('Selected Caregiver:', selectedCaregiver);
+    console.log('Selected Patient:', selectedPatient);
+    console.log('Available Caregivers:', unassignedCaregivers.length);
+    console.log('Available Patients:', unassignedPatients.length);
+    
     if (!selectedCaregiver || !selectedPatient) {
+      console.log('Validation failed: Missing selection');
       setAlert({ show: true, message: 'Please select both caregiver and patient', type: 'error' });
       return;
     }
 
     try {
+      console.log('Sending assignment request...');
+      const requestBody = {
+        caregiverId: selectedCaregiver,
+        patientId: selectedPatient
+      };
+      console.log('Request body:', requestBody);
+      
       const response = await fetch('/api/admin/manage-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          caregiverId: selectedCaregiver,
-          patientId: selectedPatient
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
-      if (data.success) {
+      if (response.ok && data.success) {
+        console.log('Assignment successful!');
         setAlert({ show: true, message: 'Assignment successful!', type: 'success' });
         setAssignDialogOpen(false);
         setSelectedCaregiver('');
         setSelectedPatient('');
         fetchUsers(); // Refresh data
       } else {
-        setAlert({ show: true, message: data.message, type: 'error' });
+        console.log('Assignment failed:', data.message);
+        setAlert({ show: true, message: data.message || 'Assignment failed', type: 'error' });
       }
     } catch (error) {
-      setAlert({ show: true, message: 'Assignment failed', type: 'error' });
+      console.error('Assignment error:', error);
+      setAlert({ show: true, message: 'Network error: ' + error.message, type: 'error' });
     }
   };
 
@@ -595,7 +611,7 @@ export default function AdminDashboard() {
               >
                 {unassignedCaregivers.map((caregiver) => (
                   <MenuItem key={caregiver.caregiverId} value={caregiver.caregiverId}>
-                    {caregiver.name} - {caregiver.experience} ({caregiver.specialization})
+                    {caregiver.name} - {caregiver.relationshipToPatient || 'N/A'} (ID: {caregiver.caregiverId})
                   </MenuItem>
                 ))}
               </Select>
