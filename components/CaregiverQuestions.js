@@ -19,8 +19,11 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { FaArrowRight } from 'react-icons/fa';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getTranslation } from '../utils/translations';
 
 const CaregiverQuestions = ({ onSubmit }) => {
+  const { currentLanguage } = useLanguage();
   const [formData, setFormData] = useState({
     relationshipToPatient: '',
     otherRelationship: '',
@@ -113,7 +116,7 @@ const CaregiverQuestions = ({ onSubmit }) => {
       {/* Relationship Section */}
       <Card sx={{ mb: 3, p: 3 }}>
         <FormControl fullWidth required>
-          <FormLabel>What is your relationship to the patient?</FormLabel>
+          <FormLabel>{getTranslation(currentLanguage, 'relationshipToPatient')}</FormLabel>
           <RadioGroup
             name="relationshipToPatient"
             value={formData.relationshipToPatient}
@@ -140,27 +143,47 @@ const CaregiverQuestions = ({ onSubmit }) => {
       {/* Caregiving Experience */}
       <Card sx={{ mb: 3, p: 3 }}>
         <FormControl fullWidth required>
-          <FormLabel>How many hours per day do you spend caregiving?</FormLabel>
+          <FormLabel>{getTranslation(currentLanguage, 'hoursPerDayQuestion')}</FormLabel>
           <RadioGroup
             name="hoursPerDay"
             value={formData.hoursPerDay}
             onChange={handleChange}
           >
-            {['Less than 2 hours', '2-4 hours', '4-8 hours', 'More than 8 hours'].map((option) => (
-              <FormControlLabel key={option} value={option} control={<Radio />} label={option} />
+            {[
+              { key: 'lessThan2Hours', value: 'Less than 2 hours' },
+              { key: 'hours2to4', value: '2-4 hours' },
+              { key: 'hours4to8', value: '4-8 hours' },
+              { key: 'moreThan8Hours', value: 'More than 8 hours' }
+            ].map((option) => (
+              <FormControlLabel 
+                key={option.value} 
+                value={option.value} 
+                control={<Radio />} 
+                label={getTranslation(currentLanguage, option.key)} 
+              />
             ))}
           </RadioGroup>
         </FormControl>
 
         <FormControl fullWidth required sx={{ mt: 3 }}>
-          <FormLabel>How long have you been a caregiver?</FormLabel>
+          <FormLabel>{getTranslation(currentLanguage, 'yearsOfCaregiversQuestion')}</FormLabel>
           <RadioGroup
             name="yearsOfCaregiving"
             value={formData.yearsOfCaregiving}
             onChange={handleChange}
           >
-            {['Less than 1 year', '1-3 years', '3-5 years', 'More than 5 years'].map((option) => (
-              <FormControlLabel key={option} value={option} control={<Radio />} label={option} />
+            {[
+              { key: 'lessThan1Year', value: 'Less than 1 year' },
+              { key: 'years1to3', value: '1-3 years' },
+              { key: 'years3to5', value: '3-5 years' },
+              { key: 'moreThan5Years', value: 'More than 5 years' }
+            ].map((option) => (
+              <FormControlLabel 
+                key={option.value} 
+                value={option.value} 
+                control={<Radio />} 
+                label={getTranslation(currentLanguage, option.key)} 
+              />
             ))}
           </RadioGroup>
         </FormControl>
@@ -171,14 +194,25 @@ const CaregiverQuestions = ({ onSubmit }) => {
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth required>
-              <FormLabel>Age</FormLabel>
+              <FormLabel>{getTranslation(currentLanguage, 'age')}</FormLabel>
               <RadioGroup
                 name="age"
                 value={formData.age}
                 onChange={handleChange}
               >
-                {['18-30', '31-45', '46-60', '61-75', 'Over 75'].map((option) => (
-                  <FormControlLabel key={option} value={option} control={<Radio />} label={option} />
+                {[
+                  { key: 'age18to30', value: '18-30' },
+                  { key: 'age31to45', value: '31-45' },
+                  { key: 'age46to60', value: '46-60' },
+                  { key: 'age61to75', value: '61-75' },
+                  { key: 'ageOver75', value: 'Over 75' }
+                ].map((option) => (
+                  <FormControlLabel 
+                    key={option.value} 
+                    value={option.value} 
+                    control={<Radio />} 
+                    label={getTranslation(currentLanguage, option.key)} 
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
@@ -186,14 +220,25 @@ const CaregiverQuestions = ({ onSubmit }) => {
 
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth required>
-              <FormLabel>Gender</FormLabel>
+              <FormLabel>{getTranslation(currentLanguage, 'gender')}</FormLabel>
               <RadioGroup
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
               >
-                {['Male', 'Female', 'Non-binary', 'Prefer not to say', 'Other'].map((option) => (
-                  <FormControlLabel key={option} value={option} control={<Radio />} label={option} />
+                {[
+                  { key: 'male', value: 'Male' },
+                  { key: 'female', value: 'Female' },
+                  { key: 'nonBinary', value: 'Non-binary' },
+                  { key: 'preferNotToSay', value: 'Prefer not to say' },
+                  { key: 'other', value: 'Other' }
+                ].map((option) => (
+                  <FormControlLabel 
+                    key={option.value} 
+                    value={option.value} 
+                    control={<Radio />} 
+                    label={getTranslation(currentLanguage, option.key)} 
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
@@ -497,7 +542,7 @@ const CaregiverQuestions = ({ onSubmit }) => {
           endIcon={<FaArrowRight />}
           size="large"
         >
-          Continue
+          {getTranslation(currentLanguage, 'continue')}
         </Button>
       </Box>
     </Box>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
   Box,
@@ -9,37 +9,25 @@ import {
   FormControlLabel,
 } from '@mui/material';
 import { motion } from 'framer-motion';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getTranslation } from '../utils/translations';
 
 const ConsentForm = ({ userType, onAccept, formData }) => {
   const [accepted, setAccepted] = useState(false);
   const [declined, setDeclined] = useState(false);
+  const [renderKey, setRenderKey] = useState(0);
+  const { currentLanguage } = useLanguage();
   const router = useRouter();
 
-  const studyDetails = {
-    title: "The Impact of a Nurse-led Family Caregiver Program Among Cancer Patients at a Tertiary Care Hospital in Bangalore.",
-    investigator: {
-      name: "MR. James Raj K",
-      role: "PHD Scholar",
-      institution: "KLE Institute of Nursing Science, Belgaum",
-      contact: "9500482944"
-    },
-    purpose: "The purpose of this study is to evaluate the impact of a nurse-led family caregiver program on alleviating caregiver burden, improving quality of life, and reducing stress among cancer patients and their caregivers.",
-    procedures: [
-      "Pre-test Assessment: to assess baseline caregiver burden, quality of life, and stress levels using standardized tools.",
-      "Intervention: Participation in a nurse-led family caregiver program designed to address areas identified in the pre-test.",
-      "Immediate Post-test Assessment: immediately following the intervention to reassess caregiver burden, quality of life, and stress levels.",
-      "Follow-up Post-test Assessment: 12 weeks after the intervention to assess the long-term impact on caregiver burden, quality of life, and stress levels."
-    ],
-    duration: "Participation will last approximately 12 weeks, including the pre-test, intervention, and the two post-test assessments.",
-    risks: [
-      "There may be some emotional discomfort when discussing personal experiences and stressors.",
-      "Participation in the program requires a time commitment that might be challenging for some caregivers."
-    ],
-    benefits: [
-      "Potential improvement in caregiver burden, quality of life, and stress levels.",
-      "Contribution to research that may help other caregivers in the future."
-    ]
-  };
+  // Force re-render when language changes
+  useEffect(() => {
+    setRenderKey(prev => prev + 1);
+  }, [currentLanguage]);
+
+  // Debug logging
+  console.log('ConsentForm render - currentLanguage:', currentLanguage);
+  console.log('ConsentForm - consentFormTitle:', getTranslation(currentLanguage, 'consentFormTitle'));
+  console.log('ConsentForm - studyTitle:', getTranslation(currentLanguage, 'studyTitle'));
 
   const handleConsent = () => {
     if (accepted) {
@@ -55,22 +43,23 @@ const ConsentForm = ({ userType, onAccept, formData }) => {
   if (declined) {
     return (
       <motion.div
+        key={`consent-declined-${currentLanguage}`}
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
         <Card sx={{ maxWidth: 600, mx: 'auto', p: 4, textAlign: 'center' }}>
           <Typography variant="h5" sx={{ mb: 3 }}>
-            Thank you for your response
+            {getTranslation(currentLanguage, 'thankYouResponse')}
           </Typography>
           <Typography variant="body1" sx={{ mb: 4 }}>
-            Take your time and come back when you're ready.
+            {getTranslation(currentLanguage, 'takeYourTime')}
           </Typography>
           <Button
             variant="contained"
             onClick={() => router.push('/')}
           >
-            Return to Home
+            {getTranslation(currentLanguage, 'returnToHome')}
           </Button>
         </Card>
       </motion.div>
@@ -79,89 +68,122 @@ const ConsentForm = ({ userType, onAccept, formData }) => {
 
   return (
     <motion.div
+      key={`consent-form-${currentLanguage}`}
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
       <Card sx={{ maxWidth: 800, mx: 'auto', p: 4 }}>
-        <Typography variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
-          Consent Form
+        {/* Debug Info */}
+        <Box sx={{ mb: 2, p: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
+          <Typography variant="caption" color="textSecondary">
+            Debug: Language = {currentLanguage} | Title = "{getTranslation(currentLanguage, 'consentFormTitle')}"
+          </Typography>
+        </Box>
+        
+        <Typography variant="h4" sx={{ mb: 3, textAlign: 'center', fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'consentFormTitle')}
         </Typography>
         
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Title of Study:
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 3 }}>
-          {studyDetails.title}
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', whiteSpace: 'pre-line' }}>
+          {getTranslation(currentLanguage, 'studyTitle')}
         </Typography>
 
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Principal Investigator:
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {currentLanguage === 'hi' ? 'मुख्य शोधकर्ता:' : currentLanguage === 'kn' ? 'ಮುಖ್ಯ ತನಿಖಾಧಿಕಾರಿ:' : 'Principal Investigator:'}
         </Typography>
-        <Typography variant="body1" sx={{ mb: 3 }}>
-          {studyDetails.investigator.name}<br />
-          {studyDetails.investigator.role}<br />
-          {studyDetails.investigator.institution}
+        <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-line' }}>
+          {getTranslation(currentLanguage, 'principalInvestigator')}
         </Typography>
 
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Purpose of the Study:
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'purposeOfStudy')}
         </Typography>
         <Typography variant="body1" sx={{ mb: 3 }}>
-          {studyDetails.purpose}
+          {getTranslation(currentLanguage, 'studyPurposeContent')}
         </Typography>
 
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Study Procedures:
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'studyProcedures')}
         </Typography>
         <Box sx={{ mb: 3 }}>
-          {studyDetails.procedures.map((proc, index) => (
-            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
-              • {proc}
-            </Typography>
-          ))}
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {getTranslation(currentLanguage, 'procedure1')}
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {getTranslation(currentLanguage, 'procedure2')}
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {getTranslation(currentLanguage, 'procedure3')}
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {getTranslation(currentLanguage, 'procedure4')}
+          </Typography>
         </Box>
 
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Duration:
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'duration')}
         </Typography>
         <Typography variant="body1" sx={{ mb: 3 }}>
-          {studyDetails.duration}
+          {getTranslation(currentLanguage, 'studyDurationContent')}
         </Typography>
 
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Risks and Discomforts:
-        </Typography>
-        <Box sx={{ mb: 3 }}>
-          {studyDetails.risks.map((risk, index) => (
-            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
-              • {risk}
-            </Typography>
-          ))}
-        </Box>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Benefits:
-        </Typography>
-        <Box sx={{ mb: 3 }}>
-          {studyDetails.benefits.map((benefit, index) => (
-            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
-              • {benefit}
-            </Typography>
-          ))}
-        </Box>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Contact Information:
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'voluntaryParticipation')}
         </Typography>
         <Typography variant="body1" sx={{ mb: 3 }}>
-          For questions or concerns, contact:<br />
-          {studyDetails.investigator.name}<br />
-          {studyDetails.investigator.role}<br />
-          {studyDetails.investigator.institution}<br />
-          Mob: {studyDetails.investigator.contact}
+          {getTranslation(currentLanguage, 'voluntaryParticipationContent')}
         </Typography>
 
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'risksAndDiscomforts')}
+        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {getTranslation(currentLanguage, 'risk1')}
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {getTranslation(currentLanguage, 'risk2')}
+          </Typography>
+        </Box>
+
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'benefits')}
+        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {getTranslation(currentLanguage, 'benefit1')}
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {getTranslation(currentLanguage, 'benefit2')}
+          </Typography>
+        </Box>
+
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'confidentiality')}
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          {getTranslation(currentLanguage, 'confidentialityContent')}
+        </Typography>
+
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'compensation')}
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          {getTranslation(currentLanguage, 'compensationContent')}
+        </Typography>
+
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'contactInformation')}
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-line' }}>
+          {getTranslation(currentLanguage, 'contactText')}
+        </Typography>
+
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+          {getTranslation(currentLanguage, 'consentDeclaration')}
+        </Typography>
+        
         <Box sx={{ mb: 3 }}>
           <FormControlLabel
             control={
@@ -170,7 +192,11 @@ const ConsentForm = ({ userType, onAccept, formData }) => {
                 onChange={(e) => setAccepted(e.target.checked)}
               />
             }
-            label="I have read and understood the information above. I voluntarily agree to participate in this study and understand I can withdraw at any time without penalty."
+            label={
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
+                {getTranslation(currentLanguage, 'consentText')}
+              </Typography>
+            }
           />
         </Box>
 
@@ -180,14 +206,14 @@ const ConsentForm = ({ userType, onAccept, formData }) => {
             color="error"
             onClick={handleDecline}
           >
-            Decline
+            {getTranslation(currentLanguage, 'decline')}
           </Button>
           <Button
             variant="contained"
             disabled={!accepted}
             onClick={handleConsent}
           >
-            Accept and Continue to Login
+            {getTranslation(currentLanguage, 'acceptAndContinue')}
           </Button>
         </Box>
       </Card>

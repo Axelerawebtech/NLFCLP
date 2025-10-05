@@ -20,30 +20,36 @@ import {
 } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getTranslation } from '../utils/translations';
+import LanguageSelector from '../components/LanguageSelector';
 import { useRouter } from 'next/router';
 
 export default function Home() {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { currentLanguage } = useLanguage();
   const [showQR, setShowQR] = useState(false);
   const router = useRouter();
 
   const qrValue = `${typeof window !== 'undefined' ? window.location.origin : ''}/onboarding`;
 
+  const t = (key) => getTranslation(currentLanguage, key);
+
   const features = [
     {
       icon: <FaUserMd style={{ fontSize: '3rem', color: '#2563eb' }} />,
-      title: 'Expert Caregivers',
-      description: 'Connect with trained caregivers who provide emotional support and guidance'
+      title: t('expertCaregivers') || 'Expert Caregivers',
+      description: t('expertCaregiversDesc') || 'Connect with trained caregivers who provide emotional support and guidance'
     },
     {
       icon: <FaHeart style={{ fontSize: '3rem', color: '#ef4444' }} />,
-      title: '10-Day Program',
-      description: 'Comprehensive stress management and emotional support program'
+      title: t('tenDayProgram') || '10-Day Program',
+      description: t('tenDayProgramDesc') || 'Comprehensive stress management and emotional support program'
     },
     {
       icon: <FaUsers style={{ fontSize: '3rem', color: '#10b981' }} />,
-      title: 'Patient Support',
-      description: 'Personalized care and progress tracking for better outcomes'
+      title: t('patientSupport') || 'Patient Support',
+      description: t('patientSupportDesc') || 'Personalized care and progress tracking for better outcomes'
     }
   ];
 
@@ -59,8 +65,12 @@ export default function Home() {
         position: 'absolute',
         top: 20,
         right: 20,
-        zIndex: 1000
+        zIndex: 1000,
+        display: 'flex',
+        gap: 2,
+        alignItems: 'center'
       }}>
+        <LanguageSelector />
         <IconButton
           onClick={toggleTheme}
           sx={{
@@ -92,7 +102,7 @@ export default function Home() {
                 textShadow: '0 2px 4px rgba(0,0,0,0.3)'
               }}
             >
-              Cancer Care Support- Nurse-Led Family Caregiver Program (NLFCP)
+              {t('mainTitle') || 'Cancer Care Support- Nurse-Led Family Caregiver Program (NLFCP)'}
             </Typography>
             <Typography
               variant="h4"
@@ -104,7 +114,7 @@ export default function Home() {
                 mx: 'auto'
               }}
             >
-              Connecting patients with caregivers for emotional support and stress management
+              {t('mainSubtitle') || 'Connecting patients with caregivers for emotional support and stress management'}
             </Typography>
 
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -141,7 +151,7 @@ export default function Home() {
                 <Button
                   variant="outlined"
                   size="large"
-                  onClick={() => router.push('/admin/login')}
+                  onClick={() => window.open('/admin/login', '_blank')}
                   sx={{
                     color: 'white',
                     borderColor: 'rgba(255, 255, 255, 0.5)',
@@ -155,7 +165,7 @@ export default function Home() {
                     mr: 2
                   }}
                 >
-                  Admin Login
+                  {t('adminLogin') || 'Admin Login'}
                 </Button>
               </motion.div>
 
@@ -178,7 +188,7 @@ export default function Home() {
                     }
                   }}
                 >
-                  User Login
+                  {t('userLogin') || 'User Login'}
                 </Button>
               </motion.div>
             </Box>
@@ -277,7 +287,7 @@ export default function Home() {
                 fontWeight: 600
               }}
             >
-              Ready to Begin?
+              {getTranslation(currentLanguage, 'readyToBegin')}
             </Typography>
             <Typography
               variant="h6"
@@ -288,7 +298,7 @@ export default function Home() {
                 mx: 'auto'
               }}
             >
-              Join our supportive community and start your journey towards better emotional well-being
+              {getTranslation(currentLanguage, 'joinCommunity')}
             </Typography>
             <motion.div
               whileHover={{ scale: 1.05 }}
@@ -310,7 +320,7 @@ export default function Home() {
                   }
                 }}
               >
-                Start Onboarding
+                {getTranslation(currentLanguage, 'startOnboarding')}
               </Button>
             </motion.div>
           </Box>

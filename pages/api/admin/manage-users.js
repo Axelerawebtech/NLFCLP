@@ -120,6 +120,56 @@ export default async function handler(req, res) {
     }
   }
 
+  else if (req.method === 'DELETE') {
+    try {
+      const { userId, userType } = req.body;
+      console.log('DELETE request - User ID:', userId, 'Type:', userType);
+
+      if (!userId || !userType) {
+        return res.status(400).json({ success: false, message: 'User ID and type are required' });
+      }
+
+      let deletedUser;
+      if (userType === 'caregiver') {
+        deletedUser = await Caregiver.findOneAndDelete({ caregiverId: userId });
+        if (deletedUser && deletedUser.assignedPatient) {
+          // Unassign the patient if caregiver was assigned
+          await Patient.findByIdAndUpdate(deletedUser.assignedPatient, {
+            isAssigned: false,
+            assignedCaregiver: null
+          });
+        }
+      } else if (userType === 'patient') {
+        deletedUser = await Patient.findOneAndDelete({ patientId: userId });
+        if (deletedUser && deletedUser.assignedCaregiver) {
+          // Unassign the caregiver if patient was assigned
+          await Caregiver.findByIdAndUpdate(deletedUser.assignedCaregiver, {
+            isAssigned: false,
+            assignedPatient: null,
+            programControl: { status: 'inactive' }
+          });
+        }
+      } else {
+        return res.status(400).json({ success: false, message: 'Invalid user type' });
+      }
+
+      if (!deletedUser) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      console.log('User deleted successfully:', deletedUser.name);
+      res.status(200).json({
+        success: true,
+        message: `${userType} deleted successfully`,
+        deletedUser: { id: userId, name: deletedUser.name }
+      });
+
+    } catch (error) {
+      console.error('Delete API error:', error);
+      res.status(500).json({ success: false, message: 'Delete failed', error: error.message });
+    }
+  }
+
   else {
     res.status(405).json({ message: 'Method not allowed' });
   }

@@ -26,20 +26,31 @@ import {
   FaHeart
 } from 'react-icons/fa';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getTranslation } from '../utils/translations';
 import { useRouter } from 'next/router';
 
 import ConsentForm from '../components/ConsentForm';
 import CaregiverQuestions from '../components/CaregiverQuestions';
-
-const steps = ['Choose Role', 'Consent Form', 'Demographic Questions', 'Complete Registration'];
+import LanguageSelector from '../components/LanguageSelector';
 
 export default function Onboarding() {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { currentLanguage } = useLanguage();
   const [activeStep, setActiveStep] = useState(0);
   const [userType, setUserType] = useState('');
   const [formData, setFormData] = useState({});
   const [consentAccepted, setConsentAccepted] = useState(false);
   const router = useRouter();
+
+  const getSteps = () => [
+    getTranslation(currentLanguage, 'chooseRole'),
+    getTranslation(currentLanguage, 'consentForm'),
+    getTranslation(currentLanguage, 'demographicQuestions'),
+    getTranslation(currentLanguage, 'completeRegistration')
+  ];
+
+  const steps = getSteps();
 
   const handleUserTypeSelection = (type) => {
     setUserType(type);
@@ -71,14 +82,14 @@ export default function Onboarding() {
             WebkitTextFillColor: 'transparent',
           }}
         >
-          Welcome to Cancer Care Support
+          {getTranslation(currentLanguage, 'welcome')}
         </Typography>
         <Typography
           variant="h6"
           color="text.secondary"
           sx={{ maxWidth: 600, mx: 'auto' }}
         >
-          Please select your role to begin the onboarding process
+          {getTranslation(currentLanguage, 'selectRole')}
         </Typography>
       </Box>
 
@@ -109,10 +120,10 @@ export default function Onboarding() {
               <CardContent>
                 <FaUserMd style={{ fontSize: '4rem', marginBottom: '1rem' }} />
                 <Typography variant="h4" sx={{ mb: 2, fontWeight: 600 }}>
-                  Caregiver
+                  {getTranslation(currentLanguage, 'caregiver')}
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  I'm here to provide support and care to a cancer patient
+                  {getTranslation(currentLanguage, 'caregiverDesc')}
                 </Typography>
               </CardContent>
             </Card>
@@ -145,10 +156,10 @@ export default function Onboarding() {
               <CardContent>
                 <FaUser style={{ fontSize: '4rem', marginBottom: '1rem' }} />
                 <Typography variant="h4" sx={{ mb: 2, fontWeight: 600 }}>
-                  Patient
+                  {getTranslation(currentLanguage, 'patient')}
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  I'm a cancer patient seeking support and care
+                  {getTranslation(currentLanguage, 'patientDesc')}
                 </Typography>
               </CardContent>
             </Card>
@@ -325,7 +336,7 @@ export default function Onboarding() {
                 onChange={(e) => setAccepted(e.target.checked)}
               />
             }
-            label="I have read and understood the information above. I voluntarily agree to participate in this study and understand I can withdraw at any time without penalty."
+            label={getTranslation(currentLanguage, "consentText")}
           />
         </Box>
 
@@ -387,23 +398,23 @@ const CompletionStep = ({ formData }) => {
       <Box textAlign="center">
         <FaHeart style={{ fontSize: '4rem', color: '#ef4444', marginBottom: '2rem' }} />
         <Typography variant="h3" sx={{ mb: 2, fontWeight: 700 }}>
-          Registration Complete!
+          {getTranslation(currentLanguage, 'registrationComplete')}
         </Typography>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
-          Your account has been created successfully. You will be automatically redirected to login.
+          {getTranslation(currentLanguage, 'accountCreatedSuccess')}
         </Typography>
         {formData?.generatedId ? (
           <>
             <Typography variant="body1" sx={{ mb: 2, p: 3, backgroundColor: 'action.hover', borderRadius: 2 }}>
-              <strong>Your ID:</strong> {formData.generatedId}
+              <strong>{getTranslation(currentLanguage, 'yourId')}</strong> {formData.generatedId}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-              Please save this ID for future logins
+              {getTranslation(currentLanguage, 'saveIdForLogin')}
             </Typography>
             
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>
-                Redirecting to login in {countdown} seconds...
+                {getTranslation(currentLanguage, 'redirectingToLogin')} {countdown} {getTranslation(currentLanguage, 'seconds')}
               </Typography>
               <Button
                 variant="contained"
@@ -411,7 +422,7 @@ const CompletionStep = ({ formData }) => {
                 onClick={handleLoginNow}
                 sx={{ px: 4, py: 2, mr: 2 }}
               >
-                Login Now
+                {getTranslation(currentLanguage, 'loginNow')}
               </Button>
               <Button
                 variant="outlined"
@@ -419,14 +430,14 @@ const CompletionStep = ({ formData }) => {
                 onClick={() => router.push('/')}
                 sx={{ px: 4, py: 2 }}
               >
-                Back to Home
+                {getTranslation(currentLanguage, 'backToHome')}
               </Button>
             </Box>
           </>
         ) : (
           <Box sx={{ mb: 4 }}>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-              Registration completed successfully!
+              {getTranslation(currentLanguage, 'registrationCompletedSuccess')}
             </Typography>
             <Button
               variant="contained"
@@ -434,7 +445,7 @@ const CompletionStep = ({ formData }) => {
               onClick={() => router.push('/login')}
               sx={{ px: 4, py: 2, mr: 2 }}
             >
-              Go to Login
+              {getTranslation(currentLanguage, 'goToLogin')}
             </Button>
             <Button
               variant="outlined"
@@ -442,7 +453,7 @@ const CompletionStep = ({ formData }) => {
               onClick={() => router.push('/')}
               sx={{ px: 4, py: 2 }}
             >
-              Back to Home
+              {getTranslation(currentLanguage, "backToHome")}
             </Button>
           </Box>
         )}
@@ -458,18 +469,33 @@ const CompletionStep = ({ formData }) => {
       py: 4
     }}>
       {/* Header */}
-      <Box sx={{
-        position: 'absolute',
-        top: 20,
-        right: 20,
-        zIndex: 1000
+      <Box sx={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        px: 3, 
+        py: 1.5, 
+        backgroundColor: 'background.paper', 
+        boxShadow: 1, 
+        zIndex: 1100 
       }}>
-        <IconButton onClick={toggleTheme}>
-          {isDarkMode ? <FaSun /> : <FaMoon />}
-        </IconButton>
+        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+          Cancer Care Support
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <LanguageSelector />
+          <IconButton onClick={toggleTheme} color="inherit">
+            {isDarkMode ? <FaSun /> : <FaMoon />}
+          </IconButton>
+        </Box>
       </Box>
 
-      <Container maxWidth="lg">
+      {/* Main Content */}
+      <Container maxWidth="lg" sx={{ pt: 10 }}>
         {/* Stepper */}
         <Box sx={{ mb: 6 }}>
           <Stepper activeStep={activeStep} alternativeLabel>
@@ -522,8 +548,128 @@ const CompletionStep = ({ formData }) => {
 
 // Caregiver Form Component
 function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted }) {
+  const { currentLanguage } = useLanguage();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
+
+  // Helper function to translate options
+  const translateOption = (option) => {
+    const optionMap = {
+      'Male': getTranslation(currentLanguage, 'male'),
+      'Female': getTranslation(currentLanguage, 'female'),
+      'Non-binary': getTranslation(currentLanguage, 'nonBinary'),
+      'Prefer not to say': getTranslation(currentLanguage, 'preferNotToSay'),
+      'Other': getTranslation(currentLanguage, 'other'),
+      'Single': getTranslation(currentLanguage, 'single'),
+      'Married': getTranslation(currentLanguage, 'married'),
+      'Widowed': getTranslation(currentLanguage, 'widowed'),
+      'Divorced': getTranslation(currentLanguage, 'divorced'),
+      'Separated': getTranslation(currentLanguage, 'separated'),
+      'No formal education': getTranslation(currentLanguage, 'noFormalEducation'),
+      'Primary education': getTranslation(currentLanguage, 'primaryEducation'),
+      'Secondary education': getTranslation(currentLanguage, 'secondaryEducation'),
+      'Higher secondary': getTranslation(currentLanguage, 'higherSecondary'),
+      'Undergraduate degree': getTranslation(currentLanguage, 'undergraduateDegree'),
+      'Postgraduate degree': getTranslation(currentLanguage, 'postgraduateDegree'),
+      'Full-time employed': getTranslation(currentLanguage, 'fullTimeEmployed'),
+      'Part-time employed': getTranslation(currentLanguage, 'partTimeEmployed'),
+      'Self-employed': getTranslation(currentLanguage, 'selfEmployed'),
+      'Unemployed': getTranslation(currentLanguage, 'unemployed'),
+      'Retired': getTranslation(currentLanguage, 'retired'),
+      'Student': getTranslation(currentLanguage, 'student'),
+      'Homemaker': getTranslation(currentLanguage, 'homemaker'),
+      
+      // Residential Area options
+      'Urban': getTranslation(currentLanguage, 'urban'),
+      'Rural': getTranslation(currentLanguage, 'rural'),
+      'Suburban': getTranslation(currentLanguage, 'suburban'),
+      
+      // Relationship options
+      'Spouse': getTranslation(currentLanguage, 'spouse'),
+      'Parent': getTranslation(currentLanguage, 'parent'),
+      'Child': getTranslation(currentLanguage, 'child'),
+      'Sibling': getTranslation(currentLanguage, 'sibling'),
+      
+      // Hours per day options
+      'Less than 2 hours': getTranslation(currentLanguage, 'lessThanTwoHours'),
+      '2-4 hours': getTranslation(currentLanguage, 'twoToFourHours'),
+      '5-8 hours': getTranslation(currentLanguage, 'fiveToEightHours'),
+      'More than 8 hours': getTranslation(currentLanguage, 'moreThanEightHours'),
+      
+      // Age options
+      'sixtyOneAndAbove': getTranslation(currentLanguage, 'sixtyOneAndAbove'),
+      
+      // Caregiver-specific options
+      'Less than 6 months': getTranslation(currentLanguage, 'lessThanSixMonths'),
+      '6-12 months': getTranslation(currentLanguage, 'sixToTwelveMonths'),
+      '1-2 years': getTranslation(currentLanguage, 'oneToTwoYears'),
+      '2-5 years': getTranslation(currentLanguage, 'twoToFiveYears'),
+      'More than 5 years': getTranslation(currentLanguage, 'moreThanFiveYears'),
+      'Yes': getTranslation(currentLanguage, 'yes'),
+      'No': getTranslation(currentLanguage, 'no'),
+      'Family Support': getTranslation(currentLanguage, 'familySupport'),
+      'Friends': getTranslation(currentLanguage, 'friends'),
+      'Community Support Groups': getTranslation(currentLanguage, 'communitySupportGroups'),
+      'Religious/Spiritual Support': getTranslation(currentLanguage, 'religiousSupport'),
+      'Professional Support Services': getTranslation(currentLanguage, 'professionalSupport'),
+      'None': getTranslation(currentLanguage, 'none'),
+      'Diabetes': getTranslation(currentLanguage, 'diabetes'),
+      'Hypertension': getTranslation(currentLanguage, 'hypertension'),
+      'Heart Disease': getTranslation(currentLanguage, 'heartDisease'),
+      'Arthritis': getTranslation(currentLanguage, 'arthritis'),
+      'Back Pain': getTranslation(currentLanguage, 'backPain'),
+      'Respiratory Issues': getTranslation(currentLanguage, 'respiratoryIssues'),
+      'Depression': getTranslation(currentLanguage, 'depression'),
+      'Anxiety': getTranslation(currentLanguage, 'anxiety'),
+      'Stress-related disorder': getTranslation(currentLanguage, 'stressDisorder'),
+      'Sleep Issues': getTranslation(currentLanguage, 'sleepIssues')
+    };
+    return optionMap[option] || option;
+  };
+  
+  // Helper function to get translated question
+  const getQuestionText = (questionId) => {
+    const translations = {
+      name: getTranslation(currentLanguage, 'fullName'),
+      phone: getTranslation(currentLanguage, 'phoneNumber'), 
+      age: getTranslation(currentLanguage, 'age'),
+      gender: getTranslation(currentLanguage, 'gender'),
+      maritalStatus: getTranslation(currentLanguage, 'maritalStatusQuestion'),
+      educationLevel: getTranslation(currentLanguage, 'educationLevelQuestion'),
+      employmentStatus: getTranslation(currentLanguage, 'employmentStatusQuestion')
+    };
+    return translations[questionId] || questionId;
+  };
+  
+  // Helper function to get translated options
+  const getOptionText = (optionValue) => {
+    const optionTranslations = {
+      'Male': getTranslation(currentLanguage, 'male'),
+      'Female': getTranslation(currentLanguage, 'female'),
+      'Non-binary': getTranslation(currentLanguage, 'nonBinary'),
+      'Prefer not to say': getTranslation(currentLanguage, 'preferNotToSay'),
+      'Other': getTranslation(currentLanguage, 'other'),
+      'Single': getTranslation(currentLanguage, 'single'),
+      'Married': getTranslation(currentLanguage, 'married'),
+      'Widowed': getTranslation(currentLanguage, 'widowed'),
+      'Divorced': getTranslation(currentLanguage, 'divorced'),
+      'Separated': getTranslation(currentLanguage, 'separated'),
+      'No formal education': getTranslation(currentLanguage, 'noFormalEducation'),
+      'Primary education': getTranslation(currentLanguage, 'primaryEducation'),
+      'Secondary education': getTranslation(currentLanguage, 'secondaryEducation'),
+      'Higher secondary': getTranslation(currentLanguage, 'higherSecondary'),
+      'Undergraduate degree': getTranslation(currentLanguage, 'undergraduateDegree'),
+      'Postgraduate degree': getTranslation(currentLanguage, 'postgraduateDegree'),
+      'Full-time employed': getTranslation(currentLanguage, 'fullTimeEmployed'),
+      'Part-time employed': getTranslation(currentLanguage, 'partTimeEmployed'),
+      'Self-employed': getTranslation(currentLanguage, 'selfEmployed'),
+      'Unemployed': getTranslation(currentLanguage, 'unemployed'),
+      'Retired': getTranslation(currentLanguage, 'retired'),
+      'Student': getTranslation(currentLanguage, 'student'),
+      'Homemaker': getTranslation(currentLanguage, 'homemaker')
+    };
+    return optionTranslations[optionValue] || optionValue;
+  };
 
   const handleSubmitAnswer = (value) => {
     const currentQ = questions[currentQuestion];
@@ -583,7 +729,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
       id: 'age',
       question: 'Age (in years):',
       type: 'radio',
-      options: ['18-30', '31-40', '41-50', '51-60', '61 and above'],
+      options: ['18-30', '31-40', '41-50', '51-60', 'sixtyOneAndAbove'],
       allowOther: true,
       required: true
     },
@@ -739,13 +885,13 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
       console.log('Caregiver registration response:', result);
       
       if (!response.ok) {
-        throw new Error(result.message || 'Registration failed');
+        throw new Error(result.message || getTranslation(currentLanguage, 'registrationFailed'));
       }
       
       console.log('Caregiver registration successful:', result);
     } catch (error) {
       console.error('Caregiver registration error:', error);
-      alert('Registration failed: ' + error.message);
+      alert(getTranslation(currentLanguage, 'registrationFailed') + ': ' + error.message);
     }
   };
 
@@ -762,7 +908,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
               const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
               
               return (
-                <Grid item xs={12} sm={6} key={option}>
+                <Grid item xs={12} sm={6} key={translateOption(option)}>
                   <Button
                     fullWidth
                     variant={isSelected ? "contained" : "outlined"}
@@ -792,7 +938,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
                         : { backgroundColor: 'primary.main', color: 'white' }
                     }}
                   >
-                    {option}
+                    {translateOption(option)}
                   </Button>
                 </Grid>
               );
@@ -818,7 +964,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
                     }
                   }}
                   sx={{ mt: 2 }}
-                  label="Please specify"
+                  label={getTranslation(currentLanguage, "pleaseSpecify")}
                 />
               </Grid>
             )}
@@ -839,7 +985,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
                 disabled={!currentValue.length || (question.allowOther && currentValue.includes('Other') && !answers[`${question.id}Other`])}
                 sx={{ mt: 2 }}
               >
-                {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                {currentQuestion === questions.length - 1 ? getTranslation(currentLanguage, 'completeRegistration') : getTranslation(currentLanguage, 'nextQuestion')}
               </Button>
             </Grid>
           </Grid>
@@ -849,7 +995,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
         return (
           <Grid container spacing={2}>
             {question.options.map((option) => (
-              <Grid item xs={12} sm={6} key={option}>
+              <Grid item xs={12} sm={6} key={translateOption(option)}>
                 <Button
                   fullWidth
                   variant={currentValue === option ? "contained" : "outlined"}
@@ -862,7 +1008,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
                     '&:hover': { backgroundColor: 'primary.main', color: 'white' }
                   }}
                 >
-                  {option}
+                  {translateOption(option)}
                 </Button>
               </Grid>
             ))}
@@ -870,7 +1016,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  placeholder="Please specify"
+                  placeholder={getTranslation(currentLanguage, "pleaseSpecify")}
                   value={answers[`${question.id}Other`] || ''}
                   onChange={(e) => setAnswers({
                     ...answers,
@@ -944,7 +1090,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
               const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
               
               return (
-                <Grid item xs={12} sm={6} key={option}>
+                <Grid item xs={12} sm={6} key={translateOption(option)}>
                   <Button
                     fullWidth
                     variant={isSelected ? "contained" : "outlined"}
@@ -974,7 +1120,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
                         : { backgroundColor: 'primary.main', color: 'white' }
                     }}
                   >
-                    {option}
+                    {translateOption(option)}
                   </Button>
                 </Grid>
               );
@@ -987,7 +1133,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
                 disabled={!currentValue.length}
                 sx={{ mt: 2 }}
               >
-                {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                {currentQuestion === questions.length - 1 ? getTranslation(currentLanguage, 'completeRegistration') : getTranslation(currentLanguage, 'nextQuestion')}
               </Button>
             </Grid>
           </Grid>
@@ -997,7 +1143,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
         return (
           <Grid container spacing={2}>
             {question.options.map((option) => (
-              <Grid item xs={12} sm={6} key={option}>
+              <Grid item xs={12} sm={6} key={translateOption(option)}>
                 <Button
                   fullWidth
                   variant={currentValue === option ? "contained" : "outlined"}
@@ -1010,7 +1156,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
                     '&:hover': { backgroundColor: 'primary.main', color: 'white' }
                   }}
                 >
-                  {option}
+                  {translateOption(option)}
                 </Button>
               </Grid>
             ))}
@@ -1018,7 +1164,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  placeholder="Please specify"
+                  placeholder={getTranslation(currentLanguage, "pleaseSpecify")}
                   value={answers[`${question.id}Other`] || ''}
                   onChange={(e) => setAnswers({
                     ...answers,
@@ -1049,7 +1195,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
               disabled={!currentValue.trim()}
               sx={{ mt: 2 }}
             >
-              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+              {currentQuestion === questions.length - 1 ? getTranslation(currentLanguage, 'completeRegistration') : getTranslation(currentLanguage, 'nextQuestion')}
             </Button>
           </>
         );
@@ -1076,7 +1222,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
               disabled={!currentValue.trim()}
               sx={{ mt: 2 }}
             >
-              {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+              {currentQuestion === questions.length - 1 ? getTranslation(currentLanguage, 'completeRegistration') : getTranslation(currentLanguage, 'nextQuestion')}
             </Button>
           </>
         );
@@ -1093,10 +1239,25 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
     >
       <Card sx={{ maxWidth: 600, mx: 'auto', p: 4 }}>
         <Typography variant="h5" sx={{ mb: 3, textAlign: 'center' }}>
-          Question {currentQuestion + 1} of {questions.length}
+          {getTranslation(currentLanguage, "question")} {currentQuestion + 1} {getTranslation(currentLanguage, "of")} {questions.length}
         </Typography>
         <Typography variant="h6" sx={{ mb: 4 }}>
-          {questions[currentQuestion].question}
+          {questions[currentQuestion].id === 'name' ? getTranslation(currentLanguage, 'fullName') :
+           questions[currentQuestion].id === 'phone' ? getTranslation(currentLanguage, 'phoneNumber') :
+           questions[currentQuestion].id === 'age' ? getTranslation(currentLanguage, 'age') :
+           questions[currentQuestion].id === 'gender' ? getTranslation(currentLanguage, 'gender') :
+           questions[currentQuestion].id === 'maritalStatus' ? getTranslation(currentLanguage, 'maritalStatusQuestion') :
+           questions[currentQuestion].id === 'educationLevel' ? getTranslation(currentLanguage, 'educationLevelQuestion') :
+           questions[currentQuestion].id === 'employmentStatus' ? getTranslation(currentLanguage, 'employmentStatusQuestion') :
+           questions[currentQuestion].id === 'residentialArea' ? getTranslation(currentLanguage, 'residentialAreaQuestion') :
+           questions[currentQuestion].id === 'relationshipToPatient' ? getTranslation(currentLanguage, 'relationshipToPatientQuestion') :
+           questions[currentQuestion].id === 'hoursPerDay' ? getTranslation(currentLanguage, 'hoursPerDayQuestion') :
+           questions[currentQuestion].id === 'durationOfCaregiving' ? getTranslation(currentLanguage, 'durationOfCaregivingQuestion') :
+           questions[currentQuestion].id === 'previousExperience' ? getTranslation(currentLanguage, 'previousExperienceQuestion') :
+           questions[currentQuestion].id === 'supportSystem' ? getTranslation(currentLanguage, 'supportSystemQuestion') :
+           questions[currentQuestion].id === 'physicalHealth' ? getTranslation(currentLanguage, 'physicalHealthQuestion') :
+           questions[currentQuestion].id === 'mentalHealth' ? getTranslation(currentLanguage, 'mentalHealthQuestion') :
+           questions[currentQuestion].question}
         </Typography>
         {renderQuestionField()}
       </Card>
@@ -1109,7 +1270,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
           variant="outlined"
           sx={{ mr: 2 }}
         >
-          {currentQuestion === 0 ? 'Back to Consent Form' : 'Previous Question'}
+          {currentQuestion === 0 ? getTranslation(currentLanguage, 'backToConsentForm') : getTranslation(currentLanguage, 'previousQuestion')}
         </Button>
       </Box>
     </motion.div>
@@ -1118,8 +1279,79 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
 
 // Patient Form Component
 const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted }) => {
+  const { currentLanguage } = useLanguage();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
+
+  // Helper function to translate options
+  const translateOption = (option) => {
+    const optionMap = {
+      'Male': getTranslation(currentLanguage, 'male'),
+      'Female': getTranslation(currentLanguage, 'female'),
+      'Other': getTranslation(currentLanguage, 'other'),
+      'Single': getTranslation(currentLanguage, 'single'),
+      'Married': getTranslation(currentLanguage, 'married'),
+      'Widowed': getTranslation(currentLanguage, 'widowed'),
+      'Divorced': getTranslation(currentLanguage, 'divorced'),
+      'Separated': getTranslation(currentLanguage, 'separated'),
+      'No formal education': getTranslation(currentLanguage, 'noFormalEducation'),
+      'Primary education': getTranslation(currentLanguage, 'primaryEducation'),
+      'Secondary education': getTranslation(currentLanguage, 'secondaryEducation'),
+      'Higher secondary': getTranslation(currentLanguage, 'higherSecondary'),
+      'Undergraduate degree': getTranslation(currentLanguage, 'undergraduateDegree'),
+      'Postgraduate degree': getTranslation(currentLanguage, 'postgraduateDegree'),
+      'Full-time employed': getTranslation(currentLanguage, 'fullTimeEmployed'),
+      'Part-time employed': getTranslation(currentLanguage, 'partTimeEmployed'),
+      'Self-employed': getTranslation(currentLanguage, 'selfEmployed'),
+      'Unemployed': getTranslation(currentLanguage, 'unemployed'),
+      'Retired': getTranslation(currentLanguage, 'retired'),
+      'Student': getTranslation(currentLanguage, 'student'),
+      'Homemaker': getTranslation(currentLanguage, 'homemaker')
+    };
+    return optionMap[option] || option;
+  };
+  
+  // Helper function to get translated question
+  const getQuestionText = (questionId) => {
+    const translations = {
+      name: getTranslation(currentLanguage, 'fullName'),
+      phone: getTranslation(currentLanguage, 'phoneNumber'), 
+      age: getTranslation(currentLanguage, 'age'),
+      gender: getTranslation(currentLanguage, 'gender'),
+      maritalStatus: getTranslation(currentLanguage, 'maritalStatusQuestion'),
+      educationLevel: getTranslation(currentLanguage, 'educationLevelQuestion'),
+      employmentStatus: getTranslation(currentLanguage, 'employmentStatusQuestion')
+    };
+    return translations[questionId] || questionId;
+  };
+  
+  // Helper function to get translated options
+  const getOptionText = (optionValue) => {
+    const optionTranslations = {
+      'Male': getTranslation(currentLanguage, 'male'),
+      'Female': getTranslation(currentLanguage, 'female'),
+      'Other': getTranslation(currentLanguage, 'other'),
+      'Single': getTranslation(currentLanguage, 'single'),
+      'Married': getTranslation(currentLanguage, 'married'),
+      'Widowed': getTranslation(currentLanguage, 'widowed'),
+      'Divorced': getTranslation(currentLanguage, 'divorced'),
+      'Separated': getTranslation(currentLanguage, 'separated'),
+      'No formal education': getTranslation(currentLanguage, 'noFormalEducation'),
+      'Primary education': getTranslation(currentLanguage, 'primaryEducation'),
+      'Secondary education': getTranslation(currentLanguage, 'secondaryEducation'),
+      'Higher secondary': getTranslation(currentLanguage, 'higherSecondary'),
+      'Undergraduate degree': getTranslation(currentLanguage, 'undergraduateDegree'),
+      'Postgraduate degree': getTranslation(currentLanguage, 'postgraduateDegree'),
+      'Full-time employed': getTranslation(currentLanguage, 'fullTimeEmployed'),
+      'Part-time employed': getTranslation(currentLanguage, 'partTimeEmployed'),
+      'Self-employed': getTranslation(currentLanguage, 'selfEmployed'),
+      'Unemployed': getTranslation(currentLanguage, 'unemployed'),
+      'Retired': getTranslation(currentLanguage, 'retired'),
+      'Student': getTranslation(currentLanguage, 'student'),
+      'Homemaker': getTranslation(currentLanguage, 'homemaker')
+    };
+    return optionTranslations[optionValue] || optionValue;
+  };
 
   const questions = [
     // Basic Information
@@ -1144,7 +1376,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
       question: '1. Age (in years):',
       type: 'radio',
       section: 'Demographic Information',
-      options: ['18-30', '31-40', '41-50', '51-60', '61 and above'],
+      options: ['18-30', '31-40', '41-50', '51-60', 'sixtyOneAndAbove'],
       required: true
     },
     {
@@ -1286,13 +1518,13 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
       console.log('Patient registration response:', result);
       
       if (!response.ok) {
-        throw new Error(result.message || 'Registration failed');
+        throw new Error(result.message || getTranslation(currentLanguage, 'registrationFailed'));
       }
       
       console.log('Patient registration successful:', result);
     } catch (error) {
       console.error('Patient registration error:', error);
-      alert('Registration failed: ' + error.message);
+      alert(getTranslation(currentLanguage, 'registrationFailed') + ': ' + error.message);
     }
   };
 
@@ -1306,7 +1538,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
     >
       <Card sx={{ maxWidth: 600, mx: 'auto', p: 4 }}>
         <Typography variant="h5" sx={{ mb: 3, textAlign: 'center' }}>
-          Question {currentQuestion + 1} of {questions.length}
+          {getTranslation(currentLanguage, "question")} {currentQuestion + 1} {getTranslation(currentLanguage, "of")} {questions.length}
         </Typography>
         {questions[currentQuestion].section && (
           <Typography variant="subtitle1" sx={{ mb: 2, color: 'primary.main', textAlign: 'center', fontWeight: 600 }}>
@@ -1314,7 +1546,20 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
           </Typography>
         )}
         <Typography variant="h6" sx={{ mb: 4 }}>
-          {questions[currentQuestion].question}
+          {questions[currentQuestion].id === 'name' ? getTranslation(currentLanguage, 'fullName') :
+           questions[currentQuestion].id === 'phone' ? getTranslation(currentLanguage, 'phoneNumber') :
+           questions[currentQuestion].id === 'age' ? getTranslation(currentLanguage, 'age') :
+           questions[currentQuestion].id === 'gender' ? getTranslation(currentLanguage, 'gender') :
+           questions[currentQuestion].id === 'maritalStatus' ? getTranslation(currentLanguage, 'maritalStatusQuestion') :
+           questions[currentQuestion].id === 'educationLevel' ? getTranslation(currentLanguage, 'educationLevelQuestion') :
+           questions[currentQuestion].id === 'employmentStatus' ? getTranslation(currentLanguage, 'employmentStatusQuestion') :
+           questions[currentQuestion].id === 'residentialArea' ? getTranslation(currentLanguage, 'residentialAreaQuestion') :
+           questions[currentQuestion].id === 'cancerType' ? getTranslation(currentLanguage, 'cancerTypeQuestion') :
+           questions[currentQuestion].id === 'cancerStage' ? getTranslation(currentLanguage, 'cancerStageQuestion') :
+           questions[currentQuestion].id === 'treatmentModality' ? getTranslation(currentLanguage, 'treatmentModalityQuestion') :
+           questions[currentQuestion].id === 'illnessDuration' ? getTranslation(currentLanguage, 'illnessDurationQuestion') :
+           questions[currentQuestion].id === 'comorbidities' ? getTranslation(currentLanguage, 'comorbiditiesQuestion') :
+           questions[currentQuestion].question}
         </Typography>
 
         {(() => {
@@ -1330,7 +1575,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                     const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
                     
                     return (
-                      <Grid item xs={12} sm={6} key={option}>
+                      <Grid item xs={12} sm={6} key={translateOption(option)}>
                         <Button
                           fullWidth
                           variant={isSelected ? "contained" : "outlined"}
@@ -1360,7 +1605,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                               : { backgroundColor: 'primary.main', color: 'white' }
                           }}
                         >
-                          {option}
+                          {translateOption(option)}
                         </Button>
                       </Grid>
                     );
@@ -1386,7 +1631,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                           }
                         }}
                         sx={{ mt: 2 }}
-                        label="Please specify"
+                        label={getTranslation(currentLanguage, "pleaseSpecify")}
                       />
                     </Grid>
                   )}
@@ -1407,7 +1652,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                       disabled={!currentValue.length || (currentValue.includes('Other') && question.allowOther && !answers[`${question.id}Other`])}
                       sx={{ mt: 2 }}
                     >
-                      {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                      {currentQuestion === questions.length - 1 ? getTranslation(currentLanguage, 'completeRegistration') : getTranslation(currentLanguage, 'nextQuestion')}
                     </Button>
                   </Grid>
                 </Grid>
@@ -1417,7 +1662,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
               return (
                 <Grid container spacing={2}>
                   {question.options.map((option) => (
-                    <Grid item xs={12} sm={6} key={option}>
+                    <Grid item xs={12} sm={6} key={translateOption(option)}>
                       <Button
                         fullWidth
                         variant={currentValue === option ? "contained" : "outlined"}
@@ -1436,7 +1681,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                           '&:hover': { backgroundColor: 'primary.main', color: 'white' }
                         }}
                       >
-                        {option}
+                        {translateOption(option)}
                       </Button>
                     </Grid>
                   ))}
@@ -1444,7 +1689,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                     <Grid item xs={12}>
                       <TextField
                         fullWidth
-                        placeholder="Please specify"
+                        placeholder={getTranslation(currentLanguage, "pleaseSpecify")}
                         value={answers[`${question.id}Other`] || ''}
                         onChange={(e) => setAnswers({
                           ...answers,
@@ -1457,7 +1702,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                           }
                         }}
                         sx={{ mt: 2 }}
-                        label="Please specify"
+                        label={getTranslation(currentLanguage, "pleaseSpecify")}
                       />
                       <Button
                         fullWidth
@@ -1466,7 +1711,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                         disabled={!answers[`${question.id}Other`]}
                         sx={{ mt: 2 }}
                       >
-                        {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                        {currentQuestion === questions.length - 1 ? getTranslation(currentLanguage, 'completeRegistration') : getTranslation(currentLanguage, 'nextQuestion')}
                       </Button>
                     </Grid>
                   )}
@@ -1491,7 +1736,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                     disabled={!((currentValue || '').trim())}
                     sx={{ mt: 2 }}
                   >
-                    {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                    {currentQuestion === questions.length - 1 ? getTranslation(currentLanguage, 'completeRegistration') : getTranslation(currentLanguage, 'nextQuestion')}
                   </Button>
                 </>
               );
@@ -1518,7 +1763,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                     disabled={!((currentValue || '').trim())}
                     sx={{ mt: 2 }}
                   >
-                    {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
+                    {currentQuestion === questions.length - 1 ? getTranslation(currentLanguage, 'completeRegistration') : getTranslation(currentLanguage, 'nextQuestion')}
                   </Button>
                 </>
               );
@@ -1534,7 +1779,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
           variant="outlined"
           sx={{ mr: 2 }}
         >
-          {currentQuestion === 0 ? 'Back to Consent Form' : 'Previous Question'}
+          {currentQuestion === 0 ? getTranslation(currentLanguage, 'backToConsentForm') : getTranslation(currentLanguage, 'previousQuestion')}
         </Button>
       </Box>
     </motion.div>
