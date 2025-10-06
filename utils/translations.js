@@ -42,7 +42,8 @@ export const translations = {
     
     // Consent Form
     consentFormTitle: "Consent Form",
-    studyTitle: "Title of Study:\n\nThe Impact of a Nurse-led Family Caregiver Program Among Cancer Patients at a Tertiary Care Hospital in Bangalore.",
+    studyTitle: "Title of Study:",
+    studyTitleContent:"The Impact of a Nurse-led Family Caregiver Program Among Cancer Patients at a Tertiary Care Hospital in Bangalore.",
     principalInvestigator: "Principal Investigator:\nMR. James Raj K\nPHD Scholar\nKLE Institute of Nursing Science, Belgaum",
     investigatorName: "MR. James Raj K",
     investigatorRole: "PHD Scholar",
@@ -79,6 +80,56 @@ export const translations = {
     thankYouResponse: "Thank you for your response",
     takeYourTime: "Take your time and come back when you're ready.",
     returnToHome: "Return to Home",
+    nameValidationHelper: "Only letters and spaces are allowed",
+    phoneValidationHelper: "Enter 10 digit phone number",
+    phoneLength10Required: "Phone number must be exactly 10 digits",
+    
+    // Patient Registration Options (Questions 3, 7-14)
+    // Question 3: Marital Status (already exists above)
+    
+    // Question 7: Cancer Type (text input - no options)
+    
+    // Question 8: Cancer Stage
+    stageI: "Stage I",
+    stageII: "Stage II",
+    stageIII: "Stage III",
+    stageIV: "Stage IV",
+    
+    // Question 9: Treatment Modality
+    chemotherapy: "Chemotherapy",
+    radiationTherapy: "Radiation Therapy",
+    surgery: "Surgery",
+    immunotherapy: "Immunotherapy",
+    hormoneTherapy: "Hormone Therapy",
+    
+    // Question 10: Duration of Illness
+    lessThan6Months: "Less than 6 months",
+    months6to12: "6-12 months",
+    years1to2: "1-2 years",
+    moreThan2Years: "More than 2 years",
+    
+    // Question 11: Comorbidities
+    diabetes: "Diabetes",
+    hypertension: "Hypertension",
+    cardiovascularDisease: "Cardiovascular disease",
+    respiratoryDisorders: "Respiratory Disorders",
+    none: "None",
+    
+    // Question 12: Health Insurance
+    yesGovernment: "Yes - Government",
+    yesPrivate: "Yes - Private",
+    no: "No",
+    
+    // General options
+    urban: "Urban",
+    rural: "Rural",
+    
+    // Age ranges
+    age18to30: "18-30",
+    age31to40: "31-40",
+    age41to50: "41-50",
+    age51to60: "51-60",
+    sixtyOneAndAbove: "61 and above",
     takeYourTime: "Take your time and come back when you're ready.",
     returnToHome: "Return to Home",
     
@@ -155,6 +206,7 @@ export const translations = {
     retired: "Retired",
     student: "Student",
     homemaker: "Homemaker",
+    employedFullPartTime: "Employed (Full-time/Part-time)",
     
     // Additional Options
     pleaseSpecify: "Please specify",
@@ -320,8 +372,9 @@ export const translations = {
     
     // Consent Form
     consentFormTitle: "अनुमति पत्र",
-    studyTitle: "अध्ययन शीर्षक:\n\n\"बेंगलुरु के तृतीय स्तर के अस्पताल में कैंसर रोगियों के लिए नर्स-नेतृत्व वाले पारिवार देखभालकर्ता कार्यक्रम का प्रभाव।\"",
-    principalInvestigator: "मुख्य शोधकर्ता:\nश्री जेम्स राज के\nपीएचडी विद्यार्थी\nके एल ई नर्सिंग साइंसेज़ संस्थान, बेलगावी",
+    studyTitle: "अध्ययन शीर्षक:",
+    studyTitleContent:"बेंगलुरु के तृतीय स्तर के अस्पताल में कैंसर रोगियों के लिए नर्स-नेतृत्व वाले पारिवार देखभालकर्ता कार्यक्रम का प्रभाव।",
+    principalInvestigator: "मुख्य शोधकर्ता:",
     investigatorName: "श्री जेम्स राज के",
     investigatorRole: "पीएचडी स्कॉलर",
     investigatorInstitution: "केएलई इंस्टीट्यूट ऑफ नर्सिंग साइंस, बेलगाम",
@@ -355,10 +408,59 @@ export const translations = {
     compensationContent: "कोई वित्तीय पारिश्रमिक नहीं दिया जाएगा। हालांकि, कार्यक्रम के अंतर्गत सहायता और संसाधन उपलब्ध कराए जाएंगे।",
     contactText: "यदि कोई प्रश्न हो तो संपर्क करें:\nश्री जेम्स राज के\nपीएचडी विद्यार्थी\nके एल ई नर्सिंग साइंसेज़ संस्थान, बेलगावी\nमोबाइल: 9500482944",
     compensation: "पारिश्रमिक:\nकोई वित्तीय पारिश्रमिक नहीं दिया जाएगा। हालांकि, कार्यक्रम के अंतर्गत सहायता और संसाधन उपलब्ध कराए जाएंगे।",
-    contactText: "यदि कोई प्रश्न हो तो संपर्क करें:\nश्री जेम्स राज के\nपीएचडी विद्यार्थी\nके एल ई नर्सिंग साइंसेज़ संस्थान, बेलगावी\nमोबाइल: 9500482944",
     thankYouResponse: "आपकी प्रतिक्रिया के लिए धन्यवाद",
     takeYourTime: "अपना समय लें और जब आप तैयार हों तो वापस आएं।",
     returnToHome: "होम पर वापस जाएं",
+    nameValidationHelper: "केवल अक्षर, स्थान की अनुमति है",
+    phoneValidationHelper: "10 अंकों का फ़ोन नंबर दर्ज करें",
+    phoneLength10Required: "फ़ोन नंबर में बिल्कुल 10 अंक होने चाहिए",
+    
+    // Patient Registration Options (Questions 3, 7-14)
+    // Question 3: Marital Status (already exists above)
+    
+    // Question 7: Cancer Type (text input - no options)
+    
+    // Question 8: Cancer Stage
+    stageI: "स्तर I",
+    stageII: "स्तर II",
+    stageIII: "स्तर III",
+    stageIV: "स्तर IV",
+    
+    // Question 9: Treatment Modality
+    chemotherapy: "कीमोथेरापी",
+    radiationTherapy: "रेडिएशन थेरापी",
+    surgery: "सर्जरी",
+    immunotherapy: "इम्यूनोथेरापी",
+    hormoneTherapy: "हार्मोन थेरापी",
+    
+    // Question 10: Duration of Illness
+    lessThan6Months: "6 महीने से कम",
+    months6to12: "6-12 महीने",
+    years1to2: "1-2 वर्ष",
+    moreThan2Years: "2 वर्ष से अधिक",
+    
+    // Question 11: Comorbidities
+    diabetes: "मधुमेह",
+    hypertension: "उच्च रक्तचाप",
+    cardiovascularDisease: "हृदय रोग",
+    respiratoryDisorders: "श्वसन संबंधी विकार",
+    none: "कोई नहीं",
+    
+    // Question 12: Health Insurance
+    yesGovernment: "हाँ - सरकारी",
+    yesPrivate: "हाँ - निजी",
+    no: "नहीं",
+    
+    // General options
+    urban: "शहरी",
+    rural: "ग्रामीण",
+    
+    // Age ranges
+    age18to30: "18-30",
+    age31to40: "31-40",
+    age41to50: "41-50",
+    age51to60: "51-60",
+    sixtyOneAndAbove: "61 और उससे अधिक",
     
     // Questions
     fullName: "आपका पूरा नाम क्या है?",
@@ -433,6 +535,7 @@ export const translations = {
     retired: "सेवानिवृत्त",
     student: "छात्र",
     homemaker: "गृहिणी",
+    employedFullPartTime: "नियोजित (पूर्णकालिक/अंशकालिक)",
     
     // Additional Options
     pleaseSpecify: "कृपया निर्दिष्ट करें",
@@ -635,8 +738,9 @@ export const translations = {
     thankYouResponse: "ನಿಮ್ಮ ಪ್ರತಿಕ್ರಿಯೆಗಾಗಿ ಧನ್ಯವಾದಗಳು",
     takeYourTime: "ನಿಮ್ಮ ಸಮಯ ತೆಗೆದುಕೊಳ್ಳಿ ಮತ್ತು ನೀವು ಸಿದ್ಧವಾದಾಗ ಹಿಂತಿರುಗಿ.",
     returnToHome: "ಮನೆಗೆ ಹಿಂತಿರುಗಿ",
-    
-    // Questions
+    nameValidationHelper: "ಅಕ್ಷರಗಳು ಮತ್ತು ಸ್ಥಳಗಳನ್ನು ಮಾತ್ರ ಅನುಮತಿಸಲಾಗಿದೆ.",
+    phoneValidationHelper:"10 ಅಂಕಿಯ ಫೋನ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ",
+    phoneLength10Required:"ಫೋನ್ ಸಂಖ್ಯೆ ನಿಖರವಾಗಿ 10 ಅಂಕೆಗಳನ್ನು ಹೊಂದಿರಬೇಕು.",
     fullName: "ನಿಮ್ಮ ಪೂರ್ಣ ಹೆಸರು ಏನು?",
     phoneNumber: "ನಿಮ್ಮ ಫೋನ್ ಸಂಖ್ಯೆ ಏನು?",
     age: "ವಯಸ್ಸು (ವರ್ಷಗಳಲ್ಲಿ):",

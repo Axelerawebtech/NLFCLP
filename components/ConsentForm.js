@@ -31,8 +31,7 @@ const ConsentForm = ({ userType, onAccept, formData }) => {
 
   const handleConsent = () => {
     if (accepted) {
-      onAccept();
-      router.push('/login');
+      onAccept(); // Let the parent component handle the next step
     }
   };
 
@@ -75,11 +74,11 @@ const ConsentForm = ({ userType, onAccept, formData }) => {
     >
       <Card sx={{ maxWidth: 800, mx: 'auto', p: 4 }}>
         {/* Debug Info */}
-        <Box sx={{ mb: 2, p: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
+        {/* <Box sx={{ mb: 2, p: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
           <Typography variant="caption" color="textSecondary">
             Debug: Language = {currentLanguage} | Title = "{getTranslation(currentLanguage, 'consentFormTitle')}"
           </Typography>
-        </Box>
+        </Box> */}
         
         <Typography variant="h4" sx={{ mb: 3, textAlign: 'center', fontWeight: 'bold' }}>
           {getTranslation(currentLanguage, 'consentFormTitle')}

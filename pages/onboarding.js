@@ -37,6 +37,7 @@ import LanguageSelector from '../components/LanguageSelector';
 export default function Onboarding() {
   const { isDarkMode, toggleTheme } = useTheme();
   const { currentLanguage } = useLanguage();
+  
   const [activeStep, setActiveStep] = useState(0);
   const [userType, setUserType] = useState('');
   const [formData, setFormData] = useState({});
@@ -48,8 +49,9 @@ export default function Onboarding() {
     getTranslation(currentLanguage, 'consentForm'),
     getTranslation(currentLanguage, 'demographicQuestions'),
     getTranslation(currentLanguage, 'completeRegistration')
+   
   ];
-
+     console.log(currentLanguage);
   const steps = getSteps();
 
   const handleUserTypeSelection = (type) => {
@@ -177,189 +179,9 @@ export default function Onboarding() {
     }
   };
 
-  const ConsentForm = ({ userType, onAccept, formData }) => {
-  const [accepted, setAccepted] = useState(false);
-  const [declined, setDeclined] = useState(false);
-  const router = useRouter();
 
-  const studyDetails = {
-    title: "The Impact of a Nurse-led Family Caregiver Program Among Cancer Patients at a Tertiary Care Hospital in Bangalore.",
-    investigator: {
-      name: "MR. James Raj K",
-      role: "PHD Scholar",
-      institution: "KLE Institute of Nursing Science, Belgaum",
-      contact: "9500482944"
-    },
-    purpose: "The purpose of this study is to evaluate the impact of a nurse-led family caregiver program on alleviating caregiver burden, improving quality of life, and reducing stress among cancer patients and their caregivers.",
-    procedures: [
-      "Pre-test Assessment: to assess baseline caregiver burden, quality of life, and stress levels using standardized tools.",
-      "Intervention: Participation in a nurse-led family caregiver program designed to address areas identified in the pre-test.",
-      "Immediate Post-test Assessment: immediately following the intervention to reassess caregiver burden, quality of life, and stress levels.",
-      "Follow-up Post-test Assessment: 12 weeks after the intervention to assess the long-term impact on caregiver burden, quality of life, and stress levels."
-    ],
-    duration: "Participation will last approximately 12 weeks, including the pre-test, intervention, and the two post-test assessments.",
-    risks: [
-      "There may be some emotional discomfort when discussing personal experiences and stressors.",
-      "Participation in the program requires a time commitment that might be challenging for some caregivers."
-    ],
-    benefits: [
-      "Potential improvement in caregiver burden, quality of life, and stress levels.",
-      "Contribution to research that may help other caregivers in the future."
-    ]
-  };
 
-  const handleConsent = () => {
-    if (accepted) {
-      onAccept(); // This will trigger setActiveStep(2) to show demographic questions
-    }
-  };
-
-  const handleDecline = () => {
-    setDeclined(true);
-  };
-
-  if (declined) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <Card sx={{ maxWidth: 600, mx: 'auto', p: 4, textAlign: 'center' }}>
-          <Typography variant="h5" sx={{ mb: 3 }}>
-            Thank you for your response
-          </Typography>
-          <Typography variant="body1" sx={{ mb: 4 }}>
-            Take your time and come back when you're ready.
-          </Typography>
-          <Button
-            variant="contained"
-            onClick={() => router.push('/')}
-          >
-            Return to Home
-          </Button>
-        </Card>
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-    >
-      <Card sx={{ maxWidth: 800, mx: 'auto', p: 4 }}>
-        <Typography variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
-          Consent Form
-        </Typography>
-        
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Title of Study:
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 3 }}>
-          {studyDetails.title}
-        </Typography>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Principal Investigator:
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 3 }}>
-          {studyDetails.investigator.name}<br />
-          {studyDetails.investigator.role}<br />
-          {studyDetails.investigator.institution}
-        </Typography>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Purpose of the Study:
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 3 }}>
-          {studyDetails.purpose}
-        </Typography>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Study Procedures:
-        </Typography>
-        <Box sx={{ mb: 3 }}>
-          {studyDetails.procedures.map((proc, index) => (
-            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
-              • {proc}
-            </Typography>
-          ))}
-        </Box>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Duration:
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 3 }}>
-          {studyDetails.duration}
-        </Typography>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Risks and Discomforts:
-        </Typography>
-        <Box sx={{ mb: 3 }}>
-          {studyDetails.risks.map((risk, index) => (
-            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
-              • {risk}
-            </Typography>
-          ))}
-        </Box>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Benefits:
-        </Typography>
-        <Box sx={{ mb: 3 }}>
-          {studyDetails.benefits.map((benefit, index) => (
-            <Typography key={index} variant="body1" sx={{ mb: 1 }}>
-              • {benefit}
-            </Typography>
-          ))}
-        </Box>
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Contact Information:
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 3 }}>
-          For questions or concerns, contact:<br />
-          {studyDetails.investigator.name}<br />
-          {studyDetails.investigator.role}<br />
-          {studyDetails.investigator.institution}<br />
-          Mob: {studyDetails.investigator.contact}
-        </Typography>
-
-        <Box sx={{ mb: 3 }}>
-          <FormControlLabel
-            control={
-              <Checkbox 
-                checked={accepted}
-                onChange={(e) => setAccepted(e.target.checked)}
-              />
-            }
-            label={getTranslation(currentLanguage, "consentText")}
-          />
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDecline}
-          >
-            Decline
-          </Button>
-          <Button
-            variant="contained"
-            disabled={!accepted}
-            onClick={handleConsent}
-          >
-            Accept and Continue to Login
-          </Button>
-        </Box>
-      </Card>
-    </motion.div>
-  );
-};
+<ConsentForm />
 
 const CompletionStep = ({ formData }) => {
   const router = useRouter();
@@ -551,6 +373,7 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
   const { currentLanguage } = useLanguage();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [validationError, setValidationError] = useState('');
 
   // Helper function to translate options
   const translateOption = (option) => {
@@ -1077,6 +900,62 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
     }
   };
 
+  // Helper function to validate name input (letters and spaces only)
+  const validateNameInput = (value) => {
+    // Allow letters (including Unicode letters for international names), spaces, hyphens, and apostrophes
+    const nameRegex = /^[a-zA-ZÀ-ÿ\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF\u0900-\u097F\u0C80-\u0CFF\s\-']*$/;
+    return nameRegex.test(value);
+  };
+
+  // Helper function to validate phone number input (10 digits only)
+  const validatePhoneInput = (value) => {
+    // Allow only digits (0-9) and restrict to maximum 10 digits
+    const phoneRegex = /^[0-9]{0,10}$/;
+    return phoneRegex.test(value);
+  };
+
+  // Helper function to handle input change with validation
+  const handleInputChange = (questionId, value) => {
+    // Clear validation error when user starts typing
+    if (validationError) {
+      setValidationError('');
+    }
+    
+    // Apply validation based on field type
+    if (questionId === 'name') {
+      if (validateNameInput(value)) {
+        setAnswers({ ...answers, [questionId]: value });
+      }
+      // If validation fails, don't update the state (prevents invalid characters)
+    } else if (questionId === 'phone') {
+      if (validatePhoneInput(value) && value.length <= 10) {
+        setAnswers({ ...answers, [questionId]: value });
+      }
+      // If validation fails, don't update the state (prevents invalid characters and limits to 10 digits)
+    } else {
+      setAnswers({ ...answers, [questionId]: value });
+    }
+  };
+
+  // Helper function to validate before submitting answer in CaregiverForm
+  const handleCaregiverSubmitAnswer = (value) => {
+    const questionId = questions[currentQuestion].id;
+    
+    // Check if it's a phone field and validate length
+    if (questionId === 'phone') {
+      if (!value || value.length !== 10) {
+        setValidationError(getTranslation(currentLanguage, 'phoneLength10Required'));
+        return;
+      }
+    }
+    
+    // Clear any existing validation errors
+    setValidationError('');
+    
+    // Proceed with normal answer handling
+    handleAnswer(value);
+  };
+
   const renderQuestionField = () => {
     const question = questions[currentQuestion];
     const currentValue = answers[question.id] || (question.type === 'multiSelect' ? [] : '');
@@ -1213,12 +1092,24 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
                 max: question.max,
                 pattern: question.pattern
               }}
-              onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+              onChange={(e) => handleInputChange(question.id, e.target.value)}
+              helperText={
+                question.id === 'name' 
+                  ? getTranslation(currentLanguage, 'nameValidationHelper') || 'Only letters, spaces are allowed'
+                  : question.id === 'phone'
+                  ? getTranslation(currentLanguage, 'phoneValidationHelper') || 'Enter 10 digit phone number'
+                  : ''
+              }
             />
+            {validationError && (
+              <Typography color="error" variant="body2" sx={{ mt: 1, mb: 1 }}>
+                {validationError}
+              </Typography>
+            )}
             <Button
               fullWidth
               variant="contained"
-              onClick={() => handleSubmitAnswer(currentValue)}
+              onClick={() => handleCaregiverSubmitAnswer(currentValue)}
               disabled={!currentValue.trim()}
               sx={{ mt: 2 }}
             >
@@ -1282,33 +1173,20 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
   const { currentLanguage } = useLanguage();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [validationError, setValidationError] = useState('');
 
-  // Helper function to translate options
-  const translateOption = (option) => {
-    const optionMap = {
-      'Male': getTranslation(currentLanguage, 'male'),
-      'Female': getTranslation(currentLanguage, 'female'),
-      'Other': getTranslation(currentLanguage, 'other'),
-      'Single': getTranslation(currentLanguage, 'single'),
-      'Married': getTranslation(currentLanguage, 'married'),
-      'Widowed': getTranslation(currentLanguage, 'widowed'),
-      'Divorced': getTranslation(currentLanguage, 'divorced'),
-      'Separated': getTranslation(currentLanguage, 'separated'),
-      'No formal education': getTranslation(currentLanguage, 'noFormalEducation'),
-      'Primary education': getTranslation(currentLanguage, 'primaryEducation'),
-      'Secondary education': getTranslation(currentLanguage, 'secondaryEducation'),
-      'Higher secondary': getTranslation(currentLanguage, 'higherSecondary'),
-      'Undergraduate degree': getTranslation(currentLanguage, 'undergraduateDegree'),
-      'Postgraduate degree': getTranslation(currentLanguage, 'postgraduateDegree'),
-      'Full-time employed': getTranslation(currentLanguage, 'fullTimeEmployed'),
-      'Part-time employed': getTranslation(currentLanguage, 'partTimeEmployed'),
-      'Self-employed': getTranslation(currentLanguage, 'selfEmployed'),
-      'Unemployed': getTranslation(currentLanguage, 'unemployed'),
-      'Retired': getTranslation(currentLanguage, 'retired'),
-      'Student': getTranslation(currentLanguage, 'student'),
-      'Homemaker': getTranslation(currentLanguage, 'homemaker')
-    };
-    return optionMap[option] || option;
+  // Helper function to validate name input (letters and spaces only)
+  const validateNameInput = (value) => {
+    // Allow letters (including Unicode letters for international names), spaces, hyphens, and apostrophes
+    const nameRegex = /^[a-zA-ZÀ-ÿ\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF\u0900-\u097F\u0C80-\u0CFF\s\-']*$/;
+    return nameRegex.test(value);
+  };
+
+  // Helper function to validate phone number input (10 digits only)
+  const validatePhoneInput = (value) => {
+    // Allow only digits (0-9) and restrict to maximum 10 digits
+    const phoneRegex = /^[0-9]{0,10}$/;
+    return phoneRegex.test(value);
   };
   
   // Helper function to get translated question
@@ -1348,7 +1226,40 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
       'Unemployed': getTranslation(currentLanguage, 'unemployed'),
       'Retired': getTranslation(currentLanguage, 'retired'),
       'Student': getTranslation(currentLanguage, 'student'),
-      'Homemaker': getTranslation(currentLanguage, 'homemaker')
+      'Homemaker': getTranslation(currentLanguage, 'homemaker'),
+      'Employed (Full-time/Part-time)': getTranslation(currentLanguage, 'employedFullPartTime'),
+      
+      // Patient Registration Options
+      'Urban': getTranslation(currentLanguage, 'urban'),
+      'Rural': getTranslation(currentLanguage, 'rural'),
+      'Stage I': getTranslation(currentLanguage, 'stageI'),
+      'Stage II': getTranslation(currentLanguage, 'stageII'),
+      'Stage III': getTranslation(currentLanguage, 'stageIII'),
+      'Stage IV': getTranslation(currentLanguage, 'stageIV'),
+      'Chemotherapy': getTranslation(currentLanguage, 'chemotherapy'),
+      'Radiation Therapy': getTranslation(currentLanguage, 'radiationTherapy'),
+      'Surgery': getTranslation(currentLanguage, 'surgery'),
+      'Immunotherapy': getTranslation(currentLanguage, 'immunotherapy'),
+      'Hormone Therapy': getTranslation(currentLanguage, 'hormoneTherapy'),
+      'Less than 6 months': getTranslation(currentLanguage, 'lessThan6Months'),
+      '6-12 months': getTranslation(currentLanguage, 'months6to12'),
+      '1-2 years': getTranslation(currentLanguage, 'years1to2'),
+      'More than 2 years': getTranslation(currentLanguage, 'moreThan2Years'),
+      'Diabetes': getTranslation(currentLanguage, 'diabetes'),
+      'Hypertension': getTranslation(currentLanguage, 'hypertension'),
+      'Cardiovascular disease': getTranslation(currentLanguage, 'cardiovascularDisease'),
+      'Respiratory Disorders': getTranslation(currentLanguage, 'respiratoryDisorders'),
+      'None': getTranslation(currentLanguage, 'none'),
+      'Yes - Government': getTranslation(currentLanguage, 'yesGovernment'),
+      'Yes - Private': getTranslation(currentLanguage, 'yesPrivate'),
+      'No': getTranslation(currentLanguage, 'no'),
+      
+      // Age ranges
+      '18-30': getTranslation(currentLanguage, 'age18to30'),
+      '31-40': getTranslation(currentLanguage, 'age31to40'),
+      '41-50': getTranslation(currentLanguage, 'age41to50'),
+      '51-60': getTranslation(currentLanguage, 'age51to60'),
+      'sixtyOneAndAbove': getTranslation(currentLanguage, 'sixtyOneAndAbove')
     };
     return optionTranslations[optionValue] || optionValue;
   };
@@ -1575,7 +1486,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                     const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
                     
                     return (
-                      <Grid item xs={12} sm={6} key={translateOption(option)}>
+                      <Grid item xs={12} sm={6} key={getOptionText(option)}>
                         <Button
                           fullWidth
                           variant={isSelected ? "contained" : "outlined"}
@@ -1605,7 +1516,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                               : { backgroundColor: 'primary.main', color: 'white' }
                           }}
                         >
-                          {translateOption(option)}
+                          {getOptionText(option)}
                         </Button>
                       </Grid>
                     );
@@ -1662,7 +1573,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
               return (
                 <Grid container spacing={2}>
                   {question.options.map((option) => (
-                    <Grid item xs={12} sm={6} key={translateOption(option)}>
+                    <Grid item xs={12} sm={6} key={getOptionText(option)}>
                       <Button
                         fullWidth
                         variant={currentValue === option ? "contained" : "outlined"}
@@ -1681,7 +1592,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                           '&:hover': { backgroundColor: 'primary.main', color: 'white' }
                         }}
                       >
-                        {translateOption(option)}
+                        {getOptionText(option)}
                       </Button>
                     </Grid>
                   ))}
@@ -1754,7 +1665,32 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                       max: question.max,
                       pattern: question.pattern
                     }}
-                    onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                    helperText={
+                      question.id === 'name' 
+                        ? getTranslation(currentLanguage, 'nameValidationHelper') || 'Only letters, spaces, hyphens and apostrophes are allowed'
+                        : question.id === 'phone' 
+                        ? getTranslation(currentLanguage, 'phoneValidationHelper') || 'Enter exactly 10 digits for phone number'
+                        : ''
+                    }
+                    onChange={(e) => {
+                      // Clear validation error when user starts typing
+                      if (validationError) {
+                        setValidationError('');
+                      }
+                      
+                      // Apply validation based on field type
+                      if (question.id === 'name') {
+                        if (validateNameInput(e.target.value)) {
+                          setAnswers({ ...answers, [question.id]: e.target.value });
+                        }
+                      } else if (question.id === 'phone') {
+                        if (validatePhoneInput(e.target.value) && e.target.value.length <= 10) {
+                          setAnswers({ ...answers, [question.id]: e.target.value });
+                        }
+                      } else {
+                        setAnswers({ ...answers, [question.id]: e.target.value });
+                      }
+                    }}
                   />
                   <Button
                     fullWidth
