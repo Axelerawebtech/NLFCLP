@@ -82,54 +82,8 @@ export const translations = {
     returnToHome: "Return to Home",
     nameValidationHelper: "Only letters and spaces are allowed",
     phoneValidationHelper: "Enter 10 digit phone number",
+    
     phoneLength10Required: "Phone number must be exactly 10 digits",
-    
-    // Patient Registration Options (Questions 3, 7-14)
-    // Question 3: Marital Status (already exists above)
-    
-    // Question 7: Cancer Type (text input - no options)
-    
-    // Question 8: Cancer Stage
-    stageI: "Stage I",
-    stageII: "Stage II",
-    stageIII: "Stage III",
-    stageIV: "Stage IV",
-    
-    // Question 9: Treatment Modality
-    chemotherapy: "Chemotherapy",
-    radiationTherapy: "Radiation Therapy",
-    surgery: "Surgery",
-    immunotherapy: "Immunotherapy",
-    hormoneTherapy: "Hormone Therapy",
-    
-    // Question 10: Duration of Illness
-    lessThan6Months: "Less than 6 months",
-    months6to12: "6-12 months",
-    years1to2: "1-2 years",
-    moreThan2Years: "More than 2 years",
-    
-    // Question 11: Comorbidities
-    diabetes: "Diabetes",
-    hypertension: "Hypertension",
-    cardiovascularDisease: "Cardiovascular disease",
-    respiratoryDisorders: "Respiratory Disorders",
-    none: "None",
-    
-    // Question 12: Health Insurance
-    yesGovernment: "Yes - Government",
-    yesPrivate: "Yes - Private",
-    no: "No",
-    
-    // General options
-    urban: "Urban",
-    rural: "Rural",
-    
-    // Age ranges
-    age18to30: "18-30",
-    age31to40: "31-40",
-    age41to50: "41-50",
-    age51to60: "51-60",
-    sixtyOneAndAbove: "61 and above",
     takeYourTime: "Take your time and come back when you're ready.",
     returnToHome: "Return to Home",
     
@@ -206,7 +160,6 @@ export const translations = {
     retired: "Retired",
     student: "Student",
     homemaker: "Homemaker",
-    employedFullPartTime: "Employed (Full-time/Part-time)",
     
     // Additional Options
     pleaseSpecify: "Please specify",
@@ -415,53 +368,6 @@ export const translations = {
     phoneValidationHelper: "10 अंकों का फ़ोन नंबर दर्ज करें",
     phoneLength10Required: "फ़ोन नंबर में बिल्कुल 10 अंक होने चाहिए",
     
-    // Patient Registration Options (Questions 3, 7-14)
-    // Question 3: Marital Status (already exists above)
-    
-    // Question 7: Cancer Type (text input - no options)
-    
-    // Question 8: Cancer Stage
-    stageI: "स्तर I",
-    stageII: "स्तर II",
-    stageIII: "स्तर III",
-    stageIV: "स्तर IV",
-    
-    // Question 9: Treatment Modality
-    chemotherapy: "कीमोथेरापी",
-    radiationTherapy: "रेडिएशन थेरापी",
-    surgery: "सर्जरी",
-    immunotherapy: "इम्यूनोथेरापी",
-    hormoneTherapy: "हार्मोन थेरापी",
-    
-    // Question 10: Duration of Illness
-    lessThan6Months: "6 महीने से कम",
-    months6to12: "6-12 महीने",
-    years1to2: "1-2 वर्ष",
-    moreThan2Years: "2 वर्ष से अधिक",
-    
-    // Question 11: Comorbidities
-    diabetes: "मधुमेह",
-    hypertension: "उच्च रक्तचाप",
-    cardiovascularDisease: "हृदय रोग",
-    respiratoryDisorders: "श्वसन संबंधी विकार",
-    none: "कोई नहीं",
-    
-    // Question 12: Health Insurance
-    yesGovernment: "हाँ - सरकारी",
-    yesPrivate: "हाँ - निजी",
-    no: "नहीं",
-    
-    // General options
-    urban: "शहरी",
-    rural: "ग्रामीण",
-    
-    // Age ranges
-    age18to30: "18-30",
-    age31to40: "31-40",
-    age41to50: "41-50",
-    age51to60: "51-60",
-    sixtyOneAndAbove: "61 और उससे अधिक",
-    
     // Questions
     fullName: "आपका पूरा नाम क्या है?",
     phoneNumber: "आपका फोन नंबर क्या है?",
@@ -535,7 +441,6 @@ export const translations = {
     retired: "सेवानिवृत्त",
     student: "छात्र",
     homemaker: "गृहिणी",
-    employedFullPartTime: "नियोजित (पूर्णकालिक/अंशकालिक)",
     
     // Additional Options
     pleaseSpecify: "कृपया निर्दिष्ट करें",

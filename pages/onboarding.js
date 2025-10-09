@@ -1188,6 +1188,34 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
     const phoneRegex = /^[0-9]{0,10}$/;
     return phoneRegex.test(value);
   };
+
+  // Helper function to translate options
+  const translateOption = (option) => {
+    const optionMap = {
+      'Male': getTranslation(currentLanguage, 'male'),
+      'Female': getTranslation(currentLanguage, 'female'),
+      'Other': getTranslation(currentLanguage, 'other'),
+      'Single': getTranslation(currentLanguage, 'single'),
+      'Married': getTranslation(currentLanguage, 'married'),
+      'Widowed': getTranslation(currentLanguage, 'widowed'),
+      'Divorced': getTranslation(currentLanguage, 'divorced'),
+      'Separated': getTranslation(currentLanguage, 'separated'),
+      'No formal education': getTranslation(currentLanguage, 'noFormalEducation'),
+      'Primary education': getTranslation(currentLanguage, 'primaryEducation'),
+      'Secondary education': getTranslation(currentLanguage, 'secondaryEducation'),
+      'Higher secondary': getTranslation(currentLanguage, 'higherSecondary'),
+      'Undergraduate degree': getTranslation(currentLanguage, 'undergraduateDegree'),
+      'Postgraduate degree': getTranslation(currentLanguage, 'postgraduateDegree'),
+      'Full-time employed': getTranslation(currentLanguage, 'fullTimeEmployed'),
+      'Part-time employed': getTranslation(currentLanguage, 'partTimeEmployed'),
+      'Self-employed': getTranslation(currentLanguage, 'selfEmployed'),
+      'Unemployed': getTranslation(currentLanguage, 'unemployed'),
+      'Retired': getTranslation(currentLanguage, 'retired'),
+      'Student': getTranslation(currentLanguage, 'student'),
+      'Homemaker': getTranslation(currentLanguage, 'homemaker')
+    };
+    return optionMap[option] || option;
+  };
   
   // Helper function to get translated question
   const getQuestionText = (questionId) => {
@@ -1226,40 +1254,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
       'Unemployed': getTranslation(currentLanguage, 'unemployed'),
       'Retired': getTranslation(currentLanguage, 'retired'),
       'Student': getTranslation(currentLanguage, 'student'),
-      'Homemaker': getTranslation(currentLanguage, 'homemaker'),
-      'Employed (Full-time/Part-time)': getTranslation(currentLanguage, 'employedFullPartTime'),
-      
-      // Patient Registration Options
-      'Urban': getTranslation(currentLanguage, 'urban'),
-      'Rural': getTranslation(currentLanguage, 'rural'),
-      'Stage I': getTranslation(currentLanguage, 'stageI'),
-      'Stage II': getTranslation(currentLanguage, 'stageII'),
-      'Stage III': getTranslation(currentLanguage, 'stageIII'),
-      'Stage IV': getTranslation(currentLanguage, 'stageIV'),
-      'Chemotherapy': getTranslation(currentLanguage, 'chemotherapy'),
-      'Radiation Therapy': getTranslation(currentLanguage, 'radiationTherapy'),
-      'Surgery': getTranslation(currentLanguage, 'surgery'),
-      'Immunotherapy': getTranslation(currentLanguage, 'immunotherapy'),
-      'Hormone Therapy': getTranslation(currentLanguage, 'hormoneTherapy'),
-      'Less than 6 months': getTranslation(currentLanguage, 'lessThan6Months'),
-      '6-12 months': getTranslation(currentLanguage, 'months6to12'),
-      '1-2 years': getTranslation(currentLanguage, 'years1to2'),
-      'More than 2 years': getTranslation(currentLanguage, 'moreThan2Years'),
-      'Diabetes': getTranslation(currentLanguage, 'diabetes'),
-      'Hypertension': getTranslation(currentLanguage, 'hypertension'),
-      'Cardiovascular disease': getTranslation(currentLanguage, 'cardiovascularDisease'),
-      'Respiratory Disorders': getTranslation(currentLanguage, 'respiratoryDisorders'),
-      'None': getTranslation(currentLanguage, 'none'),
-      'Yes - Government': getTranslation(currentLanguage, 'yesGovernment'),
-      'Yes - Private': getTranslation(currentLanguage, 'yesPrivate'),
-      'No': getTranslation(currentLanguage, 'no'),
-      
-      // Age ranges
-      '18-30': getTranslation(currentLanguage, 'age18to30'),
-      '31-40': getTranslation(currentLanguage, 'age31to40'),
-      '41-50': getTranslation(currentLanguage, 'age41to50'),
-      '51-60': getTranslation(currentLanguage, 'age51to60'),
-      'sixtyOneAndAbove': getTranslation(currentLanguage, 'sixtyOneAndAbove')
+      'Homemaker': getTranslation(currentLanguage, 'homemaker')
     };
     return optionTranslations[optionValue] || optionValue;
   };
@@ -1486,7 +1481,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                     const isNoneSelected = option === 'None' ? isSelected : currentValue.includes('None');
                     
                     return (
-                      <Grid item xs={12} sm={6} key={getOptionText(option)}>
+                      <Grid item xs={12} sm={6} key={translateOption(option)}>
                         <Button
                           fullWidth
                           variant={isSelected ? "contained" : "outlined"}
@@ -1516,7 +1511,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                               : { backgroundColor: 'primary.main', color: 'white' }
                           }}
                         >
-                          {getOptionText(option)}
+                          {translateOption(option)}
                         </Button>
                       </Grid>
                     );
@@ -1573,7 +1568,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
               return (
                 <Grid container spacing={2}>
                   {question.options.map((option) => (
-                    <Grid item xs={12} sm={6} key={getOptionText(option)}>
+                    <Grid item xs={12} sm={6} key={translateOption(option)}>
                       <Button
                         fullWidth
                         variant={currentValue === option ? "contained" : "outlined"}
@@ -1592,7 +1587,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
                           '&:hover': { backgroundColor: 'primary.main', color: 'white' }
                         }}
                       >
-                        {getOptionText(option)}
+                        {translateOption(option)}
                       </Button>
                     </Grid>
                   ))}
