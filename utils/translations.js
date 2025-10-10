@@ -166,7 +166,51 @@ export const translations = {
     question: "Question",
     backToHome: "Back to Home",
     of: "of",
+    // Age Range Options
+    eighteenToThirty: "18-30",
+    thirtyOneToForty: "31-40", 
+    fortyOneToFifty: "41-50",
+    fiftyOneToSixty: "51-60",
     sixtyOneAndAbove: "61 and above",
+    
+    // Employment Status Options  
+    employedFullTimePartTime: "Employed (Full-time/Part-time)",
+    fullTimeEmployed: "Full-time employed",
+    partTimeEmployed: "Part-time employed",
+    selfEmployed: "Self-employed",
+    unemployed: "Unemployed",
+    retired: "Retired",
+    student: "Student",
+    homemaker: "Homemaker",
+    
+    // Cancer Stage Options
+    stageOne: "Stage I",
+    stageTwo: "Stage II", 
+    stageThree: "Stage III",
+    stageFour: "Stage IV",
+    
+    // Treatment Modality Options
+    chemotherapy: "Chemotherapy",
+    radiationTherapy: "Radiation Therapy",
+    surgery: "Surgery",
+    immunotherapy: "Immunotherapy",
+    hormoneTherapy: "Hormone Therapy",
+    
+    // Illness Duration Options
+    lessThanSixMonths: "Less than 6 months",
+    sixToTwelveMonths: "6-12 months",
+    oneToTwoYears: "1-2 years",
+    moreThanTwoYears: "More than 2 years",
+    
+    // Comorbidity Options
+    diabetes: "Diabetes",
+    hypertension: "Hypertension", 
+    cardiovascularDisease: "Cardiovascular disease",
+    respiratoryDisorders: "Respiratory Disorders",
+    
+    // Health Insurance Options
+    yesGovernment: "Yes - Government",
+    yesPrivate: "Yes - Private",
     previousQuestion: "Previous Question",
     backToConsentForm: "Back to Consent Form",
     
@@ -186,6 +230,7 @@ export const translations = {
     treatmentModalityQuestion: "Current Treatment Modality (check all that apply):",
     illnessDurationQuestion: "Duration of Illness (since diagnosis):",
     comorbiditiesQuestion: "Other Comorbidities (check all that apply):",
+    healthInsuranceQuestion: "Health Insurance Coverage:",
     
     // Additional Option Translations
     urban: "Urban",
@@ -447,7 +492,51 @@ export const translations = {
     question: "प्रश्न",
     of: "का",
     backToHome: "घर वापस जाएं",
+    // Age Range Options
+    eighteenToThirty: "18-30",
+    thirtyOneToForty: "31-40",
+    fortyOneToFifty: "41-50", 
+    fiftyOneToSixty: "51-60",
     sixtyOneAndAbove: "61 और उससे अधिक",
+    
+    // Employment Status Options
+    employedFullTimePartTime: "नियोजित (पूर्णकालिक/अंशकालिक)",
+    fullTimeEmployed: "पूर्णकालिक नियोजित",
+    partTimeEmployed: "अंशकालिक नियोजित", 
+    selfEmployed: "स्व-नियोजित",
+    unemployed: "बेरोजगार",
+    retired: "सेवानिवृत्त",
+    student: "छात्र",
+    homemaker: "गृहिणी",
+    
+    // Cancer Stage Options
+    stageOne: "चरण I",
+    stageTwo: "चरण II",
+    stageThree: "चरण III", 
+    stageFour: "चरण IV",
+    
+    // Treatment Modality Options
+    chemotherapy: "कीमोथेरेपी",
+    radiationTherapy: "विकिरण चिकित्सा",
+    surgery: "शल्य चिकित्सा",
+    immunotherapy: "प्रतिरक्षा चिकित्सा",
+    hormoneTherapy: "हार्मोन थेरेपी",
+    
+    // Illness Duration Options
+    lessThanSixMonths: "6 महीने से कम",
+    sixToTwelveMonths: "6-12 महीने",
+    oneToTwoYears: "1-2 वर्ष", 
+    moreThanTwoYears: "2 वर्ष से अधिक",
+    
+    // Comorbidity Options
+    diabetes: "मधुमेह",
+    hypertension: "उच्च रक्तचाप",
+    cardiovascularDisease: "हृदय रोग",
+    respiratoryDisorders: "श्वसन संबंधी विकार",
+    
+    // Health Insurance Options
+    yesGovernment: "हाँ - सरकारी",
+    yesPrivate: "हाँ - निजी",
     previousQuestion: "पिछला प्रश्न",
     backToConsentForm: "सहमति फॉर्म पर वापस जाएं",
     
@@ -467,6 +556,7 @@ export const translations = {
     treatmentModalityQuestion: "वर्तमान उपचार पद्धति (सभी लागू को चेक करें):",
     illnessDurationQuestion: "बीमारी की अवधि (निदान के बाद से):",
     comorbiditiesQuestion: "अन्य सहरुग्णताएं (सभी लागू को चेक करें):",
+    healthInsuranceQuestion: "स्वास्थ्य बीमा कवरेज:",
     
     // Additional Option Translations
     urban: "शहरी",
@@ -744,7 +834,51 @@ export const translations = {
     question: "ಪ್ರಶ್ನೆ",
     of: "ರ",
     backToHome: "ಮನೆಗೆ ಹಿಂತಿರುಗಿ",
+    // Age Range Options  
+    eighteenToThirty: "18-30",
+    thirtyOneToForty: "31-40",
+    fortyOneToFifty: "41-50",
+    fiftyOneToSixty: "51-60", 
     sixtyOneAndAbove: "61 ಮತ್ತು ಅದಕ್ಕಿಂತ ಹೆಚ್ಚು",
+    
+    // Employment Status Options
+    employedFullTimePartTime: "ಉದ್ಯೋಗದಲ್ಲಿರುವ (ಪೂರ್ಣಕಾಲಿಕ/ಅರ್ಧಕಾಲಿಕ)",
+    fullTimeEmployed: "ಪೂರ್ಣಕಾಲಿಕ ಉದ್ಯೋಗದಲ್ಲಿರುವ",
+    partTimeEmployed: "ಅರ್ಧಕಾಲಿಕ ಉದ್ಯೋಗದಲ್ಲಿರುವ",
+    selfEmployed: "ಸ್ವ-ಉದ್ಯೋಗಿ",
+    unemployed: "ನಿರುದ್ಯೋಗಿ",
+    retired: "ನಿವೃತ್ತ",
+    student: "ವಿದ್ಯಾರ್ಥಿ", 
+    homemaker: "ಗೃಹಿಣಿ",
+    
+    // Cancer Stage Options
+    stageOne: "ಹಂತ I",
+    stageTwo: "ಹಂತ II",
+    stageThree: "ಹಂತ III",
+    stageFour: "ಹಂತ IV",
+    
+    // Treatment Modality Options
+    chemotherapy: "ಕೀಮೋಥೆರಪಿ",
+    radiationTherapy: "ವಿಕಿರಣ ಚಿಕಿತ್ಸೆ",
+    surgery: "ಶಸ್ತ್ರಚಿಕಿತ್ಸೆ",
+    immunotherapy: "ಪ್ರತಿರಕ್ಷಣಾ ಚಿಕಿತ್ಸೆ",
+    hormoneTherapy: "ಹಾರ್ಮೋನ್ ಚಿಕಿತ್ಸೆ",
+    
+    // Illness Duration Options
+    lessThanSixMonths: "6 ತಿಂಗಳುಗಳಿಗಿಂತ ಕಡಿಮೆ",
+    sixToTwelveMonths: "6-12 ತಿಂಗಳುಗಳು",
+    oneToTwoYears: "1-2 ವರ್ಷಗಳು",
+    moreThanTwoYears: "2 ವರ್ಷಗಳಿಗಿಂತ ಹೆಚ್ಚು",
+    
+    // Comorbidity Options
+    diabetes: "ಮಧುಮೇಹ",
+    hypertension: "ಅಧಿಕ ರಕ್ತದೊತ್ತಡ",
+    cardiovascularDisease: "ಹೃದಯ ರೋಗ",
+    respiratoryDisorders: "ಉಸಿರಾಟದ ಅಸ್ವಸ್ಥತೆಗಳು",
+    
+    // Health Insurance Options
+    yesGovernment: "ಹೌದು - ಸರಕಾರಿ",
+    yesPrivate: "ಹೌದು - ಖಾಸಗಿ",
     previousQuestion: "ಹಿಂದಿನ ಪ್ರಶ್ನೆ",
     backToConsentForm: "ಒಪ್ಪಿಗೆ ಫಾರ್ಮ್‌ಗೆ ಹಿಂತಿರುಗಿ",
     
@@ -764,6 +898,7 @@ export const translations = {
     treatmentModalityQuestion: "ಪ್ರಸ್ತುತ ಚಿಕಿತ್ಸಾ ವಿಧಾನ (ಎಲ್ಲಾ ಅನ್ವಯಗಳನ್ನು ಪರಿಶೀಲಿಸಿ):",
     illnessDurationQuestion: "ಅನಾರೋಗ್ಯದ ಅವಧಿ (ರೋಗನಿರ್ಣಯದ ನಂತರ):",
     comorbiditiesQuestion: "ಇತರ ಸಹ-ರೋಗಗಳು (ಎಲ್ಲಾ ಅನ್ವಯಗಳನ್ನು ಪರಿಶೀಲಿಸಿ):",
+    healthInsuranceQuestion: "ಆರೋಗ್ಯ ವಿಮಾ ಕವರೇಜ್:",
     
     // Additional Option Translations
     urban: "ನಗರ",

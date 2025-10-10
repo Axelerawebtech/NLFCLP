@@ -1192,27 +1192,77 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
   // Helper function to translate options
   const translateOption = (option) => {
     const optionMap = {
+      // Age options
+      '18-30': getTranslation(currentLanguage, 'eighteenToThirty'),
+      '31-40': getTranslation(currentLanguage, 'thirtyOneToForty'),
+      '41-50': getTranslation(currentLanguage, 'fortyOneToFifty'),
+      '51-60': getTranslation(currentLanguage, 'fiftyOneToSixty'),
+      'sixtyOneAndAbove': getTranslation(currentLanguage, 'sixtyOneAndAbove'),
+      
+      // Gender options
       'Male': getTranslation(currentLanguage, 'male'),
       'Female': getTranslation(currentLanguage, 'female'),
       'Other': getTranslation(currentLanguage, 'other'),
+      
+      // Marital status options
       'Single': getTranslation(currentLanguage, 'single'),
       'Married': getTranslation(currentLanguage, 'married'),
       'Widowed': getTranslation(currentLanguage, 'widowed'),
       'Divorced': getTranslation(currentLanguage, 'divorced'),
       'Separated': getTranslation(currentLanguage, 'separated'),
+      
+      // Education options
       'No formal education': getTranslation(currentLanguage, 'noFormalEducation'),
       'Primary education': getTranslation(currentLanguage, 'primaryEducation'),
       'Secondary education': getTranslation(currentLanguage, 'secondaryEducation'),
       'Higher secondary': getTranslation(currentLanguage, 'higherSecondary'),
       'Undergraduate degree': getTranslation(currentLanguage, 'undergraduateDegree'),
       'Postgraduate degree': getTranslation(currentLanguage, 'postgraduateDegree'),
+      
+      // Employment options
+      'Employed (Full-time/Part-time)': getTranslation(currentLanguage, 'employedFullTimePartTime'),
       'Full-time employed': getTranslation(currentLanguage, 'fullTimeEmployed'),
       'Part-time employed': getTranslation(currentLanguage, 'partTimeEmployed'),
       'Self-employed': getTranslation(currentLanguage, 'selfEmployed'),
       'Unemployed': getTranslation(currentLanguage, 'unemployed'),
       'Retired': getTranslation(currentLanguage, 'retired'),
       'Student': getTranslation(currentLanguage, 'student'),
-      'Homemaker': getTranslation(currentLanguage, 'homemaker')
+      'Homemaker': getTranslation(currentLanguage, 'homemaker'),
+      
+      // Residential area options
+      'Urban': getTranslation(currentLanguage, 'urban'),
+      'Rural': getTranslation(currentLanguage, 'rural'),
+      
+      // Cancer stage options
+      'Stage I': getTranslation(currentLanguage, 'stageOne'),
+      'Stage II': getTranslation(currentLanguage, 'stageTwo'),
+      'Stage III': getTranslation(currentLanguage, 'stageThree'),
+      'Stage IV': getTranslation(currentLanguage, 'stageFour'),
+      
+      // Treatment modality options
+      'Chemotherapy': getTranslation(currentLanguage, 'chemotherapy'),
+      'Radiation Therapy': getTranslation(currentLanguage, 'radiationTherapy'),
+      'Surgery': getTranslation(currentLanguage, 'surgery'),
+      'Immunotherapy': getTranslation(currentLanguage, 'immunotherapy'),
+      'Hormone Therapy': getTranslation(currentLanguage, 'hormoneTherapy'),
+      
+      // Illness duration options
+      'Less than 6 months': getTranslation(currentLanguage, 'lessThanSixMonths'),
+      '6-12 months': getTranslation(currentLanguage, 'sixToTwelveMonths'),
+      '1-2 years': getTranslation(currentLanguage, 'oneToTwoYears'),
+      'More than 2 years': getTranslation(currentLanguage, 'moreThanTwoYears'),
+      
+      // Comorbidity options
+      'Diabetes': getTranslation(currentLanguage, 'diabetes'),
+      'Hypertension': getTranslation(currentLanguage, 'hypertension'),
+      'Cardiovascular disease': getTranslation(currentLanguage, 'cardiovascularDisease'),
+      'Respiratory Disorders': getTranslation(currentLanguage, 'respiratoryDisorders'),
+      'None': getTranslation(currentLanguage, 'none'),
+      
+      // Health insurance options
+      'Yes - Government': getTranslation(currentLanguage, 'yesGovernment'),
+      'Yes - Private': getTranslation(currentLanguage, 'yesPrivate'),
+      'No': getTranslation(currentLanguage, 'no')
     };
     return optionMap[option] || option;
   };
@@ -1465,6 +1515,7 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
            questions[currentQuestion].id === 'treatmentModality' ? getTranslation(currentLanguage, 'treatmentModalityQuestion') :
            questions[currentQuestion].id === 'illnessDuration' ? getTranslation(currentLanguage, 'illnessDurationQuestion') :
            questions[currentQuestion].id === 'comorbidities' ? getTranslation(currentLanguage, 'comorbiditiesQuestion') :
+           questions[currentQuestion].id === 'healthInsurance' ? getTranslation(currentLanguage, 'healthInsuranceQuestion') :
            questions[currentQuestion].question}
         </Typography>
 
