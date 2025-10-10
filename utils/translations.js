@@ -62,6 +62,19 @@ export const translations = {
     acceptAndContinue: "Accept and Continue to Login",
     decline: "Decline",
     
+    // Audio Consent
+    audioConsentTitle: "Audio Consent (for those who prefer to listen)",
+    playAudioConsent: "Play Audio Consent",
+    pauseAudioConsent: "Pause Audio",
+    audioConsentCompleted: "Audio consent completed",
+    audioConsentNotCompleted: "Please listen to the complete audio consent before proceeding",
+    audioConsentLabel: "I have listened to and understood the audio consent above. I voluntarily agree to participate in this study.",
+    textConsentOption: "Read Text Consent",
+    audioConsentOption: "Listen to Audio Consent",
+    chooseConsentMethod: "Choose your preferred consent method:",
+    complete: "complete",
+    agreeToParticipate: "I agree to participate in this study and understand I can withdraw at any time.",
+    
     // Consent Form Content
     studyPurposeContent: "The purpose of this study is to evaluate the impact of a nurse-led family caregiver program on alleviating caregiver burden, improving quality of life, and reducing stress among cancer patients and their caregivers.",
     studyDurationContent: "Participation will last approximately 12 weeks, including the pre-test, intervention, and the two post-test assessments.",
@@ -390,6 +403,19 @@ export const translations = {
     acceptAndContinue: "स्वीकार करें और लॉगिन के लिए जारी रखें",
     decline: "अस्वीकार करें",
     
+    // Audio Consent
+    audioConsentTitle: "ऑडियो सहमति (उन लोगों के लिए जो सुनना पसंद करते हैं)",
+    playAudioConsent: "ऑडियो सहमति चलाएं",
+    pauseAudioConsent: "ऑडियो रोकें",
+    audioConsentCompleted: "ऑडियो सहमति पूर्ण",
+    audioConsentNotCompleted: "कृपया आगे बढ़ने से पहले पूरी ऑडियो सहमति सुनें",
+    audioConsentLabel: "मैंने उपरोक्त ऑडियो सहमति को सुना और समझा है। मैं अपनी स्वेच्छा से इस अध्ययन में भाग लेने के लिए सहमत हूं।",
+    textConsentOption: "पाठ सहमति पढ़ें",
+    audioConsentOption: "ऑडियो सहमति सुनें",
+    chooseConsentMethod: "अपनी पसंदीदा सहमति विधि चुनें:",
+    complete: "पूर्ण",
+    agreeToParticipate: "मैं इस अध्ययन में भाग लेने के लिए सहमत हूं और समझता हूं कि मैं किसी भी समय वापस ले सकता हूं।",
+    
     // Consent Form Content
     studyPurposeContent: "इस अध्ययन का उद्देश्य यह मूल्यांकन करना है कि नर्स-नेतृत्व वाला पारिवार देखभालकर्ता कार्यक्रम देखभालकर्ताओं के बोझ को कम करने, जीवन की गुणवत्ता को बढ़ाने और तनाव को कम करने में कितना प्रभावी है।",
     studyDurationContent: "भागीदारी लगभग 12 सप्ताह तक चलेगी।",
@@ -714,6 +740,19 @@ export const translations = {
     consentText: "ನಾನು ಮೇಲಿನ ಮಾಹಿತಿಯನ್ನು ಓದಿದ್ದೇನೆ ಮತ್ತು ಅರ್ಥಮಾಡಿಕೊಂಡಿದ್ದೇನೆ. ನಾನು ಸ್ವಯಂಪ್ರೇರಣೆಯಿಂದ ಈ ಅಧ್ಯಯನದಲ್ಲಿ ಭಾಗವಹಿಸಲು ಒಪ್ಪುತ್ತೇನೆ ಮತ್ತು ಯಾವುದೇ ದಂಡವಿಲ್ಲದೆ ಯಾವುದೇ ಸಮಯದಲ್ಲಿ ವಾಪಸ್ ಪಡೆಯಬಹುದು ಎಂದು ಅರ್ಥಮಾಡಿಕೊಂಡಿದ್ದೇನೆ.",
     acceptAndContinue: "ಒಪ್ಪಿಕೊಳ್ಳಿ ಮತ್ತು ಲಾಗಿನ್‌ಗೆ ಮುಂದುವರಿಸಿ",
     decline: "ನಿರಾಕರಿಸಿ",
+    
+    // Audio Consent
+    audioConsentTitle: "ಆಡಿಯೋ ಒಪ್ಪಿಗೆ (ಕೇಳಲು ಆದ್ಯತೆ ನೀಡುವವರಿಗೆ)",
+    playAudioConsent: "ಆಡಿಯೋ ಒಪ್ಪಿಗೆಯನ್ನು ಪ್ಲೇ ಮಾಡಿ",
+    pauseAudioConsent: "ಆಡಿಯೋ ವಿರಾಮ",
+    audioConsentCompleted: "ಆಡಿಯೋ ಒಪ್ಪಿಗೆ ಪೂರ್ಣಗೊಂಡಿತು",
+    audioConsentNotCompleted: "ಮುಂದುವರಿಸುವ ಮೊದಲು ಸಂಪೂರ್ಣ ಆಡಿಯೋ ಒಪ್ಪಿಗೆಯನ್ನು ಕೇಳಿ",
+    audioConsentLabel: "ನಾನು ಮೇಲಿನ ಆಡಿಯೋ ಒಪ್ಪಿಗೆಯನ್ನು ಕೇಳಿದ್ದೇನೆ ಮತ್ತು ಅರ್ಥಮಾಡಿಕೊಂಡಿದ್ದೇನೆ. ನಾನು ಸ್ವಯಂಪ್ರೇರಣೆಯಿಂದ ಈ ಅಧ್ಯಯನದಲ್ಲಿ ಭಾಗವಹಿಸಲು ಒಪ್ಪುತ್ತೇನೆ.",
+    textConsentOption: "ಪಠ್ಯ ಒಪ್ಪಿಗೆಯನ್ನು ಓದಿ",
+    audioConsentOption: "ಆಡಿಯೋ ಒಪ್ಪಿಗೆಯನ್ನು ಕೇಳಿ",
+    chooseConsentMethod: "ನಿಮ್ಮ ಆದ್ಯತೆಯ ಒಪ್ಪಿಗೆ ವಿಧಾನವನ್ನು ಆರಿಸಿ:",
+    complete: "ಪೂರ್ಣ",
+    agreeToParticipate: "ನಾನು ಈ ಅಧ್ಯಯನದಲ್ಲಿ ಭಾಗವಹಿಸಲು ಒಪ್ಪುತ್ತೇನೆ ಮತ್ತು ಯಾವುದೇ ಸಮಯದಲ್ಲಿ ವಾಪಸ್ ಪಡೆಯಬಹುದು ಎಂದು ಅರ್ಥಮಾಡಿಕೊಂಡಿದ್ದೇನೆ.",
     
     // Consent Form Content
     studyPurposeContent: "ಈ ಅಧ್ಯಯನದ ಉದ್ದೇಶವೆಂದರೆ ಕ್ಯಾನ್ಸರ್ ರೋಗಿಗಳು ಮತ್ತು ಅವರ ಆರೈಕೆದಾರರ ನಡುವೆ ಆರೈಕೆದಾರರ ಹೊರೆ ಕಡಿಮೆಗೊಳಿಸುವುದು, ಜೀವನದ ಗುಣಮಟ್ಟವನ್ನು ಸುಧಾರಿಸುವುದು ಮತ್ತು ಒತ್ತಡವನ್ನು ಕಡಿಮೆಗೊಳಿಸುವ ನರ್ಸ್-ನೇತೃತ್ವದ ಕುಟುಂಬ ಆರೈಕೆದಾರ ಕಾರ್ಯಕ್ರಮದ ಪರಿಣಾಮವನ್ನು ಮೌಲ್ಯಮಾಪನ ಮಾಡುವುದು.",
