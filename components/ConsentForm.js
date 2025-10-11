@@ -390,10 +390,6 @@ const ConsentForm = ({ userType, onAccept, formData }) => {
             <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
               {getTranslation(currentLanguage, 'consentDeclaration')}
             </Typography>
-            
-            <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-line', p: 2, bgcolor: '#f8f9fa', borderRadius: 1 }}>
-              {getTranslation(currentLanguage, 'consentText')}
-            </Typography>
           </Box>
         )}
 
@@ -515,7 +511,7 @@ const ConsentForm = ({ userType, onAccept, formData }) => {
               <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
                 {needsAudioConsent && consentMethod === 'audio'
                   ? getTranslation(currentLanguage, 'audioConsentLabel')
-                  : getTranslation(currentLanguage, 'agreeToParticipate')
+                  : getTranslation(currentLanguage, 'consentText')
                 }
               </Typography>
             }

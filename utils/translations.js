@@ -337,7 +337,43 @@ export const translations = {
     saveId: "Please save this ID for future logins",
     redirecting: "Redirecting to login in {seconds} seconds...",
     loginNow: "Login Now",
-    backToHome: "Back to Home"
+    backToHome: "Back to Home",
+    
+    // Day Module Content
+    dayModules: {
+      day0: {
+        title: "Core Module - Introduction",
+        description: "Welcome to the caregiver support program"
+      },
+      day1: {
+        mild: {
+          title: "Day 1 - Understanding Your Role (Mild)",
+          description: "Basic caregiving concepts for mild burden situations"
+        },
+        moderate: {
+          title: "Day 1 - Managing Challenges (Moderate)",
+          description: "Strategies for moderate caregiving challenges"
+        },
+        severe: {
+          title: "Day 1 - Intensive Support (Severe)",
+          description: "Comprehensive support for high-burden caregiving"
+        }
+      },
+      day2: {
+        mild: {
+          title: "Day 2 - Self-Care Basics (Mild)",
+          description: "Simple self-care techniques"
+        },
+        moderate: {
+          title: "Day 2 - Stress Management (Moderate)",
+          description: "Managing caregiver stress effectively"
+        },
+        severe: {
+          title: "Day 2 - Burnout Prevention (Severe)",
+          description: "Preventing and addressing caregiver burnout"
+        }
+      }
+    }
   },
   
   hi: {
@@ -675,7 +711,43 @@ export const translations = {
     saveId: "भविष्य के लॉगिन के लिए कृपया इस आईडी को सेव करें",
     redirecting: "लॉगिन के लिए {seconds} सेकंड में पुनर्निर्देशित कर रहे हैं...",
     loginNow: "अभी लॉगिन करें",
-    backToHome: "होम पर वापस जाएं"
+    backToHome: "होम पर वापस जाएं",
+    
+    // Day Module Content
+    dayModules: {
+      day0: {
+        title: "मुख्य मॉड्यूल - परिचय",
+        description: "देखभालकर्ता सहायता कार्यक्रम में आपका स्वागत है"
+      },
+      day1: {
+        mild: {
+          title: "दिन 1 - अपनी भूमिका को समझना (हल्का)",
+          description: "हल्के बोझ की स्थितियों के लिए बुनियादी देखभाल अवधारणाएं"
+        },
+        moderate: {
+          title: "दिन 1 - चुनौतियों का प्रबंधन (मध्यम)",
+          description: "मध्यम देखभाल चुनौतियों के लिए रणनीतियां"
+        },
+        severe: {
+          title: "दिन 1 - गहन सहायता (गंभीर)",
+          description: "उच्च-बोझ देखभाल के लिए व्यापक सहायता"
+        }
+      },
+      day2: {
+        mild: {
+          title: "दिन 2 - स्वयं की देखभाल की मूल बातें (हल्का)",
+          description: "सरल स्वयं की देखभाल तकनीकें"
+        },
+        moderate: {
+          title: "दिन 2 - तनाव प्रबंधन (मध्यम)",
+          description: "देखभालकर्ता तनाव को प्रभावी रूप से प्रबंधित करना"
+        },
+        severe: {
+          title: "दिन 2 - बर्नआउट रोकथाम (गंभीर)",
+          description: "देखभालकर्ता बर्नआउट को रोकना और संबोधित करना"
+        }
+      }
+    }
   },
   
   kn: {
@@ -1032,7 +1104,43 @@ export const translations = {
     saveId: "ಭವಿಷ್ಯದ ಲಾಗಿನ್‌ಗಳಿಗಾಗಿ ದಯವಿಟ್ಟು ಈ ಐಡಿಯನ್ನು ಉಳಿಸಿ",
     redirecting: "ಲಾಗಿನ್‌ಗೆ {seconds} ಸೆಕೆಂಡ್‌ಗಳಲ್ಲಿ ಮರುನಿರ್ದೇಶಿಸಲಾಗುತ್ತಿದೆ...",
     loginNow: "ಈಗ ಲಾಗಿನ್ ಮಾಡಿ",
-    backToHome: "ಮನೆಗೆ ಹಿಂತಿರುಗಿ"
+    backToHome: "ಮನೆಗೆ ಹಿಂತಿರುಗಿ",
+    
+    // Day Module Content
+    dayModules: {
+      day0: {
+        title: "ಮುಖ್ಯ ಮಾಡ್ಯೂಲ್ - ಪರಿಚಯ",
+        description: "ಆರೈಕೆದಾರ ಬೆಂಬಲ ಕಾರ್ಯಕ್ರಮಕ್ಕೆ ಸ್ವಾಗತ"
+      },
+      day1: {
+        mild: {
+          title: "ದಿನ 1 - ನಿಮ್ಮ ಪಾತ್ರವನ್ನು ಅರ್ಥಮಾಡಿಕೊಳ್ಳುವುದು (ಸೌಮ್ಯ)",
+          description: "ಸೌಮ್ಯ ಭಾರ ಪರಿಸ್ಥಿತಿಗಳಿಗಾಗಿ ಮೂಲಭೂತ ಆರೈಕೆ ಪರಿಕಲ್ಪನೆಗಳು"
+        },
+        moderate: {
+          title: "ದಿನ 1 - ಸವಾಲುಗಳನ್ನು ನಿರ್ವಹಿಸುವುದು (ಮಧ್ಯಮ)",
+          description: "ಮಧ್ಯಮ ಆರೈಕೆ ಸವಾಲುಗಳಿಗಾಗಿ ತಂತ್ರಗಳು"
+        },
+        severe: {
+          title: "ದಿನ 1 - ತೀವ್ರ ಬೆಂಬಲ (ತೀವ್ರ)",
+          description: "ಹೆಚ್ಚಿನ ಭಾರದ ಆರೈಕೆಗಾಗಿ ಸಮಗ್ರ ಬೆಂಬಲ"
+        }
+      },
+      day2: {
+        mild: {
+          title: "ದಿನ 2 - ಸ್ವಯಂ ಆರೈಕೆ ಮೂಲಭೂತ (ಸೌಮ್ಯ)",
+          description: "ಸರಳ ಸ್ವಯಂ ಆರೈಕೆ ತಂತ್ರಗಳು"
+        },
+        moderate: {
+          title: "ದಿನ 2 - ಒತ್ತಡ ನಿರ್ವಹಣೆ (ಮಧ್ಯಮ)",
+          description: "ಆರೈಕೆದಾರರ ಒತ್ತಡವನ್ನು ಪರಿಣಾಮಕಾರಿಯಾಗಿ ನಿರ್ವಹಿಸುವುದು"
+        },
+        severe: {
+          title: "ದಿನ 2 - ಬರ್ನ್ಔಟ್ ತಡೆಗಟ್ಟುವಿಕೆ (ತೀವ್ರ)",
+          description: "ಆರೈಕೆದಾರರ ಬರ್ನ್ಔಟ್ ಅನ್ನು ತಡೆಗಟ್ಟುವುದು ಮತ್ತು ಪರಿಹರಿಸುವುದು"
+        }
+      }
+    }
   }
 };
 

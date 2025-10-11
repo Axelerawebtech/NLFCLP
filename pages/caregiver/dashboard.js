@@ -7,330 +7,260 @@ import {
   Card,
   CardContent,
   Grid,
-  Tab,
-  Tabs,
   Paper,
-  IconButton,
-  AppBar,
-  Toolbar,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Chip,
+  Alert,
+  LinearProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  AppBar,
+  Toolbar,
+  IconButton,
   TextField,
-  Alert
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Fab
 } from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  FaHeart,
+import { 
+  FaSignOutAlt, 
+  FaSun, 
+  FaMoon, 
+  FaUserCircle, 
+  FaCalendarAlt, 
+  FaChartLine,
   FaExclamationTriangle,
-  FaSignOutAlt,
-  FaSun,
-  FaMoon,
-  FaCheckCircle,
-  FaPlayCircle,
-  FaLightbulb,
   FaChevronDown,
+  FaLightbulb,
   FaFileAlt,
-  FaCalendarAlt
+  FaCheckCircle,
+  FaPlayCircle
 } from 'react-icons/fa';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useRouter } from 'next/router';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import ZaritBurdenAssessment from '../../components/ZaritBurdenAssessment';
+import DayModuleCardEnhanced from '../../components/DayModuleCardEnhanced';
+import VideoContentPlayer from '../../components/VideoContentPlayer';
+import CoreModuleEmbedded from '../../components/CoreModuleEmbedded';
 
 export default function CaregiverDashboard() {
+  const router = useRouter();
   const { isDarkMode, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState(0);
-  const [userData, setUserData] = useState(null);
-  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [programData, setProgramData] = useState([]);
+  const { language } = useLanguage();
+  
+  // Enhanced state management - combining all functionality
+  const [caregiverData, setCaregiverData] = useState(null);
+  const [programData, setProgramData] = useState(null);
+  const [showAssessment, setShowAssessment] = useState(false);
+  const [currentView, setCurrentView] = useState('overview'); // overview, assessment, dailyContent
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  // Additional functionality states
   const [healthTips, setHealthTips] = useState([]);
   const [currentDay, setCurrentDay] = useState(1);
   const [dayNotes, setDayNotes] = useState('');
   const [completionDialog, setCompletionDialog] = useState(false);
-  const router = useRouter();
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  
+  // Core Module specific states
+  const [coreModuleCompleted, setCoreModuleCompleted] = useState(false);
+  const [showCoreCompletionMessage, setShowCoreCompletionMessage] = useState(false);
 
   useEffect(() => {
-    // Get user data from localStorage or props
-    const user = JSON.parse(localStorage.getItem('userData') || '{}');
-    setUserData(user);
-    loadProgramData();
+    fetchDashboardData();
     loadHealthTips();
   }, []);
 
-  const loadProgramData = () => {
-    // Sample 10-day program data
-    const sampleProgram = [
-      {
-        day: 1,
-        title: "Understanding Cancer Emotions",
-        description: "Learn about the emotional journey of cancer patients",
-        content: "Cancer diagnosis brings a wave of emotions including fear, anxiety, anger, and sadness. Understanding these emotions is the first step in providing effective support.",
-        activities: [
-          { title: "Active Listening Exercise", description: "Practice listening without trying to fix or solve", duration: "30 minutes" },
-          { title: "Emotion Recognition", description: "Learn to identify different emotional states", duration: "20 minutes" }
-        ],
-        learningObjectives: [
-          "Recognize common emotional responses to cancer",
-          "Understand the importance of validation",
-          "Learn basic active listening techniques"
-        ],
-        emotionalSupport: [
-          {
-            topic: "Validation Techniques",
-            techniques: ["Acknowledge feelings", "Avoid minimizing concerns", "Use reflective listening"],
-            resources: ["Validation phrase examples", "Body language guide"]
-          }
-        ],
-        stressManagement: [
-          {
-            technique: "Deep Breathing",
-            steps: ["Inhale for 4 counts", "Hold for 4 counts", "Exhale for 6 counts", "Repeat 5 times"],
-            benefits: "Reduces anxiety and promotes calm"
-          }
-        ],
-        reflectionQuestions: [
-          "How do you typically respond when someone shares difficult emotions?",
-          "What barriers might prevent effective emotional support?"
-        ]
-      },
-      {
-        day: 2,
-        title: "Building Trust and Rapport",
-        description: "Establish a strong foundation of trust with patients",
-        content: "Trust is essential for effective caregiving. Building rapport creates a safe space for patients to express their fears and concerns.",
-        activities: [
-          { title: "Trust Building Exercise", description: "Practice creating safe communication spaces", duration: "45 minutes" },
-          { title: "Rapport Techniques", description: "Learn mirroring and matching techniques", duration: "25 minutes" }
-        ],
-        learningObjectives: [
-          "Understand the components of trust",
-          "Learn rapport-building techniques",
-          "Practice creating safe spaces"
-        ],
-        emotionalSupport: [
-          {
-            topic: "Creating Safety",
-            techniques: ["Consistent presence", "Reliable communication", "Respect boundaries"],
-            resources: ["Trust assessment tools", "Communication guidelines"]
-          }
-        ],
-        stressManagement: [
-          {
-            technique: "Progressive Muscle Relaxation",
-            steps: ["Tense muscle groups for 5 seconds", "Release and relax for 10 seconds", "Move through body systematically"],
-            benefits: "Reduces physical tension and mental stress"
-          }
-        ],
-        reflectionQuestions: [
-          "What makes you feel trusted by others?",
-          "How can you demonstrate reliability to patients?"
-        ]
-      },
-      {
-        day: 3,
-        title: "Communication Strategies",
-        description: "Master effective communication techniques for cancer care",
-        content: "Effective communication goes beyond words. It involves understanding non-verbal cues, timing, and creating meaningful connections.",
-        activities: [
-          { title: "Non-verbal Communication", description: "Practice reading and using body language", duration: "35 minutes" },
-          { title: "Difficult Conversations", description: "Role-play challenging scenarios", duration: "40 minutes" }
-        ],
-        learningObjectives: [
-          "Master verbal and non-verbal communication",
-          "Learn to navigate difficult conversations",
-          "Understand timing in communication"
-        ],
-        emotionalSupport: [
-          {
-            topic: "Empathetic Communication",
-            techniques: ["Use 'I' statements", "Reflect emotions", "Ask open-ended questions"],
-            resources: ["Communication scripts", "Empathy building exercises"]
-          }
-        ],
-        stressManagement: [
-          {
-            technique: "Mindful Communication",
-            steps: ["Pause before responding", "Listen with full attention", "Speak with intention"],
-            benefits: "Improves understanding and reduces miscommunication"
-          }
-        ],
-        reflectionQuestions: [
-          "When do you communicate most effectively?",
-          "What communication habits would you like to change?"
-        ]
-      },
-      // Continue with days 4-10...
-      {
-        day: 4,
-        title: "Managing Fear and Anxiety",
-        description: "Help patients cope with cancer-related fears",
-        content: "Fear and anxiety are natural responses to cancer. Learning to address these emotions helps patients feel more in control.",
-        activities: [
-          { title: "Fear Assessment", description: "Identify specific fears and concerns", duration: "30 minutes" },
-          { title: "Coping Strategies", description: "Practice anxiety reduction techniques", duration: "35 minutes" }
-        ]
-      },
-      {
-        day: 5,
-        title: "Hope and Resilience",
-        description: "Foster hope and build resilience in cancer patients",
-        content: "Hope is a powerful force in healing. Learning to nurture hope while being realistic about challenges is a delicate balance.",
-        activities: [
-          { title: "Hope Building", description: "Identify sources of hope and meaning", duration: "40 minutes" },
-          { title: "Resilience Training", description: "Build emotional and mental strength", duration: "30 minutes" }
-        ]
-      },
-      {
-        day: 6,
-        title: "Family Dynamics and Support",
-        description: "Navigate family relationships during cancer treatment",
-        content: "Cancer affects the entire family system. Understanding family dynamics helps provide comprehensive support.",
-        activities: [
-          { title: "Family Assessment", description: "Understand family roles and relationships", duration: "35 minutes" },
-          { title: "Support Coordination", description: "Facilitate family communication", duration: "25 minutes" }
-        ]
-      },
-      {
-        day: 7,
-        title: "Self-Care for Caregivers",
-        description: "Maintain your own well-being while caring for others",
-        content: "Caregiver burnout is real. Learning self-care strategies ensures you can provide sustained, quality care.",
-        activities: [
-          { title: "Self-Assessment", description: "Evaluate your own stress levels", duration: "20 minutes" },
-          { title: "Self-Care Planning", description: "Create a personal self-care routine", duration: "40 minutes" }
-        ]
-      },
-      {
-        day: 8,
-        title: "Crisis Intervention",
-        description: "Handle emotional crises and urgent situations",
-        content: "Sometimes patients experience emotional crises. Knowing how to respond appropriately can be life-saving.",
-        activities: [
-          { title: "Crisis Recognition", description: "Identify signs of emotional crisis", duration: "30 minutes" },
-          { title: "Intervention Techniques", description: "Practice crisis response protocols", duration: "45 minutes" }
-        ]
-      },
-      {
-        day: 9,
-        title: "Long-term Support Planning",
-        description: "Develop sustainable support strategies",
-        content: "Cancer care is often a long journey. Creating sustainable support plans helps maintain consistent care quality.",
-        activities: [
-          { title: "Support Planning", description: "Create long-term care strategies", duration: "40 minutes" },
-          { title: "Resource Mapping", description: "Identify available support resources", duration: "30 minutes" }
-        ]
-      },
-      {
-        day: 10,
-        title: "Reflection and Integration",
-        description: "Integrate learning and prepare for ongoing support",
-        content: "Reflection helps solidify learning. This final day focuses on integrating all concepts for effective ongoing care.",
-        activities: [
-          { title: "Learning Integration", description: "Connect all program concepts", duration: "35 minutes" },
-          { title: "Future Planning", description: "Plan for continued growth and learning", duration: "25 minutes" }
-        ]
+  const fetchDashboardData = async () => {
+    try {
+      // Get user data from localStorage
+      const userData = localStorage.getItem('userData');
+      console.log('UserData from localStorage:', userData);
+      
+      if (!userData) {
+        setError('User data not found. Please log in again.');
+        router.push('/login');
+        return;
       }
-    ];
-    setProgramData(sampleProgram);
+
+      const user = JSON.parse(userData);
+      const userId = user.id; // This should be the caregiverId
+      console.log('Fetching dashboard data for userId:', userId);
+      
+      if (!userId) {
+        setError('User ID not found. Please log in again.');
+        router.push('/login');
+        return;
+      }
+
+      const response = await fetch(`/api/caregiver/dashboard?caregiverId=${userId}`);
+      console.log('Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (response.ok) {
+        setCaregiverData(data.caregiver);
+        setProgramData(data.program);
+        
+        // Check core module completion status
+        const coreModuleStatus = data.program?.dayModules?.[0]?.videoCompleted || false;
+        setCoreModuleCompleted(coreModuleStatus);
+        
+        // Determine initial view based on program state
+        if (!data.program) {
+          setCurrentView('assessment');
+        } else if (data.program.currentDay === 0 && !coreModuleStatus) {
+          setCurrentView('dailyContent');
+        } else {
+          setCurrentView('overview');
+        }
+        
+        // Set current day from program data
+        if (data.program?.currentDay) {
+          setCurrentDay(data.program.currentDay);
+        }
+      } else {
+        console.error('API Error:', data);
+        setError(data.error || 'Failed to load dashboard data');
+      }
+    } catch (error) {
+      console.error('Dashboard fetch error:', error);
+      setError(`Network error: ${error.message}. Please try again.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadHealthTips = () => {
-    // Sample health tips
-    const sampleTips = [
+    // Sample health tips - can be made dynamic
+    const tips = [
       {
         id: 1,
-        title: "Nutrition During Treatment",
-        content: "Encourage small, frequent meals with high-protein foods. Stay hydrated and avoid empty calories.",
-        category: "nutrition",
-        date: new Date().toISOString()
+        title: "Take Regular Breaks",
+        content: "Remember to take 15-minute breaks every 2 hours to prevent caregiver burnout."
       },
       {
         id: 2,
-        title: "Gentle Exercise Benefits",
-        content: "Light walking or stretching can help maintain strength and improve mood during treatment.",
-        category: "exercise",
-        date: new Date().toISOString()
+        title: "Stay Hydrated",
+        content: "Drink at least 8 glasses of water daily to maintain your energy levels."
       },
       {
         id: 3,
-        title: "Managing Treatment Side Effects",
-        content: "Keep a symptom diary to track patterns and communicate effectively with the medical team.",
-        category: "medication",
-        date: new Date().toISOString()
-      },
-      {
-        id: 4,
-        title: "Sleep Quality Tips",
-        content: "Maintain a consistent sleep schedule and create a calming bedtime routine to improve rest quality.",
-        category: "lifestyle",
-        date: new Date().toISOString()
-      },
-      {
-        id: 5,
-        title: "Emotional Well-being",
-        content: "Practice mindfulness and meditation to help manage anxiety and stress during treatment.",
-        category: "mental_health",
-        date: new Date().toISOString()
+        title: "Connect with Others",
+        content: "Maintain social connections to support your emotional well-being."
       }
     ];
-    setHealthTips(sampleTips);
+    setHealthTips(tips);
   };
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
+  const handleAssessmentComplete = (assessmentData) => {
+    setProgramData(assessmentData.program);
+    setCurrentView('dailyContent');
   };
 
-  const handleDayCompletion = (day) => {
-    setCurrentDay(day);
-    setCompletionDialog(true);
-  };
-
-  const submitDayCompletion = () => {
-    // Here you would typically update the backend
-    console.log(`Day ${currentDay} completed with notes: ${dayNotes}`);
-
-    // Update local state
-    const updatedUser = { ...userData };
-    if (!updatedUser.programProgress) {
-      updatedUser.programProgress = { completedDays: [], currentDay: 1 };
+  const handleDayModuleComplete = async (dayModule) => {
+    // Refresh dashboard data to get updated progress
+    await fetchDashboardData();
+    
+    // Show completion dialog for certain milestones
+    if (dayModule.progressPercentage === 100) {
+      setCompletionDialog(true);
     }
-
-    if (!updatedUser.programProgress.completedDays.includes(currentDay)) {
-      updatedUser.programProgress.completedDays.push(currentDay);
-    }
-
-    updatedUser.programProgress.currentDay = Math.min(currentDay + 1, 10);
-
-    // Check if program is completed
-    if (updatedUser.programProgress.completedDays.length === 10) {
-      updatedUser.programProgress.isCompleted = true;
-      // Enable post-test for assigned patient
-      enablePatientPostTest();
-    }
-
-    setUserData(updatedUser);
-    localStorage.setItem('userData', JSON.stringify(updatedUser));
-
-    setCompletionDialog(false);
-    setDayNotes('');
   };
 
-  const enablePatientPostTest = async () => {
-    // API call to enable post-test for the assigned patient
+  const handleVideoComplete = () => {
+    // Video completion is handled by the VideoContentPlayer
+    console.log('Video completed');
+  };
+
+  const handleCoreModuleComplete = async () => {
     try {
-      await fetch('/api/enable-post-test', {
+      setCoreModuleCompleted(true);
+      setShowCoreCompletionMessage(true);
+      
+      // Update backend about core module completion
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const response = await fetch('/api/caregiver/complete-day-module', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caregiverId: userData.id })
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          caregiverId: userData._id,
+          day: 0,
+          moduleType: 'video'
+        }),
       });
+
+      if (response.ok) {
+        // Refresh dashboard data to reflect completion
+        await fetchDashboardData();
+      }
     } catch (error) {
-      console.error('Failed to enable post-test:', error);
+      console.error('Error completing core module:', error);
     }
+  };
+
+  const handleProceedToDay1 = async () => {
+    setShowCoreCompletionMessage(false);
+    
+    try {
+      // Update the current day to 1 in the backend
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const response = await fetch('/api/caregiver/program-state', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          caregiverId: userData._id,
+          currentDay: 1
+        }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setCurrentDay(1);
+        
+        // Navigate to daily content view to show Day 1
+        setCurrentView('dailyContent');
+        
+        // Refresh dashboard data to reflect the new day
+        await fetchDashboardData();
+      } else {
+        // Fallback: just update UI state even if API fails
+        setCurrentDay(1);
+        setCurrentView('dailyContent');
+        
+        // Update programData locally to reflect Day 1
+        setProgramData(prev => ({
+          ...prev,
+          currentDay: 1
+        }));
+      }
+    } catch (error) {
+      console.error('Error proceeding to Day 1:', error);
+      // Fallback: just update UI state
+      setCurrentDay(1);
+      setCurrentView('dailyContent');
+      
+      // Update programData locally to reflect Day 1
+      setProgramData(prev => ({
+        ...prev,
+        currentDay: 1
+      }));
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('userData');
+    router.push('/login');
   };
 
   const handleEmergencyAlert = () => {
@@ -342,374 +272,478 @@ export default function CaregiverDashboard() {
       // API call to submit emergency alert
       await fetch('/api/emergency-alert', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          caregiverId: userData?.id,
+          caregiverId: caregiverData._id,
           message: alertMessage,
           timestamp: new Date().toISOString()
-        })
+        }),
       });
-
+      
       setAlertDialogOpen(false);
       setAlertMessage('');
-      // Show success message
+      alert('Emergency alert sent successfully!');
     } catch (error) {
-      console.error('Failed to submit alert:', error);
+      console.error('Error sending alert:', error);
+      alert('Failed to send alert. Please try again.');
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('userData');
-    router.push('/');
+  const handleCompletionDialogClose = () => {
+    setCompletionDialog(false);
   };
 
-  const getCategoryColor = (category) => {
-    const colors = {
-      nutrition: '#10b981',
-      exercise: '#2563eb',
-      medication: '#7c3aed',
-      lifestyle: '#f59e0b',
-      mental_health: '#ef4444'
-    };
-    return colors[category] || '#6b7280';
+  const getBurdenLevelColor = (level) => {
+    switch (level) {
+      case 'mild': return 'success';
+      case 'moderate': return 'warning';
+      case 'severe': return 'error';
+      default: return 'default';
+    }
   };
 
-  if (!userData) {
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <Typography variant="h4">Loading...</Typography>
+        <Typography>Loading your dashboard...</Typography>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       {/* Header */}
-      <AppBar position="static" elevation={0}>
+      <AppBar position="static" color="primary">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Caregiver Dashboard - {userData.name}
+            Caregiver Dashboard
           </Typography>
-          <IconButton color="inherit" onClick={toggleTheme} sx={{ mr: 2 }}>
-            {isDarkMode ? <FaSun /> : <FaMoon />}
-          </IconButton>
-          <Button
-            color="inherit"
-            startIcon={<FaSignOutAlt />}
-            onClick={handleLogout}
-          >
-            Logout
-          </Button>
+          
+          {caregiverData && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="body2">
+                  {caregiverData.name}
+                </Typography>
+                <Typography variant="caption" color="inherit" sx={{ opacity: 0.8 }}>
+                  ID: {caregiverData.caregiverId}
+                </Typography>
+              </Box>
+              <IconButton color="inherit" onClick={toggleTheme}>
+                {isDarkMode ? <FaSun /> : <FaMoon />}
+              </IconButton>
+              <IconButton color="inherit" onClick={handleLogout}>
+                <FaSignOutAlt />
+              </IconButton>
+            </Box>
+          )}
         </Toolbar>
       </AppBar>
 
-      {/* Emergency Alert Button */}
-      <Box sx={{ position: 'fixed', top: 100, right: 20, zIndex: 1000 }}>
-        <motion.div
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <Button
-            variant="contained"
-            color="error"
-            size="large"
-            startIcon={<FaExclamationTriangle />}
-            onClick={handleEmergencyAlert}
-            sx={{
-              px: 3,
-              py: 2,
-              fontSize: '1.1rem',
-              fontWeight: 600,
-              boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)',
-              '&:hover': {
-                boxShadow: '0 6px 25px rgba(239, 68, 68, 0.6)',
-              }
-            }}
-          >
-            RED ALERT
-          </Button>
-        </motion.div>
-      </Box>
-
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Welcome Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <Card sx={{ mb: 4, background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)', color: 'white' }}>
-            <CardContent sx={{ py: 4 }}>
-              <Typography variant="h4" sx={{ mb: 2, fontWeight: 700 }}>
-                Welcome back, {userData.name}!
-              </Typography>
-              <Typography variant="h6" sx={{ opacity: 0.9 }}>
-                Continue your journey of providing exceptional cancer care support
-              </Typography>
-              {userData.assignedPatient && (
-                <Typography variant="body1" sx={{ mt: 2, opacity: 0.8 }}>
-                  Currently supporting: <strong>{userData.assignedPatient.name}</strong>
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
         {/* Navigation Tabs */}
-        <Paper sx={{ mb: 4 }}>
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            variant="fullWidth"
-            indicatorColor="primary"
-          >
-            <Tab
-              label="10-Day Program"
-              icon={<FaCalendarAlt />}
-              iconPosition="start"
-            />
-            <Tab
-              label="Daily Health Tips"
-              icon={<FaLightbulb />}
-              iconPosition="start"
-            />
-          </Tabs>
+        <Paper sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', gap: 1, p: 2 }}>
+            <Button
+              variant={currentView === 'overview' ? 'contained' : 'outlined'}
+              onClick={() => setCurrentView('overview')}
+              disabled={!programData}
+              startIcon={<FaChartLine />}
+            >
+              Overview
+            </Button>
+            <Button
+              variant={currentView === 'assessment' ? 'contained' : 'outlined'}
+              onClick={() => setCurrentView('assessment')}
+              disabled={programData && programData.zaritBurdenAssessment}
+              startIcon={<FaUserCircle />}
+            >
+              Assessment
+            </Button>
+            <Button
+              variant={currentView === 'dailyContent' ? 'contained' : 'outlined'}
+              onClick={() => setCurrentView('dailyContent')}
+              disabled={!programData || !coreModuleCompleted}
+              startIcon={<FaCalendarAlt />}
+            >
+              Daily Content
+            </Button>
+          </Box>
         </Paper>
 
-        {/* Tab Content */}
-        <AnimatePresence mode="wait">
-          {activeTab === 0 && (
-            <motion.div
-              key="program"
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 50 }}
-              transition={{ duration: 0.4 }}
-            >
-              <Typography variant="h4" sx={{ mb: 4, fontWeight: 600 }}>
-                10-Day Emotional Support Program
-              </Typography>
+        {/* Core Module Section - Always visible when program exists */}
+        {programData && (
+          <CoreModuleEmbedded
+            caregiverId={caregiverData?._id}
+            completed={coreModuleCompleted}
+            onComplete={handleCoreModuleComplete}
+            onProceedToDay1={handleProceedToDay1}
+          />
+        )}
 
-              <Grid container spacing={3}>
-                {programData.map((day) => {
-                  const isCompleted = userData.programProgress?.completedDays?.includes(day.day);
-                  const isCurrent = userData.programProgress?.currentDay === day.day;
-                  const isLocked = day.day > (userData.programProgress?.currentDay || 1);
+        {/* Content based on current view */}
+        {currentView === 'assessment' && (
+          <ZaritBurdenAssessment
+            caregiverId={caregiverData?._id}
+            onComplete={handleAssessmentComplete}
+          />
+        )}
 
-                  return (
-                    <Grid item xs={12} key={day.day}>
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: day.day * 0.1 }}
-                      >
-                        <Card sx={{
-                          opacity: isLocked ? 0.6 : 1,
-                          border: isCurrent ? '2px solid #2563eb' : 'none',
-                          background: isCompleted ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'background.paper',
-                          color: isCompleted ? 'white' : 'text.primary'
-                        }}>
-                          <Accordion disabled={isLocked}>
-                            <AccordionSummary expandIcon={<FaChevronDown />}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                <Box sx={{ mr: 2 }}>
-                                  {isCompleted ? (
-                                    <FaCheckCircle style={{ color: isCompleted ? 'white' : '#10b981', fontSize: '1.5rem' }} />
-                                  ) : (
-                                    <FaPlayCircle style={{ color: isCurrent ? '#2563eb' : '#6b7280', fontSize: '1.5rem' }} />
-                                  )}
-                                </Box>
-                                <Box sx={{ flexGrow: 1 }}>
-                                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                    Day {day.day}: {day.title}
-                                  </Typography>
-                                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                                    {day.description}
-                                  </Typography>
-                                </Box>
-                                {isCurrent && (
-                                  <Chip
-                                    label="Current"
-                                    color="primary"
-                                    size="small"
-                                    sx={{ ml: 2 }}
-                                  />
-                                )}
-                              </Box>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                              <Typography variant="body1" sx={{ mb: 3 }}>
-                                {day.content}
-                              </Typography>
-
-                              {day.activities && (
-                                <Box sx={{ mb: 3 }}>
-                                  <Typography variant="h6" sx={{ mb: 2 }}>Activities</Typography>
-                                  {day.activities.map((activity, index) => (
-                                    <Paper key={index} sx={{ p: 2, mb: 1, backgroundColor: 'action.hover' }}>
-                                      <Typography variant="subtitle1" fontWeight={500}>
-                                        {activity.title}
-                                      </Typography>
-                                      <Typography variant="body2" color="text.secondary">
-                                        {activity.description}
-                                      </Typography>
-                                      {activity.duration && (
-                                        <Typography variant="caption" color="primary">
-                                          Duration: {activity.duration}
-                                        </Typography>
-                                      )}
-                                    </Paper>
-                                  ))}
-                                </Box>
-                              )}
-
-                              {!isCompleted && !isLocked && (
-                                <Box sx={{ textAlign: 'center', mt: 3 }}>
-                                  <Button
-                                    variant="contained"
-                                    size="large"
-                                    startIcon={<FaCheckCircle />}
-                                    onClick={() => handleDayCompletion(day.day)}
-                                    sx={{ px: 4, py: 2 }}
-                                  >
-                                    Mark as Complete
-                                  </Button>
-                                </Box>
-                              )}
-                            </AccordionDetails>
-                          </Accordion>
-                        </Card>
-                      </motion.div>
+        {currentView === 'overview' && programData && (
+          <Grid container spacing={3}>
+            {/* Program Overview */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h5" gutterBottom>
+                    Program Overview
+                  </Typography>
+                  
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h4" color="primary">
+                          {programData.currentDay}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Current Day
+                        </Typography>
+                      </Box>
                     </Grid>
-                  );
-                })}
-              </Grid>
-            </motion.div>
-          )}
+                    
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h4" color="success.main">
+                          {Math.round(programData.overallProgress)}%
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Overall Progress
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          {activeTab === 1 && (
-            <motion.div
-              key="tips"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              transition={{ duration: 0.4 }}
-            >
-              <Typography variant="h4" sx={{ mb: 4, fontWeight: 600 }}>
-                Daily Health Tips
-              </Typography>
-
-              <Grid container spacing={3}>
-                {healthTips.map((tip, index) => (
-                  <Grid item xs={12} md={6} lg={4} key={tip.id}>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      whileHover={{ y: -5 }}
-                    >
-                      <Card sx={{
-                        height: '100%',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-                        }
-                      }}>
-                        <CardContent sx={{ p: 3 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <FaLightbulb
-                              style={{
-                                color: getCategoryColor(tip.category),
-                                fontSize: '1.5rem',
-                                marginRight: '8px'
-                              }}
-                            />
-                            <Chip
-                              label={tip.category.replace('_', ' ')}
-                              size="small"
-                              sx={{
-                                backgroundColor: getCategoryColor(tip.category),
-                                color: 'white',
-                                textTransform: 'capitalize'
-                              }}
-                            />
-                          </Box>
-                          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                            {tip.title}
+            {/* Progress Timeline */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    7-Day Program Progress
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    {/* Day 0 - Core Module Card */}
+                    <Grid item xs={12} sm={6} md={4} lg={3}>
+                      <Card 
+                        variant="outlined"
+                        sx={{ 
+                          bgcolor: coreModuleCompleted ? 'success.light' : 'background.paper',
+                          border: programData.currentDay === 0 ? 2 : 1,
+                          borderColor: programData.currentDay === 0 ? 'primary.main' : 'divider'
+                        }}
+                      >
+                        <CardContent sx={{ p: 2 }}>
+                          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {coreModuleCompleted ? <FaCheckCircle color="green" /> : <FaPlayCircle />}
+                            Day 0 - Core Module
                           </Typography>
-                          <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                            {tip.content}
+                          
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={coreModuleCompleted ? 100 : 0}
+                            sx={{ mb: 1, height: 8, borderRadius: 4 }}
+                          />
+                          
+                          <Typography variant="body2" color="text.secondary">
+                            {coreModuleCompleted ? '100' : '0'}% Complete
                           </Typography>
+                          
+                          {programData.currentDay === 0 && (
+                            <Chip 
+                              label="Current" 
+                              color="primary" 
+                              size="small" 
+                              sx={{ mt: 1 }}
+                            />
+                          )}
+                          {coreModuleCompleted && (
+                            <Chip 
+                              label="Completed" 
+                              color="success" 
+                              size="small" 
+                              sx={{ mt: 1 }}
+                            />
+                          )}
                         </CardContent>
                       </Card>
-                    </motion.div>
+                    </Grid>
+
+                    {/* Regular Day 1-7 Cards - Filter out Day 0 to prevent duplication */}
+                    {programData.dayModules?.filter(dayModule => dayModule.day !== 0).map((dayModule) => (
+                      <Grid item xs={12} sm={6} md={4} lg={3} key={dayModule.day}>
+                        <Card 
+                          variant="outlined"
+                          sx={{ 
+                            bgcolor: dayModule.progressPercentage === 100 ? 'success.light' : 'background.paper',
+                            border: dayModule.day === programData.currentDay ? 2 : 1,
+                            borderColor: dayModule.day === programData.currentDay ? 'primary.main' : 'divider'
+                          }}
+                        >
+                          <CardContent sx={{ p: 2 }}>
+                            <Typography variant="h6" gutterBottom>
+                              Day {dayModule.day}
+                            </Typography>
+                            
+                            <LinearProgress 
+                              variant="determinate" 
+                              value={dayModule.progressPercentage}
+                              sx={{ mb: 1, height: 8, borderRadius: 4 }}
+                            />
+                            
+                            <Typography variant="body2" color="text.secondary">
+                              {dayModule.progressPercentage}% Complete
+                            </Typography>
+                            
+                            {dayModule.day === programData.currentDay && (
+                              <Chip 
+                                label="Current" 
+                                color="primary" 
+                                size="small" 
+                                sx={{ mt: 1 }}
+                              />
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
                   </Grid>
-                ))}
-              </Grid>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Health Tips Section */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FaLightbulb />
+                    Daily Health Tips
+                  </Typography>
+                  
+                  {healthTips.map((tip) => (
+                    <Accordion key={tip.id} sx={{ mb: 1 }}>
+                      <AccordionSummary expandIcon={<FaChevronDown />}>
+                        <Typography variant="subtitle2">{tip.title}</Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Typography variant="body2">{tip.content}</Typography>
+                      </AccordionDetails>
+                    </Accordion>
+                  ))}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Recent Activity */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Recent Activity
+                  </Typography>
+                  
+                  {programData.dailyTasks?.length > 0 ? (
+                    programData.dailyTasks
+                      .slice(-5)
+                      .reverse()
+                      .map((task, index) => (
+                        <Box 
+                          key={index} 
+                          sx={{ 
+                            p: 2, 
+                            mb: 1, 
+                            bgcolor: 'grey.50', 
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'grey.200'
+                          }}
+                        >
+                          <Grid container alignItems="center" spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="body2" fontWeight="bold">
+                                Day {task.day} Completed
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatDate(task.completedAt)}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              {task.task1 !== null && (
+                                <Typography variant="body2">
+                                  Break taken: {task.task1 ? '✅ Yes' : '❌ No'}
+                                </Typography>
+                              )}
+                            </Grid>
+                          </Grid>
+                        </Box>
+                      ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No recent activity to display.
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        )}
+
+        {currentView === 'dailyContent' && programData && coreModuleCompleted && programData.currentDay > 0 && (
+          <Box>
+            <Typography variant="h5" gutterBottom>
+              Day {programData.currentDay} - Daily Content
+            </Typography>
+            
+            {/* Current Day Module */}
+            {programData.dayModules?.find(module => module.day === programData.currentDay) && (
+              <DayModuleCardEnhanced
+                dayModule={programData.dayModules.find(module => module.day === programData.currentDay)}
+                burdenLevel={programData.zaritBurdenAssessment?.burdenLevel}
+                caregiverId={caregiverData?._id}
+                onComplete={handleDayModuleComplete}
+              />
+            )}
+            
+            {/* If no day module found for current day, show preparation message */}
+            {!programData.dayModules?.find(module => module.day === programData.currentDay) && (
+              <Alert severity="info" sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Day {programData.currentDay} content is being prepared
+                </Typography>
+                <Typography variant="body2">
+                  Your Day {programData.currentDay} personalized content will be available soon based on your assessment results.
+                  Please check back later or contact your program coordinator.
+                </Typography>
+              </Alert>
+            )}
+          </Box>
+        )}
+
+        {/* Message when daily content is accessed but only Day 0 available */}
+        {currentView === 'dailyContent' && programData && coreModuleCompleted && programData.currentDay === 0 && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Ready to start your daily program!
+            </Typography>
+            <Typography variant="body2">
+              You have completed the Core Module. Click "View Your Daily Program" in the Core Module section above to proceed to Day 1.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Message when trying to access daily content without completing core module */}
+        {currentView === 'dailyContent' && programData && !coreModuleCompleted && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Please complete the Core Module first
+            </Typography>
+            <Typography variant="body2">
+              The Core Module contains essential foundation knowledge required before starting your daily program. 
+              Please watch the Core Module video above to proceed.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Welcome message for new users */}
+        {!programData && currentView === 'assessment' && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h5" gutterBottom>
+                Welcome to the Caregiver Support Program!
+              </Typography>
+              <Typography variant="body1" paragraph>
+                We're glad you're here. To provide you with the most personalized support, 
+                we'll start with a brief assessment to understand your current caregiving situation.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                This assessment will help us tailor the 7-day program content to your specific needs.
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
       </Container>
 
-      {/* Day Completion Dialog */}
-      <Dialog open={completionDialog} onClose={() => setCompletionDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <FaFileAlt style={{ marginRight: '8px' }} />
-            Complete Day {currentDay}
-          </Box>
-        </DialogTitle>
+      {/* Emergency Alert FAB */}
+      <Fab
+        color="error"
+        aria-label="emergency"
+        sx={{ position: 'fixed', bottom: 16, right: 16 }}
+        onClick={handleEmergencyAlert}
+      >
+        <FaExclamationTriangle />
+      </Fab>
+
+      {/* Completion Dialog */}
+      <Dialog open={completionDialog} onClose={handleCompletionDialogClose} maxWidth="sm" fullWidth>
+        <DialogTitle>Congratulations!</DialogTitle>
         <DialogContent>
-          <Typography variant="body1" sx={{ mb: 3 }}>
-            Congratulations on completing Day {currentDay}! Please share your reflection and notes about today's learning.
+          <Typography variant="body1">
+            You've successfully completed Day {currentDay}! Your progress has been saved.
           </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label="Reflection Notes"
-            value={dayNotes}
-            onChange={(e) => setDayNotes(e.target.value)}
-            placeholder="What did you learn today? How will you apply this knowledge?"
-          />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Take a moment to reflect on what you've learned today, and remember to take care of yourself.
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCompletionDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={submitDayCompletion}>
-            Complete Day
+          <Button onClick={handleCompletionDialogClose} variant="contained">
+            Continue
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Emergency Alert Dialog */}
       <Dialog open={alertDialogOpen} onClose={() => setAlertDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ color: 'error.main' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <FaExclamationTriangle style={{ marginRight: '8px' }} />
-            Emergency Alert
-          </Box>
-        </DialogTitle>
+        <DialogTitle>Emergency Alert</DialogTitle>
         <DialogContent>
-          <Typography variant="body1" sx={{ mb: 3 }}>
-            This alert will immediately notify the medical team and administrators. Please describe the situation.
+          <Typography variant="body2" gutterBottom>
+            Send an emergency alert to your support network. Please describe your situation:
           </Typography>
           <TextField
             fullWidth
             multiline
             rows={4}
-            label="Emergency Description"
+            variant="outlined"
+            placeholder="Describe your emergency situation..."
             value={alertMessage}
             onChange={(e) => setAlertMessage(e.target.value)}
-            placeholder="Describe the emergency situation..."
-            required
+            sx={{ mt: 2 }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAlertDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
+          <Button 
+            onClick={submitAlert} 
+            variant="contained" 
             color="error"
-            onClick={submitAlert}
             disabled={!alertMessage.trim()}
           >
             Send Alert
