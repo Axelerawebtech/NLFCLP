@@ -98,13 +98,13 @@ const DAILY_TASKS_CONFIG = {
     ]
   },
   2: {
-    title: 'Day 2 - Managing Stress',
+    title: 'Day 2 - Managing Stress & Building Resilience',
     low: [
       {
         type: 'boolean',
         key: 'breathing_exercise',
         title: 'Breathing Exercise',
-        question: 'Did you practice the deep breathing exercise from the video?',
+        question: 'Did you practice the deep breathing exercise from the video today?',
         required: true
       },
       {
@@ -112,6 +112,20 @@ const DAILY_TASKS_CONFIG = {
         key: 'physical_activity',
         title: 'Physical Activity',
         question: 'Did you engage in at least 10 minutes of physical activity today?',
+        required: true
+      },
+      {
+        type: 'boolean',
+        key: 'stress_awareness',
+        title: 'Stress Awareness',
+        question: 'Did you notice when you were feeling stressed today?',
+        required: true
+      },
+      {
+        type: 'boolean',
+        key: 'positive_moment',
+        title: 'Positive Moments',
+        question: 'Did you take time to notice at least one positive moment today?',
         required: true
       }
     ],
@@ -124,12 +138,11 @@ const DAILY_TASKS_CONFIG = {
         required: true
       },
       {
-        type: 'text',
+        type: 'boolean',
         key: 'stress_triggers',
-        title: 'Stress Identification',
-        question: 'What were your main stress triggers today? How did you manage them?',
-        required: true,
-        maxLength: 300
+        title: 'Stress Management',
+        question: 'Did you successfully manage a stressful situation today using techniques from the video?',
+        required: true
       },
       {
         type: 'boolean',
@@ -137,31 +150,64 @@ const DAILY_TASKS_CONFIG = {
         title: 'Relaxation Time',
         question: 'Did you set aside time for a relaxing activity today?',
         required: true
+      },
+      {
+        type: 'boolean',
+        key: 'support_connection',
+        title: 'Social Connection',
+        question: 'Did you connect with a friend, family member, or support person today?',
+        required: true
+      },
+      {
+        type: 'boolean',
+        key: 'healthy_boundaries',
+        title: 'Healthy Boundaries',
+        question: 'Did you practice saying "no" to something that would add unnecessary stress?',
+        required: true
       }
     ],
     high: [
       {
         type: 'boolean',
-        key: 'breathing_exercise',
-        title: 'Breathing Exercise',
+        key: 'stress_techniques',
+        title: 'Multiple Stress Techniques',
         question: 'Did you practice stress-relief techniques multiple times throughout the day?',
         required: true
       },
       {
-        type: 'text',
-        key: 'stress_management_plan',
-        title: 'Stress Management Plan',
-        question: 'Create a specific plan for managing your highest stress situations this week:',
-        required: true,
-        maxLength: 400
+        type: 'boolean',
+        key: 'crisis_management',
+        title: 'Crisis Management',
+        question: 'Did you successfully handle a difficult caregiving situation today?',
+        required: true
       },
       {
-        type: 'text',
+        type: 'boolean',
         key: 'professional_support',
         title: 'Professional Support',
-        question: 'Have you considered seeking professional support? If yes, what type? If no, why not?',
-        required: true,
-        maxLength: 300
+        question: 'Did you reach out to or consider contacting a healthcare professional for support?',
+        required: true
+      },
+      {
+        type: 'boolean',
+        key: 'emergency_plan',
+        title: 'Emergency Preparedness',
+        question: 'Do you feel confident in your ability to handle a caregiving emergency today?',
+        required: true
+      },
+      {
+        type: 'boolean',
+        key: 'self_care_priority',
+        title: 'Self-Care Priority',
+        question: 'Did you prioritize at least one self-care activity today?',
+        required: true
+      },
+      {
+        type: 'boolean',
+        key: 'help_seeking',
+        title: 'Help Seeking',
+        question: 'Did you ask for or accept help from someone today?',
+        required: true
       }
     ]
   },

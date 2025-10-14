@@ -36,15 +36,19 @@ import {
   FaLightbulb,
   FaFileAlt,
   FaCheckCircle,
-  FaPlayCircle
+  FaPlayCircle,
+  FaBell
 } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import ZaritBurdenAssessment from '../../components/ZaritBurdenAssessment';
+import ZaritBurdenAssessmentPreTest from '../../components/ZaritBurdenAssessmentPreTest';
 import DayModuleCardEnhanced from '../../components/DayModuleCardEnhanced';
 import VideoContentPlayer from '../../components/VideoContentPlayer';
 import CoreModuleEmbedded from '../../components/CoreModuleEmbedded';
+import Day1Content from '../../components/Day1Content';
+import NotificationSettings from '../../components/NotificationSettings';
 
 export default function CaregiverDashboard() {
   const router = useRouter();
@@ -55,7 +59,7 @@ export default function CaregiverDashboard() {
   const [caregiverData, setCaregiverData] = useState(null);
   const [programData, setProgramData] = useState(null);
   const [showAssessment, setShowAssessment] = useState(false);
-  const [currentView, setCurrentView] = useState('overview'); // overview, assessment, dailyContent
+  const [currentView, setCurrentView] = useState('overview'); // overview, assessment, dailyContent, notifications
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -70,6 +74,11 @@ export default function CaregiverDashboard() {
   // Core Module specific states
   const [coreModuleCompleted, setCoreModuleCompleted] = useState(false);
   const [showCoreCompletionMessage, setShowCoreCompletionMessage] = useState(false);
+
+  // Day 1 specific states
+  const [showDay1PreTest, setShowDay1PreTest] = useState(false);
+  const [day1BurdenLevel, setDay1BurdenLevel] = useState(null);
+  const [day1PreTestCompleted, setDay1PreTestCompleted] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -164,13 +173,36 @@ export default function CaregiverDashboard() {
     setCurrentView('dailyContent');
   };
 
-  const handleDayModuleComplete = async (dayModule) => {
+  const handleDayModuleComplete = async (nextDay) => {
     // Refresh dashboard data to get updated progress
     await fetchDashboardData();
     
-    // Show completion dialog for certain milestones
-    if (dayModule.progressPercentage === 100) {
-      setCompletionDialog(true);
+    // If nextDay is provided, advance to that day
+    if (nextDay) {
+      console.log(`📅 Advancing to Day ${nextDay}`);
+      
+      // Update local program data to reflect new current day
+      if (programData) {
+        const updatedProgramData = {
+          ...programData,
+          currentDay: nextDay
+        };
+        setProgramData(updatedProgramData);
+        
+        // Also try to update backend (but don't block if API doesn't exist)
+        try {
+          await fetch('/api/caregiver/advance-day', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              caregiverId: caregiverData?._id,
+              currentDay: nextDay
+            })
+          });
+        } catch (error) {
+          console.log('API endpoint not available, using local update only');
+        }
+      }
     }
   };
 
@@ -256,6 +288,49 @@ export default function CaregiverDashboard() {
         currentDay: 1
       }));
     }
+  };
+
+  const handleStartDay1 = () => {
+    // Show the Day 1 pre-test (Zarit Burden Assessment)
+    setShowDay1PreTest(true);
+    setCurrentView('day1PreTest');
+  };
+
+  const handleDay1PreTestComplete = (burdenLevel, totalScore) => {
+    console.log('Day 1 Pre-test completed:', { burdenLevel, totalScore });
+    console.log('Current state before update:', { 
+      currentView, 
+      day1PreTestCompleted, 
+      day1BurdenLevel, 
+      coreModuleCompleted,
+      programData: programData ? { currentDay: programData.currentDay } : null
+    });
+    
+    // Save the burden level and mark pre-test as completed
+    setDay1BurdenLevel(burdenLevel);
+    setDay1PreTestCompleted(true);
+    setShowDay1PreTest(false);
+    
+    // Navigate to daily content with the determined burden level
+    setCurrentView('dailyContent');
+    
+    console.log('States updated - new values:', { 
+      day1BurdenLevel: burdenLevel, 
+      day1PreTestCompleted: true, 
+      currentView: 'dailyContent' 
+    });
+    
+    // Log rendering conditions
+    setTimeout(() => {
+      console.log('Rendering conditions check:', {
+        'currentView === dailyContent': currentView === 'dailyContent',
+        'programData exists': !!programData,
+        'coreModuleCompleted': coreModuleCompleted,
+        'programData.currentDay > 0': programData?.currentDay > 0,
+        'day1PreTestCompleted': day1PreTestCompleted,
+        'day1BurdenLevel': day1BurdenLevel
+      });
+    }, 100);
   };
 
   const handleLogout = () => {
@@ -384,6 +459,14 @@ export default function CaregiverDashboard() {
             >
               Daily Content
             </Button>
+            <Button
+              variant={currentView === 'notifications' ? 'contained' : 'outlined'}
+              onClick={() => setCurrentView('notifications')}
+              disabled={!day1PreTestCompleted}
+              startIcon={<FaBell />}
+            >
+              Reminders
+            </Button>
           </Box>
         </Paper>
 
@@ -402,6 +485,14 @@ export default function CaregiverDashboard() {
           <ZaritBurdenAssessment
             caregiverId={caregiverData?._id}
             onComplete={handleAssessmentComplete}
+          />
+        )}
+
+        {/* Day 1 Pre-Test Assessment */}
+        {currentView === 'day1PreTest' && (
+          <ZaritBurdenAssessmentPreTest
+            caregiverId={caregiverData?._id}
+            onComplete={handleDay1PreTestComplete}
           />
         )}
 
@@ -623,8 +714,37 @@ export default function CaregiverDashboard() {
               Day {programData.currentDay} - Daily Content
             </Typography>
             
-            {/* Current Day Module */}
-            {programData.dayModules?.find(module => module.day === programData.currentDay) && (
+            {/* Day 1 Special Content with Pre-Test */}
+            {day1PreTestCompleted && day1BurdenLevel && (
+              <Day1Content
+                burdenLevel={day1BurdenLevel}
+                caregiverId={caregiverData?._id}
+                onComplete={handleDayModuleComplete}
+              />
+            )}
+
+            {/* Day 1 Not Ready - Pre-test required */}
+            {!day1PreTestCompleted && programData.currentDay <= 1 && (
+              <Alert severity="info" sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Day 1 Content Preparation Required
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  Please complete the Day 1 pre-assessment to personalize your content.
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={handleStartDay1}
+                  sx={{ mt: 2 }}
+                >
+                  Start Day 1 Assessment
+                </Button>
+              </Alert>
+            )}
+            
+            {/* Regular Day Modules (Day 2-7) */}
+            {programData.currentDay > 1 && programData.dayModules?.find(module => module.day === programData.currentDay) && (
               <DayModuleCardEnhanced
                 dayModule={programData.dayModules.find(module => module.day === programData.currentDay)}
                 burdenLevel={programData.zaritBurdenAssessment?.burdenLevel}
@@ -633,8 +753,8 @@ export default function CaregiverDashboard() {
               />
             )}
             
-            {/* If no day module found for current day, show preparation message */}
-            {!programData.dayModules?.find(module => module.day === programData.currentDay) && (
+            {/* If no day module found for current day (Day 2-7), show preparation message */}
+            {programData.currentDay > 1 && !programData.dayModules?.find(module => module.day === programData.currentDay) && (
               <Alert severity="info" sx={{ mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
                   Day {programData.currentDay} content is being prepared
@@ -689,6 +809,26 @@ export default function CaregiverDashboard() {
               </Typography>
             </CardContent>
           </Card>
+        )}
+
+        {/* Notification Settings View */}
+        {currentView === 'notifications' && day1PreTestCompleted && (
+          <NotificationSettings 
+            caregiverId={caregiverData?._id}
+            burdenLevel={day1BurdenLevel}
+          />
+        )}
+
+        {/* Notifications not available message */}
+        {currentView === 'notifications' && !day1PreTestCompleted && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Reminder Notifications Not Yet Available
+            </Typography>
+            <Typography variant="body2">
+              Complete the Day 1 assessment to unlock personalized reminder notifications based on your care level.
+            </Typography>
+          </Alert>
         )}
       </Container>
 

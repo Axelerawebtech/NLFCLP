@@ -49,19 +49,19 @@ export const videoConfig = {
       },
       videos: {
         en: {
-          videoUrl: 'https://player.vimeo.com/video/example-day1-low-english',
-          thumbnailUrl: 'https://via.placeholder.com/800x450/28a745/ffffff?text=Day+1+Basic+Level+EN',
-          provider: 'vimeo'
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760168930/COREMODULE-ENGLISH_1_kt3vqw.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-LOW-EN.jpg',
+          provider: 'external'
         },
         hi: {
-          videoUrl: 'https://player.vimeo.com/video/example-day1-low-hindi',
-          thumbnailUrl: 'https://via.placeholder.com/800x450/28a745/ffffff?text=Day+1+Basic+Level+HI',
-          provider: 'vimeo'
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169018/DAY1-LOW-HINDI_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-LOW-HI.jpg',
+          provider: 'cloudinary'
         },
         kn: {
-          videoUrl: 'https://player.vimeo.com/video/example-day1-low-kannada',
-          thumbnailUrl: 'https://via.placeholder.com/800x450/28a745/ffffff?text=Day+1+Basic+Level+KN',
-          provider: 'vimeo'
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-LOW-KANNADA_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-LOW-KN.jpg',
+          provider: 'cloudinary'
         }
       },
       duration: '8:45'
@@ -79,59 +79,146 @@ export const videoConfig = {
       },
       videos: {
         en: {
-          videoUrl: 'https://player.vimeo.com/video/example-day1-moderate-english',
-          thumbnailUrl: 'https://via.placeholder.com/800x450/ffc107/ffffff?text=Day+1+Intermediate+EN',
-          provider: 'vimeo'
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169018/COREMODULE-HINDI_wcjmlm.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-MODERATE-EN.jpg',
+          provider: 'external'
         },
         hi: {
-          videoUrl: 'https://player.vimeo.com/video/example-day1-moderate-hindi',
-          thumbnailUrl: 'https://via.placeholder.com/800x450/ffc107/ffffff?text=Day+1+Intermediate+HI',
-          provider: 'vimeo'
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169018/DAY1-MODERATE-HINDI_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-MODERATE-HI.jpg',
+          provider: 'cloudinary'
         },
         kn: {
-          videoUrl: 'https://player.vimeo.com/video/example-day1-moderate-kannada',
-          thumbnailUrl: 'https://via.placeholder.com/800x450/ffc107/ffffff?text=Day+1+Intermediate+KN',
-          provider: 'vimeo'
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-MODERATE-KANNADA_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-MODERATE-KN.jpg',
+          provider: 'cloudinary'
         }
       },
-      duration: '10:15',
-      provider: 'vimeo'
+      duration: '10:15'
     },
     high: {
-      title: 'Day 1 - Intensive Support (Advanced Level)',
-      description: 'Comprehensive support for high-burden caregiving. Expert-level strategies and resources.',
-      videoUrl: 'https://player.vimeo.com/video/example-day1-high',
-      thumbnailUrl: 'https://via.placeholder.com/800x450/dc3545/ffffff?text=Day+1+Advanced',
-      duration: '12:00',
-      provider: 'vimeo'
+      title: {
+        en: 'Day 1 - Intensive Support (Advanced Level)',
+        hi: 'दिन 1 - गहन समर्थन (उन्नत स्तर)',
+        kn: 'ದಿನ 1 - ಇಂಟೆನ್ಸಿವ್ ಬೆಂಬಲ (ಸುಧಾರಿತ ಹಂತ)'
+      },
+      description: {
+        en: 'Comprehensive support for high-burden caregiving. Expert-level strategies and resources.',
+        hi: 'उच्च-बोझ देखभाल के लिए व्यापक समर्थन। विशेषज्ञ-स्तरीय रणनीतियां और संसाधन।',
+        kn: 'ಹೆಚ್ಚಿನ ಹೊರೆಯ ಆರೈಕೆಗಾಗಿ ಸಮಗ್ರ ಬೆಂಬಲ. ತಜ್ಞ-ಮಟ್ಟದ ತಂತ್ರಗಳು ಮತ್ತು ಸಂಪನ್ಮೂಲಗಳು.'
+      },
+      videos: {
+        en: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/CORE_MODULE-KANNADA_xudpwg.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-HIGH-EN.jpg',
+          provider: 'cloudinary'
+        },
+        hi: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169018/DAY1-HIGH-HINDI_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-HIGH-HI.jpg',
+          provider: 'cloudinary'
+        },
+        kn: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-HIGH-KANNADA_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY1-HIGH-KN.jpg',
+          provider: 'cloudinary'
+        }
+      },
+      duration: '12:00'
     }
   },
 
   // Day 2 - Stress Management
   2: {
     low: {
-      title: 'Day 2 - Basic Stress Management',
-      description: 'Simple stress management techniques for everyday caregiving situations.',
-      videoUrl: 'https://player.vimeo.com/video/example-day2-low',
-      thumbnailUrl: 'https://via.placeholder.com/800x450/28a745/ffffff?text=Day+2+Stress+Basic',
-      duration: '7:30',
-      provider: 'vimeo'
+      title: {
+        en: 'Day 2 - Basic Stress Management',
+        hi: 'दिन 2 - बुनियादी तनाव प्रबंधन',
+        kn: 'ದಿನ 2 - ಮೂಲಭೂತ ಒತ್ತಡ ನಿರ್ವಹಣೆ'
+      },
+      description: {
+        en: 'Simple stress management techniques for everyday caregiving situations.',
+        hi: 'रोजमर्रा की देखभाल स्थितियों के लिए सरल तनाव प्रबंधन तकनीकें।',
+        kn: 'ದೈನಂದಿನ ಆರೈಕೆ ಪರಿಸ್ಥಿತಿಗಳಿಗೆ ಸರಳ ಒತ್ತಡ ನಿರ್ವಹಣಾ ತಂತ್ರಗಳು.'
+      },
+      videos: {
+        en: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760168930/DAY2-LOW-ENGLISH_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-LOW-EN.jpg',
+          provider: 'cloudinary'
+        },
+        hi: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169018/DAY2-LOW-HINDI_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-LOW-HI.jpg',
+          provider: 'cloudinary'
+        },
+        kn: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-LOW-KANNADA_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-LOW-KN.jpg',
+          provider: 'cloudinary'
+        }
+      },
+      duration: '7:30'
     },
     moderate: {
-      title: 'Day 2 - Intermediate Stress Management',
-      description: 'Effective stress management strategies for challenging caregiving situations.',
-      videoUrl: 'https://player.vimeo.com/video/example-day2-moderate',
-      thumbnailUrl: 'https://via.placeholder.com/800x450/ffc107/ffffff?text=Day+2+Stress+Moderate',
-      duration: '9:45',
-      provider: 'vimeo'
+      title: {
+        en: 'Day 2 - Intermediate Stress Management',
+        hi: 'दिन 2 - मध्यम तनाव प्रबंधन',
+        kn: 'ದಿನ 2 - ಮಧ್ಯಮ ಒತ್ತಡ ನಿರ್ವಹಣೆ'
+      },
+      description: {
+        en: 'Effective stress management strategies for challenging caregiving situations.',
+        hi: 'चुनौतीपूर्ण देखभाल स्थितियों के लिए प्रभावी तनाव प्रबंधन रणनीतियां।',
+        kn: 'ಸವಾಲಿನ ಆರೈಕೆ ಪರಿಸ್ಥಿತಿಗಳಿಗೆ ಪರಿಣಾಮಕಾರಿ ಒತ್ತಡ ನಿರ್ವಹಣಾ ತಂತ್ರಗಳು.'
+      },
+      videos: {
+        en: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169018/DAY2-MODERATE-ENGLISH_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-MODERATE-EN.jpg',
+          provider: 'cloudinary'
+        },
+        hi: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169018/DAY2-MODERATE-HINDI_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-MODERATE-HI.jpg',
+          provider: 'cloudinary'
+        },
+        kn: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-MODERATE-KANNADA_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-MODERATE-KN.jpg',
+          provider: 'cloudinary'
+        }
+      },
+      duration: '9:45'
     },
     high: {
-      title: 'Day 2 - Advanced Stress Management',
-      description: 'Comprehensive stress management for high-stress caregiving environments.',
-      videoUrl: 'https://player.vimeo.com/video/example-day2-high',
-      thumbnailUrl: 'https://via.placeholder.com/800x450/dc3545/ffffff?text=Day+2+Stress+Advanced',
-      duration: '11:20',
-      provider: 'vimeo'
+      title: {
+        en: 'Day 2 - Advanced Stress Management',
+        hi: 'दिन 2 - उन्नत तनाव प्रबंधन',
+        kn: 'ದಿನ 2 - ಸುಧಾರಿತ ಒತ್ತಡ ನಿರ್ವಹಣೆ'
+      },
+      description: {
+        en: 'Comprehensive stress management for high-stress caregiving environments.',
+        hi: 'उच्च तनाव देखभाल वातावरण के लिए व्यापक तनाव प्रबंधन।',
+        kn: 'ಹೆಚ್ಚಿನ ಒತ್ತಡದ ಆರೈಕೆ ಪರಿಸರಗಳಿಗೆ ಸಮಗ್ರ ಒತ್ತಡ ನಿರ್ವಹಣೆ.'
+      },
+      videos: {
+        en: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-HIGH-ENGLISH_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-HIGH-EN.jpg',
+          provider: 'cloudinary'
+        },
+        hi: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-HIGH-HINDI_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-HIGH-HI.jpg',
+          provider: 'cloudinary'
+        },
+        kn: {
+          videoUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-HIGH-KANNADA_sample.mp4',
+          thumbnailUrl: 'https://res.cloudinary.com/dp2mpayng/video/upload/v1760169021/DAY2-HIGH-KN.jpg',
+          provider: 'cloudinary'
+        }
+      },
+      duration: '11:20'
     }
   },
 
@@ -342,20 +429,44 @@ export const fallbackVideoConfig = {
 };
 
 // Helper function to get language-specific video content
+// Helper function to map Zarit burden levels to video config levels
+const mapBurdenLevel = (burdenLevel) => {
+  const mapping = {
+    'mild': 'low',
+    'mild-moderate': 'moderate', 
+    'moderate-severe': 'moderate',
+    'severe': 'high'
+  };
+  return mapping[burdenLevel] || 'moderate';
+};
+
 export const getVideoContent = (day, level = null, language = 'en') => {
   try {
+    console.log(`🎬 Getting video content for day ${day}, level ${level}, language ${language}`);
     let videoData = videoConfig[day];
     
     if (!videoData) {
+      console.log(`❌ No video data found for day ${day}`);
       return getLocalizedContent(fallbackVideoConfig, language);
     }
     
     // For day modules with levels (Days 1-7)
-    if (level && videoData[level]) {
-      videoData = videoData[level];
+    if (level) {
+      // Map the burden level to video config structure
+      const mappedLevel = mapBurdenLevel(level);
+      console.log(`Mapping burden level '${level}' to video level '${mappedLevel}' for day ${day}`);
+      
+      if (videoData[mappedLevel]) {
+        videoData = videoData[mappedLevel];
+        console.log(`✅ Found video data for ${mappedLevel} level:`, videoData);
+      } else {
+        console.warn(`❌ Video level '${mappedLevel}' not found for day ${day}, available levels:`, Object.keys(videoData));
+      }
     }
     
-    return getLocalizedContent(videoData, language);
+    const result = getLocalizedContent(videoData, language);
+    console.log(`🎯 Final video content result:`, result);
+    return result;
   } catch (error) {
     console.error('Error getting video content:', error);
     return getLocalizedContent(fallbackVideoConfig, language);
@@ -365,15 +476,20 @@ export const getVideoContent = (day, level = null, language = 'en') => {
 // Helper function to get localized content
 export const getLocalizedContent = (videoData, language = 'en') => {
   const safeLanguage = ['en', 'hi', 'kn'].includes(language) ? language : 'en';
+  console.log(`🌐 getLocalizedContent - Input language: ${language}, Safe language: ${safeLanguage}`);
+  console.log(`📊 VideoData structure:`, videoData);
   
-  return {
+  const result = {
     title: typeof videoData.title === 'object' ? videoData.title[safeLanguage] || videoData.title.en : videoData.title,
     description: typeof videoData.description === 'object' ? videoData.description[safeLanguage] || videoData.description.en : videoData.description,
     videoUrl: videoData.videos?.[safeLanguage]?.videoUrl || videoData.videoUrl || null,
     thumbnailUrl: videoData.videos?.[safeLanguage]?.thumbnailUrl || videoData.thumbnailUrl || null,
     provider: videoData.videos?.[safeLanguage]?.provider || videoData.provider || 'placeholder',
     duration: videoData.duration || '0:00'
-  };
+  }
+  
+  console.log(`🎯 Localized content result:`, result);
+  return result;
 };
 
 // Helper function to get all supported languages for a video

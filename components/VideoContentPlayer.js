@@ -28,6 +28,11 @@ export default function VideoContentPlayer({
   showCompletionDialog: externalShowCompletion = true // New prop to control dialog display
 }) {
   const { currentLanguage, translations } = useLanguage();
+  
+  console.log(`🌍 VideoContentPlayer Language Context:`, {
+    currentLanguage,
+    translationsAvailable: Object.keys(translations || {})
+  });
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -39,7 +44,9 @@ export default function VideoContentPlayer({
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
   // Use currentLanguage with fallback to 'en'
-  const language = currentLanguage || 'en';
+  const language = 'en'; // FORCE ENGLISH FOR DEBUGGING
+  
+  console.log(`🔍 Language Debug - currentLanguage: ${currentLanguage}, FORCED language: ${language}`);
   
   // Add fallback for burdenLevel
   const safeBurdenLevel = burdenLevel || 'moderate';
@@ -60,6 +67,12 @@ export default function VideoContentPlayer({
   // Get language-specific video content
   const videoContent = getVideoContent(dayModule.day, safeBurdenLevel, language);
   const supportedLanguages = getSupportedLanguages(dayModule.day, safeBurdenLevel);
+
+  // Debug logging
+  console.log(`🎬 VideoContentPlayer - Day: ${dayModule.day}, Burden Level: ${safeBurdenLevel}, Language: ${language}`);
+  console.log(`🎯 Video Content Retrieved:`, videoContent);
+  console.log(`📺 Video URL:`, videoContent.videoUrl);
+  console.log(`🎭 Provider:`, videoContent.provider);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -423,15 +436,14 @@ export default function VideoContentPlayer({
           )}
 
           {/* Action Buttons - Only show for daily modules, not core module */}
-          {dayModule.day !== 0 && (
+          {dayModule.day !== 0 && videoCompleted && (
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
               <Button
                 variant="contained"
                 onClick={onTaskStart}
-                disabled={!videoCompleted}
                 sx={{ minWidth: 200 }}
               >
-                {videoCompleted ? 'Start Daily Tasks' : 'Complete Video First'}
+                Start Daily Tasks
               </Button>
             </Box>
           )}
