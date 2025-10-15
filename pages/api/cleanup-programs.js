@@ -1,4 +1,4 @@
-import connectDB from '../../lib/mongodb';
+import dbConnect from '../../lib/mongodb';
 import CaregiverProgram from '../../models/CaregiverProgramEnhanced';
 
 export default async function handler(req, res) {
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   try {
     // Connect to database
-    await connectDB();
+    await dbConnect();
     console.log('Connected to MongoDB for cleanup');
 
     // Delete all CaregiverProgram records to start fresh

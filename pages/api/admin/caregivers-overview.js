@@ -1,6 +1,6 @@
-import { connectToDatabase } from '../../lib/mongodb';
-import CaregiverProgram from '../../models/CaregiverProgramEnhanced';
-import Caregiver from '../../models/Caregiver';
+import dbConnect from '../../../lib/mongodb';
+import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
+import Caregiver from '../../../models/Caregiver';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectToDatabase();
+    await dbConnect();
 
     // Fetch all caregivers with their programs
     const caregivers = await Caregiver.find({})

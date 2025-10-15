@@ -1,6 +1,6 @@
 // Database cleanup script to fix existing records with null enum values
-import dbConnect from '../lib/mongodb';
-import CaregiverProgram from '../models/CaregiverProgramEnhanced';
+import dbConnect from '../../lib/mongodb';
+import CaregiverProgram from '../../models/CaregiverProgramEnhanced';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

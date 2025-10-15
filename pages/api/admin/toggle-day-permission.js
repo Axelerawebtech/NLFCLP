@@ -1,5 +1,5 @@
-import { connectToDatabase } from '../../lib/mongodb';
-import CaregiverProgram from '../../models/CaregiverProgramEnhanced';
+import dbConnect from '../../../lib/mongodb';
+import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectToDatabase();
+    await dbConnect();
 
     // Find the caregiver program
     const program = await CaregiverProgram.findOne({ caregiverId });

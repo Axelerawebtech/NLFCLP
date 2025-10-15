@@ -1,6 +1,6 @@
 // Test script to verify CaregiverProgram model works without validation errors
-import dbConnect from '../lib/mongodb';
-import CaregiverProgram from '../models/CaregiverProgramEnhanced';
+import dbConnect from '../../lib/mongodb';
+import CaregiverProgram from '../../models/CaregiverProgramEnhanced';
 import mongoose from 'mongoose';
 
 export default async function handler(req, res) {
