@@ -303,6 +303,9 @@ export default function CaregiverProfile() {
   const [noteText, setNoteText] = useState('');
   const [customWaitTime, setCustomWaitTime] = useState({ day0ToDay1: 24, betweenDays: 24 });
   const [showWaitTimeModal, setShowWaitTimeModal] = useState(false);
+  const [resetDialog, setResetDialog] = useState(false);
+  const [resetDayData, setResetDayData] = useState(null);
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -405,6 +408,70 @@ export default function CaregiverProfile() {
     }
   };
 
+  const handleToggleLock = async (day, currentStatus) => {
+    try {
+      const response = await fetch('/api/admin/toggle-day-permission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caregiverId: id,
+          day,
+          permission: !currentStatus
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setSuccess(`Day ${day} ${!currentStatus ? 'unlocked' : 'locked'} successfully`);
+        setTimeout(() => setSuccess(''), 3000);
+        fetchProfileData();
+      } else {
+        alert(data.error || 'Failed to update permission');
+      }
+    } catch (error) {
+      console.error('Permission toggle error:', error);
+      alert('Network error. Please try again.');
+    }
+  };
+
+  const openResetDialog = (day) => {
+    setResetDayData({ day });
+    setResetDialog(true);
+  };
+
+  const handleResetDayProgress = async (resetBurdenTest = false) => {
+    if (!resetDayData) return;
+
+    try {
+      const response = await fetch('/api/admin/reset-day-progress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          caregiverId: id,
+          day: resetDayData.day,
+          resetBurdenTest
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(data.message);
+        setTimeout(() => setSuccess(''), 3000);
+        setResetDialog(false);
+        setResetDayData(null);
+        fetchProfileData();
+      } else {
+        alert(data.error || 'Failed to reset day progress');
+      }
+    } catch (error) {
+      console.error('Reset day progress error:', error);
+      alert('Network error. Please try again.');
+    }
+  };
+
   const getBurdenLevelStyle = (level) => {
     switch (level?.toLowerCase()) {
       case 'mild': return { ...styles.badge, ...styles.badgeGreen };
@@ -504,6 +571,20 @@ export default function CaregiverProfile() {
               </div>
             </div>
           </div>
+
+          {/* Success Message */}
+          {success && (
+            <div style={{ 
+              backgroundColor: '#d1fae5', 
+              border: '1px solid #6ee7b7', 
+              borderRadius: '0.5rem', 
+              padding: '1rem', 
+              marginBottom: '1.5rem',
+              color: '#065f46'
+            }}>
+              {success}
+            </div>
+          )}
 
           {/* Statistics Cards */}
           <div style={styles.statsGrid}>
@@ -685,7 +766,7 @@ export default function CaregiverProfile() {
                             <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>{day.videoTitle}</p>
                           </div>
                           
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                             <div style={{ textAlign: 'center' }}>
                               <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2563eb', margin: 0 }}>
                                 {day.progressPercentage}%
@@ -703,14 +784,39 @@ export default function CaregiverProfile() {
                               </div>
                             )}
                             
-                            {!day.isUnlocked && (
+                            {/* Lock/Unlock Button */}
+                            {day.day !== 0 && (
                               <button
-                                onClick={() => handleUnlockDay(day.day)}
-                                style={{ ...styles.button, ...styles.buttonGreen }}
-                                onMouseOver={(e) => e.target.style.backgroundColor = '#15803d'}
-                                onMouseOut={(e) => e.target.style.backgroundColor = '#16a34a'}
+                                onClick={() => handleToggleLock(day.day, day.isUnlocked)}
+                                style={{ 
+                                  ...styles.button, 
+                                  backgroundColor: day.isUnlocked ? '#dc2626' : '#16a34a',
+                                  color: 'white',
+                                  fontSize: '0.75rem',
+                                  padding: '0.5rem 0.75rem'
+                                }}
+                                onMouseOver={(e) => e.target.style.backgroundColor = day.isUnlocked ? '#b91c1c' : '#15803d'}
+                                onMouseOut={(e) => e.target.style.backgroundColor = day.isUnlocked ? '#dc2626' : '#16a34a'}
                               >
-                                Unlock Day
+                                {day.isUnlocked ? '🔓 Lock' : '🔒 Unlock'}
+                              </button>
+                            )}
+                            
+                            {/* Reset Progress Button */}
+                            {day.progressPercentage > 0 && (
+                              <button
+                                onClick={() => openResetDialog(day.day)}
+                                style={{ 
+                                  ...styles.button, 
+                                  backgroundColor: '#f59e0b',
+                                  color: 'white',
+                                  fontSize: '0.75rem',
+                                  padding: '0.5rem 0.75rem'
+                                }}
+                                onMouseOver={(e) => e.target.style.backgroundColor = '#d97706'}
+                                onMouseOut={(e) => e.target.style.backgroundColor = '#f59e0b'}
+                              >
+                                🔄 Reset
                               </button>
                             )}
                           </div>
@@ -768,40 +874,110 @@ export default function CaregiverProfile() {
                         <div style={{ backgroundColor: '#f9fafb', padding: '1rem', borderRadius: '0.5rem' }}>
                           <p style={styles.infoLabel}>Total Score</p>
                           <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#2563eb' }}>
-                            {program.zaritBurdenAssessment.totalScore}
+                            {program.zaritBurdenAssessment.totalScore} / 28
                           </p>
                         </div>
                         <div style={{ backgroundColor: '#f9fafb', padding: '1rem', borderRadius: '0.5rem' }}>
                           <p style={styles.infoLabel}>Burden Level</p>
                           <span style={getBurdenLevelStyle(program.zaritBurdenAssessment.burdenLevel)}>
-                            {program.zaritBurdenAssessment.burdenLevel}
+                            {program.zaritBurdenAssessment.burdenLevel?.toUpperCase()}
                           </span>
                         </div>
                         <div style={{ backgroundColor: '#f9fafb', padding: '1rem', borderRadius: '0.5rem' }}>
-                          <p style={styles.infoLabel}>Percentage Score</p>
-                          <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#7c3aed' }}>
-                            {Math.round(program.burdenTestScore || 0)}%
+                          <p style={styles.infoLabel}>Completed Date</p>
+                          <p style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                            {program.zaritBurdenAssessment.completedAt 
+                              ? new Date(program.zaritBurdenAssessment.completedAt).toLocaleDateString()
+                              : 'N/A'
+                            }
                           </p>
                         </div>
                       </div>
                       
                       <div>
                         <h4 style={{ ...styles.sectionTitle, fontSize: '1.125rem' }}>Question Responses</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          {Object.entries(program.zaritBurdenAssessment).map(([key, value]) => {
-                            if (key === 'totalScore' || key === 'burdenLevel' || key === 'completedAt' || key === '_id') return null;
-                            return (
-                              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
-                                <span style={{ fontSize: '0.875rem', color: '#374151' }}>{key}</span>
-                                <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>Score: {value}/4</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          {(() => {
+                            const questions = [
+                              'Do you feel that your relative asks for more help than he/she needs?',
+                              'Do you feel that because of the time you spend with your relative you don\'t have enough time for yourself?',
+                              'Do you feel stressed between caring for your relative and trying to meet other responsibilities (work/family)?',
+                              'Do you feel embarrassed over your relative\'s behavior?',
+                              'Do you feel angry when you are around your relative?',
+                              'Do you feel that your social life has suffered because you are caring for your relative?',
+                              'Overall, how burdened do you feel in caring for your relative?'
+                            ];
+                            
+                            const scaleLabels = ['Never', 'Rarely', 'Sometimes', 'Quite Frequently', 'Nearly Always'];
+                            
+                            // Handle both formats: answers array (new) or question1-7 (old)
+                            let answersArray = [];
+                            
+                            if (program.zaritBurdenAssessment.answers && Array.isArray(program.zaritBurdenAssessment.answers)) {
+                              // New format: answers array
+                              answersArray = program.zaritBurdenAssessment.answers;
+                            } else {
+                              // Old format: question1, question2, etc.
+                              for (let i = 1; i <= 7; i++) {
+                                const questionKey = `question${i}`;
+                                if (program.zaritBurdenAssessment[questionKey] !== undefined) {
+                                  answersArray.push(program.zaritBurdenAssessment[questionKey]);
+                                }
+                              }
+                            }
+                            
+                            if (answersArray.length === 0) {
+                              return (
+                                <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
+                                  <p style={{ color: '#6b7280' }}>No individual question responses available</p>
+                                </div>
+                              );
+                            }
+                            
+                            return answersArray.map((answer, index) => (
+                              <div key={index} style={{ 
+                                padding: '1rem', 
+                                backgroundColor: '#f9fafb', 
+                                borderRadius: '0.5rem',
+                                borderLeft: '4px solid #2563eb'
+                              }}>
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <span style={{ 
+                                    fontSize: '0.75rem', 
+                                    fontWeight: '700', 
+                                    color: '#2563eb',
+                                    backgroundColor: '#dbeafe',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '0.25rem'
+                                  }}>
+                                    Question {index + 1}
+                                  </span>
+                                </div>
+                                <p style={{ 
+                                  fontSize: '0.875rem', 
+                                  color: '#374151', 
+                                  marginBottom: '0.5rem',
+                                  fontWeight: '500'
+                                }}>
+                                  {questions[index]}
+                                </p>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ 
+                                    fontSize: '0.875rem', 
+                                    fontWeight: '600',
+                                    color: '#16a34a'
+                                  }}>
+                                    Answer: {scaleLabels[answer]} ({answer}/4)
+                                  </span>
+                                </div>
                               </div>
-                            );
-                          })}
+                            ));
+                          })()}
                         </div>
                       </div>
                       
                       {program.contentAssignedDynamically && (
-                        <div style={styles.alertBox}>
+                        <div style={{ ...styles.alertBox, marginTop: '1.5rem' }}>
                           <p style={styles.alertText}>
                             ℹ️ Dynamic content has been assigned to days 2-9 based on this burden assessment.
                           </p>
@@ -810,7 +986,10 @@ export default function CaregiverProfile() {
                     </div>
                   ) : (
                     <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
-                      <p style={{ color: '#6b7280' }}>No assessment data available yet</p>
+                      <p style={{ color: '#6b7280', fontSize: '1rem' }}>No assessment data available yet</p>
+                      <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                        The caregiver hasn't completed the Zarit Burden Assessment
+                      </p>
                     </div>
                   )}
                 </div>
@@ -924,6 +1103,104 @@ export default function CaregiverProfile() {
                   onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
                 >
                   Update
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reset Day Progress Confirmation Dialog */}
+        {resetDialog && (
+          <div style={styles.modal}>
+            <div style={{ ...styles.modalContent, maxWidth: '32rem' }}>
+              <h3 style={styles.modalTitle}>🔄 Reset Day {resetDayData?.day} Progress</h3>
+              
+              <div style={{ 
+                backgroundColor: '#fef3c7', 
+                border: '1px solid #fbbf24', 
+                borderRadius: '0.5rem', 
+                padding: '0.75rem', 
+                marginBottom: '1rem'
+              }}>
+                <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0, fontWeight: '500' }}>
+                  ⚠️ This action will reset all progress for Day {resetDayData?.day}
+                </p>
+              </div>
+              
+              <div style={{ paddingLeft: '1rem', marginBottom: '1rem' }}>
+                <p style={{ fontSize: '0.875rem', color: '#374151', marginBottom: '0.5rem' }}>
+                  • Video progress will be cleared
+                </p>
+                <p style={{ fontSize: '0.875rem', color: '#374151', marginBottom: '0.5rem' }}>
+                  • Task completion will be reset
+                </p>
+                <p style={{ fontSize: '0.875rem', color: '#374151', marginBottom: '0.5rem' }}>
+                  • Progress percentage will be set to 0%
+                </p>
+                {resetDayData?.day === 1 && (
+                  <>
+                    <p style={{ fontSize: '0.875rem', color: '#dc2626', marginBottom: '0.5rem', fontWeight: '600' }}>
+                      • Optionally reset burden test results
+                    </p>
+                    <p style={{ fontSize: '0.75rem', color: '#6b7280', paddingLeft: '1rem' }}>
+                      (If you reset the burden test, the caregiver will need to retake it)
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                The caregiver will need to complete Day {resetDayData?.day} again from the beginning.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {resetDayData?.day === 1 && (
+                  <button
+                    onClick={() => handleResetDayProgress(true)}
+                    style={{ 
+                      ...styles.button, 
+                      width: '100%',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      padding: '0.75rem'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+                  >
+                    🗑️ Reset Including Burden Test
+                  </button>
+                )}
+                <button
+                  onClick={() => handleResetDayProgress(false)}
+                  style={{ 
+                    ...styles.button, 
+                    width: '100%',
+                    backgroundColor: '#f59e0b',
+                    color: 'white',
+                    padding: '0.75rem'
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#d97706'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = '#f59e0b'}
+                >
+                  🔄 Reset Progress Only
+                </button>
+                <button
+                  onClick={() => {
+                    setResetDialog(false);
+                    setResetDayData(null);
+                  }}
+                  style={{ 
+                    ...styles.button, 
+                    width: '100%',
+                    border: '1px solid #d1d5db',
+                    backgroundColor: 'white',
+                    color: '#374151',
+                    padding: '0.75rem'
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#f9fafb'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                >
+                  Cancel
                 </button>
               </div>
             </div>

@@ -44,8 +44,8 @@ export default async function handler(req, res) {
     // Mark the dayModules array as modified
     program.markModified('dayModules');
 
-    // Save the updated program
-    await program.save();
+    // Save the updated program without validation to avoid burdenLevel enum error
+    await program.save({ validateBeforeSave: false });
 
     res.status(200).json({
       success: true,

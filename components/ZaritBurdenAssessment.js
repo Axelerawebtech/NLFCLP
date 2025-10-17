@@ -96,23 +96,44 @@ const ZaritBurdenAssessment = ({ onComplete, caregiverId }) => {
     setError('');
 
     try {
-      const response = await fetch('/api/caregiver/zarit-assessment', {
+      // Calculate total score (each question 0-4 points = 0-28 total)
+      const answers = Object.values(responses);
+      const totalScore = answers.reduce((sum, score) => sum + score, 0);
+      
+      // Determine burden level based on score
+      let burdenLevel;
+      if (totalScore <= 10) {
+        burdenLevel = 'mild';
+      } else if (totalScore <= 20) {
+        burdenLevel = 'moderate';
+      } else {
+        burdenLevel = 'severe';
+      }
+
+      console.log('Submitting burden test:', { totalScore, burdenLevel, answers });
+
+      // Submit to new API
+      const response = await fetch('/api/caregiver/submit-burden-test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           caregiverId,
-          responses
+          answers,
+          totalScore,
+          burdenLevel
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        onComplete(data.burdenLevel, data.totalScore);
+        console.log('Burden test submitted successfully:', data);
+        // Redirect to dashboard to see video
+        window.location.href = '/caregiver/dashboard';
       } else {
-        setError(data.error || 'Failed to submit assessment');
+        setError(data.error || data.message || 'Failed to submit assessment');
       }
     } catch (error) {
       console.error('Assessment submission error:', error);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import VideoPlayer from './VideoPlayer';
+import InlineBurdenAssessment from './InlineBurdenAssessment';
 
 export default function TenDayProgramDashboard({ caregiverId }) {
   const { currentLanguage } = useLanguage();
@@ -14,6 +15,22 @@ export default function TenDayProgramDashboard({ caregiverId }) {
   const getLanguageKey = () => {
     const map = { en: 'english', kn: 'kannada', hi: 'hindi' };
     return map[currentLanguage] || 'english';
+  };
+
+  // Helper to safely extract text from multi-language fields
+  const getLocalizedText = (field, defaultText = '') => {
+    if (!field) return defaultText;
+    
+    // If field is already a string, return it
+    if (typeof field === 'string') return field;
+    
+    // If field is an object with language keys, extract the current language
+    if (typeof field === 'object') {
+      const langKey = getLanguageKey();
+      return field[langKey] || field.english || field.kannada || field.hindi || defaultText;
+    }
+    
+    return defaultText;
   };
 
   // Hover states
@@ -466,7 +483,7 @@ export default function TenDayProgramDashboard({ caregiverId }) {
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical'
               }}>
-                {dayModule.videoTitle?.[getLanguageKey()] || dayModule.videoTitle || 'Module Content'}
+                {getLocalizedText(dayModule.videoTitle, 'Module Content')}
               </p>
               
               {/* Time Remaining */}
@@ -493,7 +510,7 @@ export default function TenDayProgramDashboard({ caregiverId }) {
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '16px' }}>
               <div>
                 <h3 style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: '700', color: '#111827', margin: 0, marginBottom: '4px' }}>
-                  Day {selectedDay}: {selectedDayData.videoTitle?.[getLanguageKey()] || selectedDayData.videoTitle || 'Program Content'}
+                  Day {selectedDay}: {getLocalizedText(selectedDayData.videoTitle, 'Program Content')}
                 </h3>
                 <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
                   {selectedDayData.progressPercentage === 100 
@@ -511,13 +528,132 @@ export default function TenDayProgramDashboard({ caregiverId }) {
           </div>
           
           <div style={styles.contentBody}>
-            {/* Video Section */}
-            {(selectedDayData.videoUrl?.[getLanguageKey()] || selectedDayData.videoUrl) && (
-              <div style={{ marginBottom: '24px' }}>
-                <h4 style={styles.sectionTitle}>📹 Video Lesson</h4>
-                <VideoPlayer
-                  videoUrl={selectedDayData.videoUrl?.[getLanguageKey()] || selectedDayData.videoUrl}
-                  videoTitle={selectedDayData.videoTitle?.[getLanguageKey()] || selectedDayData.videoTitle}
+            {/* Day 1 Special Handling: Burden Test → Video → Tasks */}
+            {selectedDay === 1 && (
+              <>
+                {/* Phase 1: Burden Test - INLINE (always show if test completed but no video available) */}
+                {(!selectedDayData.videoWatched && (!getLocalizedText(selectedDayData.videoUrl) || !selectedDayData.burdenTestCompleted)) && (
+                  <InlineBurdenAssessment 
+                    caregiverId={caregiverId}
+                    existingAnswers={selectedDayData.burdenTestCompleted && programData?.zaritBurdenAssessment?.answers ? programData.zaritBurdenAssessment.answers : null}
+                    existingScore={selectedDayData.burdenScore}
+                    existingLevel={selectedDayData.burdenLevel}
+                    onComplete={() => fetchProgramStatus()} // Refresh to show video
+                  />
+                )}
+
+                {/* Phase 2: Video (if test completed and video available but not watched) */}
+                {selectedDayData.burdenTestCompleted && !selectedDayData.videoWatched && getLocalizedText(selectedDayData.videoUrl) && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: '#dcfce7',
+                      border: '2px solid #86efac',
+                      borderRadius: '12px',
+                      marginBottom: '16px'
+                    }}>
+                      <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '15px' }}>
+                        ✅ Assessment Complete! Your burden level: <strong style={{ textTransform: 'capitalize' }}>{selectedDayData.burdenLevel || 'Moderate'}</strong>
+                      </p>
+                      <p style={{ margin: '4px 0 0 0', color: '#166534', fontSize: '14px' }}>
+                        Watch the video below designed specifically for your situation.
+                      </p>
+                    </div>
+                    
+                    <h4 style={styles.sectionTitle}>📹 Personalized Video for You</h4>
+                    <VideoPlayer
+                      videoUrl={getLocalizedText(selectedDayData.videoUrl)}
+                      videoTitle={getLocalizedText(selectedDayData.videoTitle)}
+                      initialProgress={selectedDayData.videoProgress || 0}
+                      isCompleted={selectedDayData.videoWatched || false}
+                      caregiverId={caregiverId}
+                      day={selectedDay}
+                      onProgressUpdate={async (progressPercent) => {
+                        try {
+                          await fetch('/api/caregiver/update-progress', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              caregiverId,
+                              day: selectedDay,
+                              videoProgress: progressPercent
+                            })
+                          });
+                        } catch (err) {
+                          console.error('Failed to update video progress:', err);
+                        }
+                      }}
+                      onComplete={async () => {
+                        await handleVideoComplete(selectedDay);
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Phase 3: Tasks (if video watched and tasks exist) */}
+                {selectedDayData.burdenTestCompleted && selectedDayData.videoWatched && selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 && (
+                  <div>
+                    <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedDayData.taskResponses.map((task, idx) => (
+                        <div key={idx} style={{
+                          padding: '12px 16px',
+                          backgroundColor: task.completed ? '#f0fdf4' : '#fff',
+                          border: `2px solid ${task.completed ? '#86efac' : '#e5e7eb'}`,
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={task.completed}
+                            onChange={() => handleTaskToggle(selectedDay, idx)}
+                            style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                          />
+                          <span style={{ flex: 1, color: task.completed ? '#166534' : '#374151' }}>
+                            {getLocalizedText(task.taskDescription) || task.taskDescription}
+                          </span>
+                          {task.completed && <span>✅</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Day 1 Complete Message (if test done, video watched, and no tasks OR tasks completed) */}
+                {selectedDayData.burdenTestCompleted && selectedDayData.videoWatched && 
+                 (!selectedDayData.taskResponses || selectedDayData.taskResponses.length === 0 || 
+                  selectedDayData.taskResponses.every(t => t.completed)) && (
+                  <div style={{
+                    padding: '20px',
+                    backgroundColor: '#dcfce7',
+                    border: '2px solid #86efac',
+                    borderRadius: '12px',
+                    textAlign: 'center',
+                    marginTop: '24px'
+                  }}>
+                    <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '18px' }}>
+                      🎉 Day 1 Complete!
+                    </p>
+                    <p style={{ margin: '8px 0 0 0', color: '#166534', fontSize: '14px' }}>
+                      Great job! Day 2 will unlock in 24 hours.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Other Days: Normal Video → Tasks Flow */}
+            {selectedDay !== 1 && (
+              <>
+                {/* Video Section */}
+                {getLocalizedText(selectedDayData.videoUrl) && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h4 style={styles.sectionTitle}>📹 Video Lesson</h4>
+                    <VideoPlayer
+                  videoUrl={getLocalizedText(selectedDayData.videoUrl)}
+                  videoTitle={getLocalizedText(selectedDayData.videoTitle)}
                   initialProgress={selectedDayData.videoProgress || 0}
                   isCompleted={selectedDayData.videoWatched || false}
                   caregiverId={caregiverId}
@@ -549,7 +685,7 @@ export default function TenDayProgramDashboard({ caregiverId }) {
               <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
               
               {/* Show lock message if video not watched */}
-              {!selectedDayData.videoWatched && (selectedDayData.videoUrl?.[getLanguageKey()] || selectedDayData.videoUrl) && (
+              {!selectedDayData.videoWatched && getLocalizedText(selectedDayData.videoUrl) && (
                 <div style={{ 
                   padding: '16px', 
                   backgroundColor: '#fef3c7', 
@@ -568,7 +704,7 @@ export default function TenDayProgramDashboard({ caregiverId }) {
               )}
               
               {/* Tasks content - only shown if video is watched OR no video exists */}
-              {(selectedDayData.videoWatched || !(selectedDayData.videoUrl?.[getLanguageKey()] || selectedDayData.videoUrl)) && (
+              {(selectedDayData.videoWatched || !getLocalizedText(selectedDayData.videoUrl)) && (
                 <>
                   {selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -610,6 +746,8 @@ export default function TenDayProgramDashboard({ caregiverId }) {
                 </>
               )}
             </div>
+              </>
+            )}
           </div>
         </div>
       )}

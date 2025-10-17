@@ -33,6 +33,10 @@ export default async function handler(req, res) {
       const program = await CaregiverProgram.findOne({ caregiverId });
       console.log('Program found:', program ? 'Yes' : 'No');
       
+      if (program && program.zaritBurdenAssessment) {
+        console.log('zaritBurdenAssessment data:', JSON.stringify(program.zaritBurdenAssessment, null, 2));
+      }
+      
       // Try to fetch caregiver-specific config if ProgramConfig exists
       let customConfig = null;
       try {

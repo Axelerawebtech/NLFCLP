@@ -32,8 +32,69 @@ const ProgramConfigSchema = new mongoose.Schema({
     }
   },
   
-  // Day 1: MCQ Burden Test (no video/content, just assessment)
-  // Configured separately in assessment component
+  // Day 1: Burden Test + Post-Assessment Videos
+  // Admin configures burden test questions and videos for each burden level
+  // After caregiver completes test, appropriate video is shown based on score
+  day1: {
+    burdenTestQuestions: [{
+      id: { type: Number, required: true },
+      text: { type: String, required: true },
+      enabled: { type: Boolean, default: true }
+    }],
+    videos: {
+      mild: {
+        videoTitle: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        videoUrl: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        description: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        }
+      },
+      moderate: {
+        videoTitle: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        videoUrl: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        description: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        }
+      },
+      severe: {
+        videoTitle: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        videoUrl: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        description: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        }
+      }
+    }
+  },
   
   // Wait time configuration
   waitTimes: {

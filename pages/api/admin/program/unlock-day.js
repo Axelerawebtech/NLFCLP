@@ -48,7 +48,8 @@ export default async function handler(req, res) {
           });
         }
         
-        await program.save();
+        // Save without validation to avoid burdenLevel enum error for caregivers who haven't taken test yet
+        await program.save({ validateBeforeSave: false });
         console.log('Program saved successfully');
         
         return res.status(200).json({

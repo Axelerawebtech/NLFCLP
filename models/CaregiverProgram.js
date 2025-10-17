@@ -1,21 +1,25 @@
 import mongoose from 'mongoose';
 
 const ZaritBurdenSchema = new mongoose.Schema({
-  question1: { type: Number, min: 0, max: 4, required: true }, // relative asks for more help
-  question2: { type: Number, min: 0, max: 4, required: true }, // affects relationship with family
-  question3: { type: Number, min: 0, max: 4, required: true }, // relative is dependent
-  question4: { type: Number, min: 0, max: 4, required: true }, // privacy affected
-  question5: { type: Number, min: 0, max: 4, required: true }, // social life suffered
-  question6: { type: Number, min: 0, max: 4, required: true }, // relative expects only you
-  question7: { type: Number, min: 0, max: 4, required: true }, // wish to leave care to someone else
-  totalScore: { type: Number, required: true },
+  // Old format (backward compatibility)
+  question1: { type: Number, min: 0, max: 4 }, // relative asks for more help
+  question2: { type: Number, min: 0, max: 4 }, // affects relationship with family
+  question3: { type: Number, min: 0, max: 4 }, // relative is dependent
+  question4: { type: Number, min: 0, max: 4 }, // privacy affected
+  question5: { type: Number, min: 0, max: 4 }, // social life suffered
+  question6: { type: Number, min: 0, max: 4 }, // relative expects only you
+  question7: { type: Number, min: 0, max: 4 }, // wish to leave care to someone else
+  
+  // New format (array of answers)
+  answers: { type: [Number], default: undefined }, // Array of 7 answers (0-4 each)
+  
+  totalScore: { type: Number },
   burdenLevel: { 
     type: String, 
-    enum: ['mild', 'moderate', 'severe'], 
-    required: true 
+    enum: ['mild', 'moderate', 'severe']
   },
   completedAt: { type: Date, default: Date.now }
-});
+}, { strict: false }); // Allow additional fields
 
 const DailyTaskSchema = new mongoose.Schema({
   day: { type: Number, required: true }, // 0-7
@@ -35,6 +39,11 @@ const DayModuleSchema = new mongoose.Schema({
   videoWatched: { type: Boolean, default: false },
   videoProgress: { type: Number, default: 0 }, // percentage
   videoId: { type: String }, // Dynamic video based on burden level
+  
+  // Day 1 specific fields (burden test)
+  burdenTestCompleted: { type: Boolean, default: false }, // For Day 1 only
+  burdenLevel: { type: String, enum: ['mild', 'moderate', 'severe'], default: null }, // For Day 1 only
+  burdenScore: { type: Number, default: null }, // For Day 1 only (0-28 points)
   
   // Multi-language video support (admin uploads via Cloudinary)
   videoTitle: {

@@ -24,14 +24,17 @@ import {
   DialogActions,
   LinearProgress
 } from '@mui/material';
-import { FaUser, FaEye, FaUnlock, FaLock, FaChartLine } from 'react-icons/fa';
+import { FaUser, FaEye, FaUnlock, FaLock, FaChartLine, FaRedo, FaTrash } from 'react-icons/fa';
 
 export default function AdminCaregiverManagement() {
   const [caregivers, setCaregivers] = useState([]);
   const [selectedCaregiver, setSelectedCaregiver] = useState(null);
   const [detailsDialog, setDetailsDialog] = useState(false);
+  const [resetDialog, setResetDialog] = useState(false);
+  const [resetDayData, setResetDayData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     fetchCaregivers();
@@ -93,11 +96,60 @@ export default function AdminCaregiverManagement() {
           }
           setSelectedCaregiver(updatedCaregiver);
         }
+        
+        setSuccess(`Day ${day} ${!currentPermission ? 'unlocked' : 'locked'} successfully`);
+        setTimeout(() => setSuccess(''), 3000);
       } else {
         setError(data.error || 'Failed to update permission');
       }
     } catch (error) {
       console.error('Permission toggle error:', error);
+      setError('Network error. Please try again.');
+    }
+  };
+
+  const openResetDialog = (caregiverId, day) => {
+    setResetDayData({ caregiverId, day });
+    setResetDialog(true);
+  };
+
+  const handleResetDayProgress = async (resetBurdenTest = false) => {
+    if (!resetDayData) return;
+
+    try {
+      const response = await fetch('/api/admin/reset-day-progress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          caregiverId: resetDayData.caregiverId,
+          day: resetDayData.day,
+          resetBurdenTest
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Refresh caregiver data
+        await fetchCaregivers();
+        
+        // Update selected caregiver if viewing details
+        if (selectedCaregiver && selectedCaregiver._id === resetDayData.caregiverId) {
+          const updatedCaregiver = caregivers.find(c => c._id === resetDayData.caregiverId);
+          setSelectedCaregiver(updatedCaregiver);
+        }
+
+        setSuccess(data.message);
+        setTimeout(() => setSuccess(''), 3000);
+        setResetDialog(false);
+        setResetDayData(null);
+      } else {
+        setError(data.error || 'Failed to reset day progress');
+      }
+    } catch (error) {
+      console.error('Reset day progress error:', error);
       setError('Network error. Please try again.');
     }
   };
@@ -133,8 +185,14 @@ export default function AdminCaregiverManagement() {
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
           {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess('')}>
+          {success}
         </Alert>
       )}
 
@@ -330,6 +388,20 @@ export default function AdminCaregiverManagement() {
                           </Box>
                         }
                       />
+
+                      {/* Reset Button */}
+                      {dayModule.progressPercentage > 0 && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="warning"
+                          startIcon={<FaRedo />}
+                          onClick={() => openResetDialog(selectedCaregiver._id, dayModule.day)}
+                          sx={{ mt: 1, width: '100%' }}
+                        >
+                          Reset Progress
+                        </Button>
+                      )}
                     </Card>
                   </Grid>
                 ))}
@@ -362,6 +434,88 @@ export default function AdminCaregiverManagement() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDetailsDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset Day Progress Confirmation Dialog */}
+      <Dialog 
+        open={resetDialog} 
+        onClose={() => {
+          setResetDialog(false);
+          setResetDayData(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FaRedo />
+            Reset Day {resetDayData?.day} Progress
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This action will reset all progress for Day {resetDayData?.day}:
+          </Alert>
+          
+          <Box sx={{ pl: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              • Video progress will be cleared
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              • Task completion will be reset
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              • Progress percentage will be set to 0%
+            </Typography>
+            {resetDayData?.day === 1 && (
+              <>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold', color: 'error.main' }}>
+                  • Optionally reset burden test results
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', pl: 2, mb: 2 }}>
+                  (If you reset the burden test, the caregiver will need to retake it)
+                </Typography>
+              </>
+            )}
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            The day will remain {resetDayData?.day === 0 ? 'unlocked' : 'in its current lock/unlock state'}. 
+            The caregiver will need to complete Day {resetDayData?.day} again from the beginning.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, flexDirection: 'column', gap: 1 }}>
+          {resetDayData?.day === 1 && (
+            <Button
+              variant="contained"
+              color="error"
+              fullWidth
+              startIcon={<FaTrash />}
+              onClick={() => handleResetDayProgress(true)}
+            >
+              Reset Including Burden Test
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            color="warning"
+            fullWidth
+            startIcon={<FaRedo />}
+            onClick={() => handleResetDayProgress(false)}
+          >
+            Reset Progress Only
+          </Button>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={() => {
+              setResetDialog(false);
+              setResetDayData(null);
+            }}
+          >
+            Cancel
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>

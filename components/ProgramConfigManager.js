@@ -15,6 +15,40 @@ export default function ProgramConfigManager() {
   });
   const [uploadingDay0, setUploadingDay0] = useState({ english: false, kannada: false, hindi: false });
   
+  // Day 1 Configuration (Burden Test + Videos)
+  const [day1Config, setDay1Config] = useState({
+    mild: {
+      videoTitle: { english: '', kannada: '', hindi: '' },
+      videoUrl: { english: '', kannada: '', hindi: '' },
+      description: { english: '', kannada: '', hindi: '' }
+    },
+    moderate: {
+      videoTitle: { english: '', kannada: '', hindi: '' },
+      videoUrl: { english: '', kannada: '', hindi: '' },
+      description: { english: '', kannada: '', hindi: '' }
+    },
+    severe: {
+      videoTitle: { english: '', kannada: '', hindi: '' },
+      videoUrl: { english: '', kannada: '', hindi: '' },
+      description: { english: '', kannada: '', hindi: '' }
+    }
+  });
+  const [uploadingDay1, setUploadingDay1] = useState({ 
+    mild: { english: false, kannada: false, hindi: false },
+    moderate: { english: false, kannada: false, hindi: false },
+    severe: { english: false, kannada: false, hindi: false }
+  });
+  const [day1SelectedBurden, setDay1SelectedBurden] = useState('mild');
+  const [burdenTestQuestions, setBurdenTestQuestions] = useState([
+    { id: 1, text: 'Does your relative ask for more help than needed?', enabled: true },
+    { id: 2, text: 'Does caregiving affect your relationship with family/friends?', enabled: true },
+    { id: 3, text: 'Do you feel your relative is dependent on you?', enabled: true },
+    { id: 4, text: 'Do you feel strained when around your relative?', enabled: true },
+    { id: 5, text: 'Has your social life suffered?', enabled: true },
+    { id: 6, text: 'Does your relative expect you to be the only caregiver?', enabled: true },
+    { id: 7, text: 'Do you wish you could leave care to someone else?', enabled: true }
+  ]);
+  
   // Days 2-9 Configuration
   const [selectedBurdenLevel, setSelectedBurdenLevel] = useState('mild');
   const [selectedDay, setSelectedDay] = useState(2);
@@ -60,6 +94,18 @@ export default function ProgramConfigManager() {
           }
         }
       }
+
+      // Load Day 1 configuration
+      const day1Response = await fetch('/api/admin/program/config/day1');
+      if (day1Response.ok) {
+        const day1Data = await day1Response.json();
+        if (day1Data.config) {
+          setBurdenTestQuestions(day1Data.config.burdenTestQuestions || []);
+          if (day1Data.config.videos) {
+            setDay1Config(day1Data.config.videos);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error loading config:', error);
     }
@@ -87,12 +133,22 @@ export default function ProgramConfigManager() {
     }
   };
 
-  const handleVideoUpload = async (file, targetLanguage, isDay0 = false) => {
+  const handleVideoUpload = async (file, targetLanguage, isDay0 = false, burdenLevel = null) => {
     const formData = new FormData();
     formData.append('video', file);
 
+    // Set uploading state based on context
     if (isDay0) {
       setUploadingDay0({ ...uploadingDay0, [targetLanguage]: true });
+    } else if (burdenLevel) {
+      // Day 1 upload
+      setUploadingDay1({
+        ...uploadingDay1,
+        [burdenLevel]: {
+          ...uploadingDay1[burdenLevel],
+          [targetLanguage]: true
+        }
+      });
     } else {
       setUploadingDayVideo(true);
     }
@@ -115,6 +171,19 @@ export default function ProgramConfigManager() {
             }
           });
           alert(`Day 0 video uploaded successfully for ${targetLanguage}!`);
+        } else if (burdenLevel) {
+          // Day 1 video
+          setDay1Config({
+            ...day1Config,
+            [burdenLevel]: {
+              ...day1Config[burdenLevel],
+              videoUrl: {
+                ...day1Config[burdenLevel].videoUrl,
+                [targetLanguage]: data.url
+              }
+            }
+          });
+          alert(`Day 1 video uploaded successfully for ${burdenLevel} burden - ${targetLanguage}!`);
         } else {
           setDayContent({
             ...dayContent,
@@ -135,6 +204,15 @@ export default function ProgramConfigManager() {
     } finally {
       if (isDay0) {
         setUploadingDay0({ ...uploadingDay0, [targetLanguage]: false });
+      } else if (burdenLevel) {
+        // Day 1 upload finished
+        setUploadingDay1({
+          ...uploadingDay1,
+          [burdenLevel]: {
+            ...uploadingDay1[burdenLevel],
+            [targetLanguage]: false
+          }
+        });
       } else {
         setUploadingDayVideo(false);
       }
@@ -201,6 +279,39 @@ export default function ProgramConfigManager() {
       alert('Failed to sync Day 0 content to caregivers');
     }
     setSyncing(false);
+  };
+
+  const saveDay1Config = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/admin/program/config/day1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          day1Config,
+          burdenTestQuestions
+        }),
+      });
+      if (response.ok) {
+        alert('Day 1 configuration saved successfully!');
+      }
+    } catch (error) {
+      console.error('Error saving Day 1 config:', error);
+      alert('Failed to save Day 1 configuration');
+    }
+    setSaving(false);
+  };
+
+  const toggleQuestion = (questionId) => {
+    setBurdenTestQuestions(burdenTestQuestions.map(q => 
+      q.id === questionId ? { ...q, enabled: !q.enabled } : q
+    ));
+  };
+
+  const updateQuestionText = (questionId, newText) => {
+    setBurdenTestQuestions(burdenTestQuestions.map(q => 
+      q.id === questionId ? { ...q, text: newText } : q
+    ));
   };
 
   const saveDayContent = async () => {
@@ -550,16 +661,199 @@ export default function ProgramConfigManager() {
         </p>
       </div>
 
-      {/* Day 1: Burden Test Note */}
+      {/* Day 1: Burden Test + Videos */}
       <div style={styles.card}>
-        <h2 style={styles.cardTitle}>📋 Day 1: MCQ Burden Assessment</h2>
-        <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '8px', borderLeft: '4px solid #2563eb' }}>
-          <p style={{ margin: 0, color: '#1e40af', fontWeight: '500' }}>
-            ℹ️ Day 1 is automatically configured with the Zarit Burden Assessment (7 MCQ questions).
-            No additional configuration needed. The assessment determines the burden level (mild/moderate/severe)
-            which is used to personalize Days 2-9 content.
+        <h2 style={styles.cardTitle}>📋 Day 1: Burden Assessment + Video</h2>
+        
+        {/* Burden Test Questions Management */}
+        <div style={{ marginBottom: '32px' }}>
+          <h3 style={styles.sectionTitle}>Zarit Burden Assessment Questions</h3>
+          <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
+            Manage the 7 MCQ questions for burden assessment. Caregivers answer these first, then see a video based on their score.
           </p>
+          
+          {burdenTestQuestions.map((question, index) => (
+            <div key={question.id} style={{ 
+              padding: '16px', 
+              border: '1px solid #e5e7eb', 
+              borderRadius: '8px',
+              marginBottom: '12px',
+              backgroundColor: question.enabled ? 'white' : '#f9fafb'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <input
+                  type="checkbox"
+                  checked={question.enabled}
+                  onChange={() => toggleQuestion(question.id)}
+                  style={{ marginTop: '4px', cursor: 'pointer' }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <strong style={{ color: '#111827' }}>Question {index + 1}:</strong>
+                    <span style={{ 
+                      padding: '2px 8px', 
+                      borderRadius: '4px', 
+                      fontSize: '12px',
+                      backgroundColor: question.enabled ? '#dcfce7' : '#f3f4f6',
+                      color: question.enabled ? '#166534' : '#6b7280'
+                    }}>
+                      {question.enabled ? 'Active' : 'Disabled'}
+                    </span>
+                  </div>
+                  <textarea
+                    value={question.text}
+                    onChange={(e) => updateQuestionText(question.id, e.target.value)}
+                    disabled={!question.enabled}
+                    style={{
+                      ...styles.input,
+                      minHeight: '60px',
+                      opacity: question.enabled ? 1 : 0.6
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
+
+        {/* Day 1 Videos by Burden Level */}
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={styles.sectionTitle}>Post-Assessment Videos</h3>
+          <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
+            Upload videos that will be shown AFTER the burden test, based on the caregiver's score.
+          </p>
+          
+          {/* Burden Level Selector for Day 1 */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={styles.label}>Select Burden Level</label>
+            <select
+              style={styles.input}
+              value={day1SelectedBurden}
+              onChange={(e) => setDay1SelectedBurden(e.target.value)}
+            >
+              <option value="mild">😊 Mild Burden (Score 0-10)</option>
+              <option value="moderate">😐 Moderate Burden (Score 11-20)</option>
+              <option value="severe">😟 Severe Burden (Score 21-28)</option>
+            </select>
+          </div>
+
+          {/* Language Tabs for Day 1 */}
+          <div style={styles.languageTabs}>
+            {['english', 'kannada', 'hindi'].map(lang => (
+              <button
+                key={lang}
+                onClick={() => setSelectedLanguage(lang)}
+                style={{
+                  ...styles.languageTab,
+                  ...(selectedLanguage === lang ? styles.languageTabActive : {})
+                }}
+              >
+                {lang === 'english' ? 'English' : lang === 'kannada' ? 'ಕನ್ನಡ' : 'हिंदी'}
+              </button>
+            ))}
+          </div>
+
+          {/* Video Configuration for Selected Burden Level */}
+          <div style={{ marginTop: '24px' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={styles.label}>Video Title ({selectedLanguage})</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={day1Config[day1SelectedBurden].videoTitle[selectedLanguage] || ''}
+                onChange={(e) => setDay1Config({
+                  ...day1Config,
+                  [day1SelectedBurden]: {
+                    ...day1Config[day1SelectedBurden],
+                    videoTitle: {
+                      ...day1Config[day1SelectedBurden].videoTitle,
+                      [selectedLanguage]: e.target.value
+                    }
+                  }
+                })}
+                placeholder={`Enter video title in ${selectedLanguage}`}
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={styles.label}>Video URL ({selectedLanguage})</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={day1Config[day1SelectedBurden].videoUrl[selectedLanguage] || ''}
+                onChange={(e) => setDay1Config({
+                  ...day1Config,
+                  [day1SelectedBurden]: {
+                    ...day1Config[day1SelectedBurden],
+                    videoUrl: {
+                      ...day1Config[day1SelectedBurden].videoUrl,
+                      [selectedLanguage]: e.target.value
+                    }
+                  }
+                })}
+                placeholder="Upload video to get URL"
+              />
+              
+              <div style={styles.uploadSection}>
+                <p style={{ margin: '0 0 16px 0', color: '#6b7280' }}>
+                  📤 Upload video for {day1SelectedBurden} burden - {selectedLanguage}
+                </p>
+                <input
+                  type="file"
+                  id={`day1-upload-${day1SelectedBurden}-${selectedLanguage}`}
+                  style={styles.fileInput}
+                  accept="video/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      handleVideoUpload(file, selectedLanguage, false, day1SelectedBurden);
+                    }
+                  }}
+                />
+                <label 
+                  htmlFor={`day1-upload-${day1SelectedBurden}-${selectedLanguage}`} 
+                  style={styles.uploadButton}
+                >
+                  {uploadingDay1[day1SelectedBurden][selectedLanguage] ? 'Uploading...' : 'Choose Video File'}
+                </label>
+                <p style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
+                  Supported: MP4, MOV, AVI • Max 100MB (Free tier)
+                </p>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={styles.label}>Description ({selectedLanguage})</label>
+              <textarea
+                style={{ ...styles.input, minHeight: '80px' }}
+                value={day1Config[day1SelectedBurden].description[selectedLanguage] || ''}
+                onChange={(e) => setDay1Config({
+                  ...day1Config,
+                  [day1SelectedBurden]: {
+                    ...day1Config[day1SelectedBurden],
+                    description: {
+                      ...day1Config[day1SelectedBurden].description,
+                      [selectedLanguage]: e.target.value
+                    }
+                  }
+                })}
+                placeholder={`Enter video description in ${selectedLanguage}`}
+              />
+            </div>
+          </div>
+        </div>
+
+        <button
+          style={{ ...styles.button, ...styles.buttonPrimary, marginTop: '24px', width: '100%' }}
+          onClick={saveDay1Config}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save Day 1 Configuration'}
+        </button>
+
+        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' }}>
+          💡 Upload videos for all 3 burden levels (mild, moderate, severe) and all 3 languages
+        </p>
       </div>
 
       {/* Days 2-9: Dynamic Content */}
