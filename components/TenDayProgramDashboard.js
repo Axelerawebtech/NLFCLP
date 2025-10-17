@@ -535,7 +535,29 @@ export default function TenDayProgramDashboard({ caregiverId }) {
                 {(!selectedDayData.videoWatched && (!getLocalizedText(selectedDayData.videoUrl) || !selectedDayData.burdenTestCompleted)) && (
                   <InlineBurdenAssessment 
                     caregiverId={caregiverId}
-                    existingAnswers={selectedDayData.burdenTestCompleted && programData?.zaritBurdenAssessment?.answers ? programData.zaritBurdenAssessment.answers : null}
+                    existingAnswers={(() => {
+                      // Get existing answers - handle both old and new format
+                      if (!selectedDayData.burdenTestCompleted) return null;
+                      
+                      const assessment = programData?.zaritBurdenAssessment;
+                      if (!assessment) return null;
+                      
+                      // New format: answers array
+                      if (assessment.answers && Array.isArray(assessment.answers)) {
+                        return assessment.answers;
+                      }
+                      
+                      // Old format: question1-7 properties
+                      const answers = [];
+                      for (let i = 1; i <= 7; i++) {
+                        const questionKey = `question${i}`;
+                        if (assessment[questionKey] !== undefined) {
+                          answers.push(assessment[questionKey]);
+                        }
+                      }
+                      
+                      return answers.length === 7 ? answers : null;
+                    })()}
                     existingScore={selectedDayData.burdenScore}
                     existingLevel={selectedDayData.burdenLevel}
                     onComplete={() => fetchProgramStatus()} // Refresh to show video

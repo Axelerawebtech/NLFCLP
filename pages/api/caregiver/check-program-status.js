@@ -59,7 +59,8 @@ export default async function handler(req, res) {
           dayModules: program.dayModules,
           burdenLevel: program.burdenLevel,
           burdenTestCompleted: !!program.burdenTestCompletedAt,
-          overallProgress: program.overallProgress
+          overallProgress: program.overallProgress,
+          zaritBurdenAssessment: program.zaritBurdenAssessment // Add burden assessment data
         }
       });
     } catch (error) {
