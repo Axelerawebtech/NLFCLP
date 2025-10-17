@@ -32,33 +32,37 @@ export default async function handler(req, res) {
         });
       }
 
-      // Validate burden levels exist
+      // Validate burden levels exist (create if missing)
       const requiredLevels = ['mild', 'moderate', 'severe'];
       for (const level of requiredLevels) {
         if (!day1Config[level]) {
-          return res.status(400).json({ 
-            error: `Missing configuration for burden level: ${level}` 
-          });
+          // Create empty config for missing level
+          day1Config[level] = {
+            videoTitle: {},
+            videoUrl: {},
+            description: {}
+          };
         }
 
-        // Validate each level has all language fields
+        // Ensure all language fields exist (create empty if missing)
         const requiredFields = ['videoTitle', 'videoUrl', 'description'];
         for (const field of requiredFields) {
           if (!day1Config[level][field]) {
-            return res.status(400).json({ 
-              error: `Missing ${field} for burden level: ${level}` 
-            });
+            day1Config[level][field] = {};
           }
         }
       }
 
-      // Validate at least one question is enabled
-      const enabledQuestions = burdenTestQuestions.filter(q => q.enabled);
-      if (enabledQuestions.length === 0) {
-        return res.status(400).json({ 
-          error: 'At least one burden test question must be enabled' 
-        });
+      // Validate questions format if provided
+      let enabledQuestions = [];
+      if (burdenTestQuestions && Array.isArray(burdenTestQuestions)) {
+        enabledQuestions = burdenTestQuestions.filter(q => q.enabled);
       }
+      
+      // If no questions provided, use defaults
+      const questionsToSave = (burdenTestQuestions && burdenTestQuestions.length > 0) 
+        ? burdenTestQuestions 
+        : getDefaultBurdenQuestions();
 
       // Find or create global program configuration
       let config = await ProgramConfig.findOne({ configType: 'global' });
@@ -68,10 +72,10 @@ export default async function handler(req, res) {
 
       // Update Day 1 configuration
       config.day1 = {
-        burdenTestQuestions: burdenTestQuestions.map(q => ({
+        burdenTestQuestions: questionsToSave.map(q => ({
           id: q.id,
           text: q.text,
-          enabled: q.enabled
+          enabled: q.enabled !== undefined ? q.enabled : true
         })),
         videos: {
           mild: {
