@@ -1,23 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 /**
  * InlineBurdenAssessment Component
  * 
  * Purpose: Embedded burden assessment for Day 1 (shown inline in dashboard)
- * - 7 MCQ questions with 5-point scale (0-4)
- * - Total score 0-28 points
- * - Determines burden level: mild (0-10), moderate (11-20), severe (21-28)
+ * - Loads questions dynamically from admin configuration
+ * - Multi-language support (English, Kannada, Hindi)
+ * - Customizable scores per option
+ * - Determines burden level based on configured score ranges
  * - Submits to API and triggers parent refresh to show video
  */
 
 export default function InlineBurdenAssessment({ caregiverId, existingAnswers, existingScore, existingLevel, onComplete }) {
   const { currentLanguage } = useLanguage();
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState(existingAnswers || Array(7).fill(null));
+  const [answers, setAnswers] = useState(existingAnswers || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showResults, setShowResults] = useState(existingAnswers ? true : false);
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Get language key (en -> english, kn -> kannada, hi -> hindi)
   const getLanguageKey = () => {
@@ -25,82 +28,38 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
     return map[currentLanguage] || 'english';
   };
 
-  // 7 Zarit Burden Interview Questions
-  const questions = [
-    {
-      english: "Do you feel that your relative asks for more help than he/she needs?",
-      kannada: "ನಿಮ್ಮ ಸಂಬಂಧಿತರು ಅಗತ್ಯಕ್ಕಿಂತ ಹೆಚ್ಚು ಸಹಾಯವನ್ನು ಕೇಳುತ್ತಾರೆ ಎಂದು ನೀವು ಭಾವಿಸುತ್ತೀರಾ?",
-      hindi: "क्या आपको लगता है कि आपका रिश्तेदार जितनी जरूरत है उससे ज्यादा मदद मांगता है?"
-    },
-    {
-      english: "Do you feel that because of the time you spend with your relative you don't have enough time for yourself?",
-      kannada: "ನಿಮ್ಮ ಸಂಬಂಧಿತರೊಂದಿಗೆ ನೀವು ಕಳೆಯುವ ಸಮಯದಿಂದಾಗಿ ನಿಮಗಾಗಿ ಸಾಕಷ್ಟು ಸಮಯವಿಲ್ಲ ಎಂದು ನೀವು ಭಾವಿಸುತ್ತೀರಾ?",
-      hindi: "क्या आपको लगता है कि अपने रिश्तेदार के साथ समय बिताने के कारण आपके पास अपने लिए पर्याप्त समय नहीं है?"
-    },
-    {
-      english: "Do you feel stressed between caring for your relative and trying to meet other responsibilities (work/family)?",
-      kannada: "ನಿಮ್ಮ ಸಂಬಂಧಿತರ ಆರೈಕೆ ಮತ್ತು ಇತರ ಜವಾಬ್ದಾರಿಗಳನ್ನು (ಕೆಲಸ/ಕುಟುಂಬ) ಪೂರೈಸಲು ಪ್ರಯತ್ನಿಸುವ ನಡುವೆ ನೀವು ಒತ್ತಡವನ್ನು ಅನುಭವಿಸುತ್ತೀರಾ?",
-      hindi: "क्या आप अपने रिश्तेदार की देखभाल करने और अन्य जिम्मेदारियों (काम/परिवार) को पूरा करने के बीच तनाव महसूस करते हैं?"
-    },
-    {
-      english: "Do you feel embarrassed over your relative's behavior?",
-      kannada: "ನಿಮ್ಮ ಸಂಬಂಧಿತರ ನಡವಳಿಕೆಯಿಂದ ನೀವು ಮುಜುಗರ ಅನುಭವಿಸುತ್ತೀರಾ?",
-      hindi: "क्या आप अपने रिश्तेदार के व्यवहार से शर्मिंदा महसूस करते हैं?"
-    },
-    {
-      english: "Do you feel angry when you are around your relative?",
-      kannada: "ನಿಮ್ಮ ಸಂಬಂಧಿತರ ಸುತ್ತಲೂ ಇರುವಾಗ ನಿಮಗೆ ಕೋಪ ಬರುತ್ತದೆಯೇ?",
-      hindi: "क्या आप अपने रिश्तेदार के आसपास होने पर गुस्सा महसूस करते हैं?"
-    },
-    {
-      english: "Do you feel that your social life has suffered because you are caring for your relative?",
-      kannada: "ನಿಮ್ಮ ಸಂಬಂಧಿತರನ್ನು ನೋಡಿಕೊಳ್ಳುತ್ತಿರುವುದರಿಂದ ನಿಮ್ಮ ಸಾಮಾಜಿಕ ಜೀವನ ಹಾನಿಗೊಳಗಾಗಿದೆ ಎಂದು ನೀವು ಭಾವಿಸುತ್ತೀರಾ?",
-      hindi: "क्या आपको लगता है कि आपके रिश्तेदार की देखभाल करने के कारण आपका सामाजिक जीवन प्रभावित हुआ है?"
-    },
-    {
-      english: "Overall, how burdened do you feel in caring for your relative?",
-      kannada: "ಒಟ್ಟಾರೆಯಾಗಿ, ನಿಮ್ಮ ಸಂಬಂಧಿತರನ್ನು ನೋಡಿಕೊಳ್ಳುವಲ್ಲಿ ನೀವು ಎಷ್ಟು ಹೊರೆಯನ್ನು ಅನುಭವಿಸುತ್ತೀರಿ?",
-      hindi: "कुल मिलाकर, आप अपने रिश्तेदार की देखभाल में कितना बोझ महसूस करते हैं?"
-    }
-  ];
+  // Load questions from API
+  useEffect(() => {
+    fetchQuestions();
+  }, []);
 
-  // Answer options (0-4 scale)
-  const options = [
-    {
-      value: 0,
-      english: "Never",
-      kannada: "ಎಂದಿಗೂ ಇಲ್ಲ",
-      hindi: "कभी नहीं"
-    },
-    {
-      value: 1,
-      english: "Rarely",
-      kannada: "ಅಪರೂಪವಾಗಿ",
-      hindi: "शायद ही कभी"
-    },
-    {
-      value: 2,
-      english: "Sometimes",
-      kannada: "ಕೆಲವೊಮ್ಮೆ",
-      hindi: "कभी कभी"
-    },
-    {
-      value: 3,
-      english: "Quite Frequently",
-      kannada: "ಆಗಾಗ್ಗೆ",
-      hindi: "काफी बार"
-    },
-    {
-      value: 4,
-      english: "Nearly Always",
-      kannada: "ಯಾವಾಗಲೂ",
-      hindi: "लगभग हमेशा"
+  const fetchQuestions = async () => {
+    try {
+      const response = await fetch('/api/admin/burden-assessment/config');
+      const data = await response.json();
+      
+      if (data.success && data.config.questions) {
+        setQuestions(data.config.questions);
+        // Initialize answers array if needed
+        if (!existingAnswers) {
+          setAnswers(Array(data.config.questions.length).fill(null));
+        }
+      } else {
+        setError('Failed to load assessment questions');
+      }
+    } catch (err) {
+      console.error('Error loading questions:', err);
+      setError('Failed to load assessment questions');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const handleAnswer = (value) => {
+  const handleAnswer = (optionIndex) => {
     const newAnswers = [...answers];
-    newAnswers[currentQuestion] = value;
+    // Store the score of the selected option
+    const selectedOption = questions[currentQuestion].options[optionIndex];
+    newAnswers[currentQuestion] = selectedOption.score;
     setAnswers(newAnswers);
   };
 
@@ -124,7 +83,7 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
       // Calculate total score
       const totalScore = answers.reduce((sum, score) => sum + score, 0);
       
-      // Determine burden level
+      // Determine burden level (will be calculated properly in API based on score ranges)
       let burdenLevel;
       if (totalScore <= 10) {
         burdenLevel = 'mild';
@@ -169,10 +128,29 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
     }
   };
 
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px' }}>
+        <p style={{ color: '#6b7280' }}>Loading assessment questions...</p>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div style={{ padding: '24px', backgroundColor: '#fee2e2', borderRadius: '8px', marginBottom: '24px' }}>
+        <p style={{ margin: 0, color: '#991b1b' }}>
+          ⚠️ No assessment questions configured. Please contact administrator.
+        </p>
+      </div>
+    );
+  }
+
   const progress = ((currentQuestion + 1) / questions.length) * 100;
-  const currentQuestionText = questions[currentQuestion][getLanguageKey()];
-  const hasAnswer = answers[currentQuestion] !== null;
-  const allAnswered = answers.every(a => a !== null);
+  const currentQuestionData = questions[currentQuestion];
+  const currentQuestionText = currentQuestionData.questionText[getLanguageKey()];
+  const hasAnswer = answers[currentQuestion] !== null && answers[currentQuestion] !== undefined;
+  const allAnswered = answers.every(a => a !== null && a !== undefined);
 
   // If showing results (test already completed)
   if (showResults) {
@@ -186,11 +164,17 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
     };
     
     const colors = levelColors[burdenLevel];
+
+    // Calculate max possible score
+    const maxScore = questions.reduce((sum, q) => {
+      const maxOptionScore = Math.max(...q.options.map(opt => opt.score));
+      return sum + maxOptionScore;
+    }, 0);
     
     return (
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', margin: '0 0 16px 0' }}>
-          📋 Zarit Burden Assessment
+          📋 Burden Assessment
         </h4>
         
         <div style={{ 
@@ -205,9 +189,6 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
             </p>
             <p style={{ fontSize: '16px', color: colors.text, margin: 0 }}>
               Your burden level: <strong style={{ textTransform: 'capitalize', fontSize: '20px' }}>{burdenLevel}</strong>
-            </p>
-            <p style={{ fontSize: '14px', color: colors.text, margin: '8px 0 0 0' }}>
-              Score: {totalScore} / 28 points
             </p>
           </div>
 
@@ -225,16 +206,21 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
               View Your Answers
             </summary>
             <div style={{ marginTop: '12px', padding: '12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: '8px' }}>
-              {questions.map((question, idx) => (
-                <div key={idx} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: idx < questions.length - 1 ? '1px solid rgba(0,0,0,0.1)' : 'none' }}>
-                  <p style={{ fontSize: '13px', color: '#374151', fontWeight: '600', margin: '0 0 4px 0' }}>
-                    Q{idx + 1}: {question[getLanguageKey()]}
-                  </p>
-                  <p style={{ fontSize: '14px', color: '#111827', fontWeight: '500', margin: 0 }}>
-                    → {options[answers[idx]]?.[getLanguageKey()]} ({answers[idx]} points)
-                  </p>
-                </div>
-              ))}
+              {questions.map((question, idx) => {
+                const answerScore = answers[idx];
+                const selectedOption = question.options.find(opt => opt.score === answerScore);
+                
+                return (
+                  <div key={idx} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: idx < questions.length - 1 ? '1px solid rgba(0,0,0,0.1)' : 'none' }}>
+                    <p style={{ fontSize: '13px', color: '#374151', fontWeight: '600', margin: '0 0 4px 0' }}>
+                      Q{idx + 1}: {question.questionText[getLanguageKey()]}
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#111827', fontWeight: '500', margin: 0 }}>
+                      → {selectedOption?.optionText[getLanguageKey()]}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </details>
 
@@ -249,7 +235,7 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
   return (
     <div style={{ marginBottom: '24px' }}>
       <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', margin: '0 0 16px 0' }}>
-        📋 Zarit Burden Assessment
+        📋 Burden Assessment
       </h4>
       
       <div style={{ 
@@ -299,44 +285,51 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
 
         {/* Answer Options */}
         <div style={{ marginBottom: '24px' }}>
-          {options.map((option) => (
-            <label
-              key={option.value}
-              style={{
-                display: 'block',
-                padding: '12px 16px',
-                marginBottom: '8px',
-                backgroundColor: answers[currentQuestion] === option.value ? '#dbeafe' : '#f9fafb',
-                border: `2px solid ${answers[currentQuestion] === option.value ? '#2563eb' : '#e5e7eb'}`,
-                borderRadius: '8px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontSize: '15px',
-                color: '#374151',
-                fontWeight: answers[currentQuestion] === option.value ? '600' : '400'
-              }}
-              onMouseOver={(e) => {
-                if (answers[currentQuestion] !== option.value) {
-                  e.currentTarget.style.backgroundColor = '#f3f4f6';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (answers[currentQuestion] !== option.value) {
-                  e.currentTarget.style.backgroundColor = '#f9fafb';
-                }
-              }}
-            >
-              <input
-                type="radio"
-                name={`question-${currentQuestion}`}
-                value={option.value}
-                checked={answers[currentQuestion] === option.value}
-                onChange={() => handleAnswer(option.value)}
-                style={{ marginRight: '12px', cursor: 'pointer' }}
-              />
-              {option[getLanguageKey()]}
-            </label>
-          ))}
+          {currentQuestionData.options.map((option, optIndex) => {
+            const isSelected = answers[currentQuestion] === option.score;
+            
+            return (
+              <label
+                key={optIndex}
+                style={{
+                  display: 'block',
+                  padding: '12px 16px',
+                  marginBottom: '8px',
+                  backgroundColor: isSelected ? '#dbeafe' : '#f9fafb',
+                  border: `2px solid ${isSelected ? '#2563eb' : '#e5e7eb'}`,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontSize: '15px',
+                  color: '#374151',
+                  fontWeight: isSelected ? '600' : '400'
+                }}
+                onMouseOver={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = '#f3f4f6';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = '#f9fafb';
+                  }
+                }}
+              >
+                <input
+                  type="radio"
+                  name={`question-${currentQuestion}`}
+                  value={optIndex}
+                  checked={isSelected}
+                  onChange={() => handleAnswer(optIndex)}
+                  style={{ marginRight: '12px', cursor: 'pointer' }}
+                />
+                {option.optionText[getLanguageKey()]}
+                {/* <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
+                  ({option.score} pts)
+                </span> */}
+              </label>
+            );
+          })}
         </div>
 
         {/* Error Message */}

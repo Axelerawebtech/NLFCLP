@@ -38,9 +38,64 @@ const ProgramConfigSchema = new mongoose.Schema({
   day1: {
     burdenTestQuestions: [{
       id: { type: Number, required: true },
-      text: { type: String, required: true },
+      questionText: {
+        english: { type: String, required: true },
+        kannada: { type: String },
+        hindi: { type: String }
+      },
+      options: [{
+        optionText: {
+          english: { type: String, required: true },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        score: { type: Number, required: true, default: 0 } // 0, 1, 2, or 3
+      }],
       enabled: { type: Boolean, default: true }
     }],
+    // Customizable score ranges for burden levels
+    scoreRanges: {
+      littleOrNoBurden: {
+        min: { type: Number, default: 0 },
+        max: { type: Number, default: 20 },
+        label: {
+          english: { type: String, default: 'Little or no burden' },
+          kannada: { type: String, default: 'ಕಡಿಮೆ ಅಥವಾ ಯಾವುದೇ ಹೊರೆ ಇಲ್ಲ' },
+          hindi: { type: String, default: 'कम या कोई बोझ नहीं' }
+        },
+        burdenLevel: { type: String, default: 'mild' } // Maps to video category
+      },
+      mildToModerate: {
+        min: { type: Number, default: 21 },
+        max: { type: Number, default: 40 },
+        label: {
+          english: { type: String, default: 'Mild to moderate burden' },
+          kannada: { type: String, default: 'ಸೌಮ್ಯದಿಂದ ಮಧ್ಯಮ ಹೊರೆ' },
+          hindi: { type: String, default: 'हल्के से मध्यम बोझ' }
+        },
+        burdenLevel: { type: String, default: 'mild' }
+      },
+      moderateToSevere: {
+        min: { type: Number, default: 41 },
+        max: { type: Number, default: 60 },
+        label: {
+          english: { type: String, default: 'Moderate to severe burden' },
+          kannada: { type: String, default: 'ಮಧ್ಯಮದಿಂದ ತೀವ್ರ ಹೊರೆ' },
+          hindi: { type: String, default: 'मध्यम से गंभीर बोझ' }
+        },
+        burdenLevel: { type: String, default: 'moderate' }
+      },
+      severe: {
+        min: { type: Number, default: 61 },
+        max: { type: Number, default: 88 },
+        label: {
+          english: { type: String, default: 'Severe burden' },
+          kannada: { type: String, default: 'ತೀವ್ರ ಹೊರೆ' },
+          hindi: { type: String, default: 'गंभीर बोझ' }
+        },
+        burdenLevel: { type: String, default: 'severe' }
+      }
+    },
     videos: {
       mild: {
         videoTitle: {

@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import ProgramConfigManager from '../../components/ProgramConfigManager';
+import BurdenAssessmentConfig from '../../components/BurdenAssessmentConfig';
 
 export default function ProgramConfigPage() {
   const router = useRouter();
   const [isBackHovered, setIsBackHovered] = useState(false);
+  const [activeTab, setActiveTab] = useState('program'); // 'program' or 'burden'
 
   const styles = {
     pageContainer: {
@@ -74,7 +76,36 @@ export default function ProgramConfigPage() {
       '@media (min-width: 1024px)': {
         padding: '32px 32px'
       }
-    }
+    },
+    tabsContainer: {
+      maxWidth: '1280px',
+      margin: '0 auto',
+      padding: '0 16px',
+      '@media (min-width: 640px)': {
+        padding: '0 24px'
+      },
+      '@media (min-width: 1024px)': {
+        padding: '0 32px'
+      }
+    },
+    tabs: {
+      display: 'flex',
+      gap: '0',
+      borderBottom: '2px solid #e5e7eb',
+      overflowX: 'auto'
+    },
+    tab: (active) => ({
+      padding: '16px 24px',
+      fontSize: '15px',
+      fontWeight: active ? '600' : '400',
+      color: active ? '#2563eb' : '#6b7280',
+      backgroundColor: 'transparent',
+      border: 'none',
+      borderBottom: active ? '3px solid #2563eb' : '3px solid transparent',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      whiteSpace: 'nowrap'
+    })
   };
 
   return (
@@ -108,9 +139,28 @@ export default function ProgramConfigPage() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div style={styles.tabsContainer}>
+          <div style={styles.tabs}>
+            <button
+              style={styles.tab(activeTab === 'program')}
+              onClick={() => setActiveTab('program')}
+            >
+              📅 Program Content
+            </button>
+            <button
+              style={styles.tab(activeTab === 'burden')}
+              onClick={() => setActiveTab('burden')}
+            >
+              📋 Burden Assessment
+            </button>
+          </div>
+        </div>
+
         {/* Main Content */}
         <div style={styles.mainContent}>
-          <ProgramConfigManager />
+          {activeTab === 'program' && <ProgramConfigManager />}
+          {activeTab === 'burden' && <BurdenAssessmentConfig />}
         </div>
       </div>
     </>
