@@ -31,13 +31,42 @@ const DailyTaskSchema = new mongoose.Schema({
 });
 
 const DayModuleSchema = new mongoose.Schema({
-  day: { type: Number, required: true }, // 0-7
+  day: { type: Number, required: true }, // 0-9 (10 days)
   videoWatched: { type: Boolean, default: false },
   videoProgress: { type: Number, default: 0 }, // percentage
+  videoId: { type: String }, // Dynamic video based on burden level
+  
+  // Multi-language video support (admin uploads via Cloudinary)
+  videoTitle: {
+    english: { type: String },
+    kannada: { type: String },
+    hindi: { type: String }
+  },
+  videoUrl: {
+    english: { type: String },
+    kannada: { type: String },
+    hindi: { type: String }
+  },
+  
+  // Multi-language content (Day 2-9 content varies by burden level)
+  content: {
+    english: { type: String },
+    kannada: { type: String },
+    hindi: { type: String }
+  },
+  
   tasksCompleted: { type: Boolean, default: false },
+  taskResponses: [{
+    taskId: String,
+    taskDescription: String,
+    response: mongoose.Schema.Types.Mixed, // Can be Boolean, String, or Object
+    completedAt: { type: Date, default: Date.now }
+  }],
   completedAt: { type: Date },
   progressPercentage: { type: Number, default: 0 }, // overall module completion
-  adminPermissionGranted: { type: Boolean, default: false }
+  adminPermissionGranted: { type: Boolean, default: false },
+  unlockedAt: { type: Date }, // When this day was unlocked
+  scheduledUnlockAt: { type: Date } // When this day should unlock based on wait time
 });
 
 const CaregiverProgramSchema = new mongoose.Schema({
@@ -50,15 +79,29 @@ const CaregiverProgramSchema = new mongoose.Schema({
   zaritBurdenAssessment: ZaritBurdenSchema,
   dayModules: [DayModuleSchema],
   dailyTasks: [DailyTaskSchema],
-  currentDay: { type: Number, default: 0 }, // Current active day (0-7)
+  currentDay: { type: Number, default: 0 }, // Current active day (0-9 for 10 days)
   overallProgress: { type: Number, default: 0 }, // Overall program progress percentage
   burdenLevel: { 
     type: String, 
     enum: ['mild', 'moderate', 'severe'], 
     default: null 
   },
+  burdenTestScore: { type: Number, default: null }, // Percentage score from Day 1 test
+  burdenTestCompletedAt: { type: Date, default: null },
   programStartedAt: { type: Date, default: Date.now },
   lastActiveAt: { type: Date, default: Date.now },
+  // Wait time configuration (can override global config)
+  customWaitTimes: {
+    day0ToDay1: { type: Number }, // hours, null means use global config
+    betweenDays: { type: Number } // hours, null means use global config
+  },
+  // Track when each day should unlock
+  dayUnlockSchedule: [{
+    day: Number,
+    scheduledUnlockAt: Date,
+    actualUnlockedAt: Date,
+    unlockMethod: { type: String, enum: ['automatic', 'manual-admin'], default: 'automatic' }
+  }],
   notifications: [{
     message: { type: String, required: true },
     type: { type: String, enum: ['daily', 'weekly', 'support'], required: true },
@@ -66,25 +109,46 @@ const CaregiverProgramSchema = new mongoose.Schema({
     read: { type: Boolean, default: false }
   }],
   supportTriggered: { type: Boolean, default: false }, // For severe burden auto-support
-  consecutiveNoCount: { type: Number, default: 0 } // Track consecutive "No" responses
+  consecutiveNoCount: { type: Number, default: 0 }, // Track consecutive "No" responses
+  contentAssignedDynamically: { type: Boolean, default: false }, // Flag for dynamic content assignment
+  adminNotes: [{ 
+    note: String,
+    addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+    addedAt: { type: Date, default: Date.now }
+  }]
 }, {
   timestamps: true
 });
 
-// Initialize day modules for new caregiver
+// Initialize day modules for new caregiver (10 days: 0-9)
 CaregiverProgramSchema.methods.initializeDayModules = function() {
   this.dayModules = [];
-  for (let i = 0; i <= 7; i++) {
+  const now = new Date();
+  
+  for (let i = 0; i <= 9; i++) {
     this.dayModules.push({
       day: i,
-      adminPermissionGranted: i === 0 ? true : false // Day 0 is always available
+      adminPermissionGranted: i === 0 ? true : false, // Day 0 is always available
+      unlockedAt: i === 0 ? now : null,
+      scheduledUnlockAt: i === 0 ? now : null
     });
   }
+  
+  // Initialize unlock schedule
+  this.dayUnlockSchedule = [];
+  this.dayUnlockSchedule.push({
+    day: 0,
+    scheduledUnlockAt: now,
+    actualUnlockedAt: now,
+    unlockMethod: 'automatic'
+  });
 };
 
-// Calculate Zarit Burden Level
+// Calculate Zarit Burden Level and set up Day 1 unlock schedule
 CaregiverProgramSchema.methods.calculateBurdenLevel = function(responses) {
   const totalScore = Object.values(responses).reduce((sum, score) => sum + score, 0);
+  const maxScore = 7 * 4; // 7 questions, max 4 points each
+  const percentage = (totalScore / maxScore) * 100;
   
   let burdenLevel;
   if (totalScore <= 10) burdenLevel = 'mild';
@@ -98,7 +162,85 @@ CaregiverProgramSchema.methods.calculateBurdenLevel = function(responses) {
   };
   
   this.burdenLevel = burdenLevel;
-  return burdenLevel;
+  this.burdenTestScore = percentage;
+  this.burdenTestCompletedAt = new Date();
+  
+  return { burdenLevel, percentage };
+};
+
+// Schedule day unlock based on wait time
+CaregiverProgramSchema.methods.scheduleDayUnlock = function(day, waitTimeHours) {
+  const previousDay = this.dayModules.find(m => m.day === day - 1);
+  if (!previousDay) return null;
+  
+  const baseTime = previousDay.completedAt || previousDay.unlockedAt || new Date();
+  const scheduledUnlockAt = new Date(baseTime.getTime() + waitTimeHours * 60 * 60 * 1000);
+  
+  const dayModule = this.dayModules.find(m => m.day === day);
+  if (dayModule) {
+    dayModule.scheduledUnlockAt = scheduledUnlockAt;
+  }
+  
+  this.dayUnlockSchedule.push({
+    day,
+    scheduledUnlockAt,
+    actualUnlockedAt: null,
+    unlockMethod: 'automatic'
+  });
+  
+  return scheduledUnlockAt;
+};
+
+// Unlock day (automatically or manually by admin)
+CaregiverProgramSchema.methods.unlockDay = function(day, method = 'automatic') {
+  const dayModule = this.dayModules.find(m => m.day === day);
+  if (!dayModule) return false;
+  
+  const now = new Date();
+  dayModule.adminPermissionGranted = true;
+  dayModule.unlockedAt = now;
+  
+  const scheduleEntry = this.dayUnlockSchedule.find(s => s.day === day);
+  if (scheduleEntry) {
+    scheduleEntry.actualUnlockedAt = now;
+    scheduleEntry.unlockMethod = method;
+  } else {
+    this.dayUnlockSchedule.push({
+      day,
+      scheduledUnlockAt: now,
+      actualUnlockedAt: now,
+      unlockMethod: method
+    });
+  }
+  
+  return true;
+};
+
+// Assign dynamic content to days 2-9 based on burden level
+CaregiverProgramSchema.methods.assignDynamicContent = async function(programConfig) {
+  if (!this.burdenLevel || this.contentAssignedDynamically) {
+    return false;
+  }
+  
+  const contentRules = programConfig.contentRules[this.burdenLevel];
+  if (!contentRules || !contentRules.days) {
+    return false;
+  }
+  
+  // Assign content for days 2-9
+  for (let day = 2; day <= 9; day++) {
+    const dayContent = contentRules.days.get(String(day));
+    const dayModule = this.dayModules.find(m => m.day === day);
+    
+    if (dayContent && dayModule) {
+      dayModule.videoId = dayContent.videoId;
+      dayModule.videoTitle = dayContent.videoTitle;
+      dayModule.videoUrl = dayContent.videoUrl;
+    }
+  }
+  
+  this.contentAssignedDynamically = true;
+  return true;
 };
 
 // Grant permission for next day
@@ -118,9 +260,9 @@ CaregiverProgramSchema.methods.completeDayModule = function(day) {
     dayModule.completedAt = new Date();
     dayModule.progressPercentage = 100;
     
-    // Update overall progress
+    // Update overall progress (10 days total: 0-9)
     const completedModules = this.dayModules.filter(module => module.progressPercentage === 100).length;
-    this.overallProgress = (completedModules / 8) * 100; // 8 days total (0-7)
+    this.overallProgress = (completedModules / 10) * 100;
     
     this.lastActiveAt = new Date();
   }

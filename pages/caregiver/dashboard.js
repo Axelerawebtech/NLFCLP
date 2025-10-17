@@ -44,16 +44,13 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import ZaritBurdenAssessment from '../../components/ZaritBurdenAssessment';
 import ZaritBurdenAssessmentPreTest from '../../components/ZaritBurdenAssessmentPreTest';
-import DayModuleCardEnhanced from '../../components/DayModuleCardEnhanced';
-import VideoContentPlayer from '../../components/VideoContentPlayer';
-import CoreModuleEmbedded from '../../components/CoreModuleEmbedded';
-import Day1Content from '../../components/Day1Content';
 import NotificationSettings from '../../components/NotificationSettings';
+import TenDayProgramDashboard from '../../components/TenDayProgramDashboard';
 
 export default function CaregiverDashboard() {
   const router = useRouter();
   const { isDarkMode, toggleTheme } = useTheme();
-  const { language } = useLanguage();
+  const { currentLanguage, changeLanguage } = useLanguage();
   
   // Enhanced state management - combining all functionality
   const [caregiverData, setCaregiverData] = useState(null);
@@ -124,10 +121,9 @@ export default function CaregiverDashboard() {
         // Determine initial view based on program state
         if (!data.program) {
           setCurrentView('assessment');
-        } else if (data.program.currentDay === 0 && !coreModuleStatus) {
-          setCurrentView('dailyContent');
         } else {
-          setCurrentView('overview');
+          // Default to 10-day program view for all users with a program
+          setCurrentView('tenDayProgram');
         }
         
         // Set current day from program data
@@ -170,124 +166,8 @@ export default function CaregiverDashboard() {
 
   const handleAssessmentComplete = (assessmentData) => {
     setProgramData(assessmentData.program);
-    setCurrentView('dailyContent');
-  };
-
-  const handleDayModuleComplete = async (nextDay) => {
-    // Refresh dashboard data to get updated progress
-    await fetchDashboardData();
-    
-    // If nextDay is provided, advance to that day
-    if (nextDay) {
-      console.log(`📅 Advancing to Day ${nextDay}`);
-      
-      // Update local program data to reflect new current day
-      if (programData) {
-        const updatedProgramData = {
-          ...programData,
-          currentDay: nextDay
-        };
-        setProgramData(updatedProgramData);
-        
-        // Also try to update backend (but don't block if API doesn't exist)
-        try {
-          await fetch('/api/caregiver/advance-day', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              caregiverId: caregiverData?._id,
-              currentDay: nextDay
-            })
-          });
-        } catch (error) {
-          console.log('API endpoint not available, using local update only');
-        }
-      }
-    }
-  };
-
-  const handleVideoComplete = () => {
-    // Video completion is handled by the VideoContentPlayer
-    console.log('Video completed');
-  };
-
-  const handleCoreModuleComplete = async () => {
-    try {
-      setCoreModuleCompleted(true);
-      setShowCoreCompletionMessage(true);
-      
-      // Update backend about core module completion
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      const response = await fetch('/api/caregiver/complete-day-module', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          caregiverId: userData._id,
-          day: 0,
-          moduleType: 'video'
-        }),
-      });
-
-      if (response.ok) {
-        // Refresh dashboard data to reflect completion
-        await fetchDashboardData();
-      }
-    } catch (error) {
-      console.error('Error completing core module:', error);
-    }
-  };
-
-  const handleProceedToDay1 = async () => {
-    setShowCoreCompletionMessage(false);
-    
-    try {
-      // Update the current day to 1 in the backend
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      const response = await fetch('/api/caregiver/program-state', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          caregiverId: userData._id,
-          currentDay: 1
-        }),
-      });
-
-      if (response.ok) {
-        // Update local state
-        setCurrentDay(1);
-        
-        // Navigate to daily content view to show Day 1
-        setCurrentView('dailyContent');
-        
-        // Refresh dashboard data to reflect the new day
-        await fetchDashboardData();
-      } else {
-        // Fallback: just update UI state even if API fails
-        setCurrentDay(1);
-        setCurrentView('dailyContent');
-        
-        // Update programData locally to reflect Day 1
-        setProgramData(prev => ({
-          ...prev,
-          currentDay: 1
-        }));
-      }
-    } catch (error) {
-      console.error('Error proceeding to Day 1:', error);
-      // Fallback: just update UI state
-      setCurrentDay(1);
-      setCurrentView('dailyContent');
-      
-      // Update programData locally to reflect Day 1
-      setProgramData(prev => ({
-        ...prev,
-        currentDay: 1
-      }));
-    }
+    // After completing assessment, go to 10-day program view
+    setCurrentView('tenDayProgram');
   };
 
   const handleStartDay1 = () => {
@@ -406,6 +286,61 @@ export default function CaregiverDashboard() {
           
           {caregiverData && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {/* Language Selector */}
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant={currentLanguage === 'en' ? 'contained' : 'outlined'}
+                  onClick={() => changeLanguage('en')}
+                  size="small"
+                  sx={{
+                    minWidth: '60px',
+                    color: currentLanguage === 'en' ? 'primary.contrastText' : 'inherit',
+                    bgcolor: currentLanguage === 'en' ? 'rgba(255,255,255,0.3)' : 'transparent',
+                    borderColor: 'rgba(255,255,255,0.5)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255,255,255,0.2)',
+                      borderColor: 'rgba(255,255,255,0.7)',
+                    }
+                  }}
+                >
+                  EN
+                </Button>
+                <Button
+                  variant={currentLanguage === 'kn' ? 'contained' : 'outlined'}
+                  onClick={() => changeLanguage('kn')}
+                  size="small"
+                  sx={{
+                    minWidth: '60px',
+                    color: currentLanguage === 'kn' ? 'primary.contrastText' : 'inherit',
+                    bgcolor: currentLanguage === 'kn' ? 'rgba(255,255,255,0.3)' : 'transparent',
+                    borderColor: 'rgba(255,255,255,0.5)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255,255,255,0.2)',
+                      borderColor: 'rgba(255,255,255,0.7)',
+                    }
+                  }}
+                >
+                  ಕನ್ನಡ
+                </Button>
+                <Button
+                  variant={currentLanguage === 'hi' ? 'contained' : 'outlined'}
+                  onClick={() => changeLanguage('hi')}
+                  size="small"
+                  sx={{
+                    minWidth: '60px',
+                    color: currentLanguage === 'hi' ? 'primary.contrastText' : 'inherit',
+                    bgcolor: currentLanguage === 'hi' ? 'rgba(255,255,255,0.3)' : 'transparent',
+                    borderColor: 'rgba(255,255,255,0.5)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255,255,255,0.2)',
+                      borderColor: 'rgba(255,255,255,0.7)',
+                    }
+                  }}
+                >
+                  हिंदी
+                </Button>
+              </Box>
+              
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant="body2">
                   {caregiverData.name}
@@ -434,7 +369,7 @@ export default function CaregiverDashboard() {
 
         {/* Navigation Tabs */}
         <Paper sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', gap: 1, p: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1, p: 2, flexWrap: 'wrap' }}>
             <Button
               variant={currentView === 'overview' ? 'contained' : 'outlined'}
               onClick={() => setCurrentView('overview')}
@@ -444,20 +379,26 @@ export default function CaregiverDashboard() {
               Overview
             </Button>
             <Button
+              variant={currentView === 'tenDayProgram' ? 'contained' : 'outlined'}
+              onClick={() => setCurrentView('tenDayProgram')}
+              disabled={!programData}
+              startIcon={<FaCalendarAlt />}
+              sx={{ 
+                background: currentView === 'tenDayProgram' ? 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)' : 'transparent',
+                '&:hover': {
+                  background: currentView === 'tenDayProgram' ? 'linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%)' : 'transparent'
+                }
+              }}
+            >
+              10-Day Program
+            </Button>
+            <Button
               variant={currentView === 'assessment' ? 'contained' : 'outlined'}
               onClick={() => setCurrentView('assessment')}
               disabled={programData && programData.zaritBurdenAssessment}
               startIcon={<FaUserCircle />}
             >
               Assessment
-            </Button>
-            <Button
-              variant={currentView === 'dailyContent' ? 'contained' : 'outlined'}
-              onClick={() => setCurrentView('dailyContent')}
-              disabled={!programData || !coreModuleCompleted}
-              startIcon={<FaCalendarAlt />}
-            >
-              Daily Content
             </Button>
             <Button
               variant={currentView === 'notifications' ? 'contained' : 'outlined'}
@@ -470,17 +411,14 @@ export default function CaregiverDashboard() {
           </Box>
         </Paper>
 
-        {/* Core Module Section - Always visible when program exists */}
-        {programData && (
-          <CoreModuleEmbedded
-            caregiverId={caregiverData?._id}
-            completed={coreModuleCompleted}
-            onComplete={handleCoreModuleComplete}
-            onProceedToDay1={handleProceedToDay1}
+        {/* Content based on current view */}
+        {currentView === 'tenDayProgram' && caregiverData && (
+          <TenDayProgramDashboard 
+            key={currentLanguage} 
+            caregiverId={caregiverData._id} 
           />
         )}
 
-        {/* Content based on current view */}
         {currentView === 'assessment' && (
           <ZaritBurdenAssessment
             caregiverId={caregiverData?._id}
@@ -706,91 +644,6 @@ export default function CaregiverDashboard() {
               </Card>
             </Grid>
           </Grid>
-        )}
-
-        {currentView === 'dailyContent' && programData && coreModuleCompleted && programData.currentDay > 0 && (
-          <Box>
-            <Typography variant="h5" gutterBottom>
-              Day {programData.currentDay} - Daily Content
-            </Typography>
-            
-            {/* Day 1 Special Content with Pre-Test */}
-            {day1PreTestCompleted && day1BurdenLevel && (
-              <Day1Content
-                burdenLevel={day1BurdenLevel}
-                caregiverId={caregiverData?._id}
-                onComplete={handleDayModuleComplete}
-              />
-            )}
-
-            {/* Day 1 Not Ready - Pre-test required */}
-            {!day1PreTestCompleted && programData.currentDay <= 1 && (
-              <Alert severity="info" sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  Day 1 Content Preparation Required
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 2 }}>
-                  Please complete the Day 1 pre-assessment to personalize your content.
-                </Typography>
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={handleStartDay1}
-                  sx={{ mt: 2 }}
-                >
-                  Start Day 1 Assessment
-                </Button>
-              </Alert>
-            )}
-            
-            {/* Regular Day Modules (Day 2-7) */}
-            {programData.currentDay > 1 && programData.dayModules?.find(module => module.day === programData.currentDay) && (
-              <DayModuleCardEnhanced
-                dayModule={programData.dayModules.find(module => module.day === programData.currentDay)}
-                burdenLevel={programData.zaritBurdenAssessment?.burdenLevel}
-                caregiverId={caregiverData?._id}
-                onComplete={handleDayModuleComplete}
-              />
-            )}
-            
-            {/* If no day module found for current day (Day 2-7), show preparation message */}
-            {programData.currentDay > 1 && !programData.dayModules?.find(module => module.day === programData.currentDay) && (
-              <Alert severity="info" sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  Day {programData.currentDay} content is being prepared
-                </Typography>
-                <Typography variant="body2">
-                  Your Day {programData.currentDay} personalized content will be available soon based on your assessment results.
-                  Please check back later or contact your program coordinator.
-                </Typography>
-              </Alert>
-            )}
-          </Box>
-        )}
-
-        {/* Message when daily content is accessed but only Day 0 available */}
-        {currentView === 'dailyContent' && programData && coreModuleCompleted && programData.currentDay === 0 && (
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Ready to start your daily program!
-            </Typography>
-            <Typography variant="body2">
-              You have completed the Core Module. Click "View Your Daily Program" in the Core Module section above to proceed to Day 1.
-            </Typography>
-          </Alert>
-        )}
-
-        {/* Message when trying to access daily content without completing core module */}
-        {currentView === 'dailyContent' && programData && !coreModuleCompleted && (
-          <Alert severity="warning" sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Please complete the Core Module first
-            </Typography>
-            <Typography variant="body2">
-              The Core Module contains essential foundation knowledge required before starting your daily program. 
-              Please watch the Core Module video above to proceed.
-            </Typography>
-          </Alert>
         )}
 
         {/* Welcome message for new users */}

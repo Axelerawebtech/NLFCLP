@@ -440,6 +440,26 @@ export default function AdminDashboard() {
             whileTap={{ scale: 0.95 }}
           >
             <Button
+              variant="contained"
+              size="large"
+              onClick={() => router.push('/admin/program-config')}
+              sx={{ 
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                color: 'white',
+                '&:hover': { 
+                  background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
+                } 
+              }}
+            >
+              🎯 Configure 10-Day Program
+            </Button>
+          </motion.div>
+          
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Button
               variant="outlined"
               size="large"
               startIcon={<FaDownload />}
@@ -563,14 +583,25 @@ export default function AdminDashboard() {
                               />
                             </TableCell>
                             <TableCell>
-                              <IconButton
-                                onClick={() => openDeleteDialog(caregiver, 'caregiver')}
-                                color="error"
-                                size="small"
-                                title="Delete caregiver"
-                              >
-                                <FaTrash />
-                              </IconButton>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button
+                                  onClick={() => router.push(`/admin/caregiver-profile?id=${caregiver._id}`)}
+                                  color="primary"
+                                  size="small"
+                                  variant="contained"
+                                  title="View profile"
+                                >
+                                  View Profile
+                                </Button>
+                                <IconButton
+                                  onClick={() => openDeleteDialog(caregiver, 'caregiver')}
+                                  color="error"
+                                  size="small"
+                                  title="Delete caregiver"
+                                >
+                                  <FaTrash />
+                                </IconButton>
+                              </Box>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -637,10 +668,19 @@ export default function AdminDashboard() {
                             </TableCell>
                             <TableCell>
                               <IconButton
-                                onClick={() => openDeleteDialog(patient, 'patient')}
+                                onClick={() => router.push(`/admin/caregiver-profile?id=${caregiver._id}`)}
+                                color="primary"
+                                size="small"
+                                title="View profile"
+                                sx={{ mr: 1 }}
+                              >
+                                <FaUser />
+                              </IconButton>
+                              <IconButton
+                                onClick={() => openDeleteDialog(caregiver, 'caregiver')}
                                 color="error"
                                 size="small"
-                                title="Delete patient"
+                                title="Delete caregiver"
                               >
                                 <FaTrash />
                               </IconButton>
