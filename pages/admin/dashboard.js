@@ -26,7 +26,8 @@ import {
   IconButton,
   AppBar,
   Toolbar,
-  Alert
+  Alert,
+  useTheme
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
@@ -39,13 +40,15 @@ import {
   FaMoon,
   FaChartBar,
   FaDownload,
-  FaClipboardCheck
+  FaClipboardCheck,
+  FaTrash
 } from 'react-icons/fa';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme as useCustomTheme } from '../../contexts/ThemeContext';
 import { useRouter } from 'next/router';
 
 export default function AdminDashboard() {
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { isDarkMode, toggleTheme } = useCustomTheme();
+  const theme = useTheme();
   const [caregivers, setCaregivers] = useState([]);
   const [patients, setPatients] = useState([]);
   const [stats, setStats] = useState({});
@@ -54,6 +57,7 @@ export default function AdminDashboard() {
   const [selectedCaregiver, setSelectedCaregiver] = useState('');
   const [selectedPatient, setSelectedPatient] = useState('');
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null, type: null });
   const router = useRouter();
 
   useEffect(() => {
@@ -83,34 +87,50 @@ export default function AdminDashboard() {
   };
 
   const handleAssignment = async () => {
+    console.log('=== ASSIGNMENT DEBUG ===');
+    console.log('Selected Caregiver:', selectedCaregiver);
+    console.log('Selected Patient:', selectedPatient);
+    console.log('Available Caregivers:', unassignedCaregivers.length);
+    console.log('Available Patients:', unassignedPatients.length);
+    
     if (!selectedCaregiver || !selectedPatient) {
+      console.log('Validation failed: Missing selection');
       setAlert({ show: true, message: 'Please select both caregiver and patient', type: 'error' });
       return;
     }
 
     try {
+      console.log('Sending assignment request...');
+      const requestBody = {
+        caregiverId: selectedCaregiver,
+        patientId: selectedPatient
+      };
+      console.log('Request body:', requestBody);
+      
       const response = await fetch('/api/admin/manage-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          caregiverId: selectedCaregiver,
-          patientId: selectedPatient
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
-      if (data.success) {
+      if (response.ok && data.success) {
+        console.log('Assignment successful!');
         setAlert({ show: true, message: 'Assignment successful!', type: 'success' });
         setAssignDialogOpen(false);
         setSelectedCaregiver('');
         setSelectedPatient('');
         fetchUsers(); // Refresh data
       } else {
-        setAlert({ show: true, message: data.message, type: 'error' });
+        console.log('Assignment failed:', data.message);
+        setAlert({ show: true, message: data.message || 'Assignment failed', type: 'error' });
       }
     } catch (error) {
-      setAlert({ show: true, message: 'Assignment failed', type: 'error' });
+      console.error('Assignment error:', error);
+      setAlert({ show: true, message: 'Network error: ' + error.message, type: 'error' });
     }
   };
 
@@ -140,6 +160,41 @@ export default function AdminDashboard() {
       console.error('Export error:', error);
       setAlert({ show: true, message: 'Export failed', type: 'error' });
     }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteDialog.user || !deleteDialog.type) return;
+
+    try {
+      const response = await fetch('/api/admin/manage-users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: deleteDialog.type === 'caregiver' ? deleteDialog.user.caregiverId : deleteDialog.user.patientId,
+          userType: deleteDialog.type
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setAlert({ 
+          show: true, 
+          message: `${deleteDialog.type} "${deleteDialog.user.name}" deleted successfully`, 
+          type: 'success' 
+        });
+        setDeleteDialog({ open: false, user: null, type: null });
+        fetchUsers(); // Refresh data
+      } else {
+        setAlert({ show: true, message: data.message || 'Delete failed', type: 'error' });
+      }
+    } catch (error) {
+      setAlert({ show: true, message: 'Network error: ' + error.message, type: 'error' });
+    }
+  };
+
+  const openDeleteDialog = (user, type) => {
+    setDeleteDialog({ open: true, user, type });
   };
 
   const unassignedCaregivers = caregivers.filter(c => !c.isAssigned);
@@ -476,6 +531,7 @@ export default function AdminDashboard() {
                           <TableCell>Relationship</TableCell>
                           <TableCell>Consent</TableCell>
                           <TableCell>Status</TableCell>
+                          <TableCell>Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -500,12 +556,21 @@ export default function AdminDashboard() {
                                 sx={{ minWidth: '80px' }}
                               />
                             </TableCell>
-                            <TableCell>
-                              <Chip
+                            <TableCell>                              <Chip
                                 label={caregiver.isAssigned ? 'Assigned' : 'Available'}
                                 color={caregiver.isAssigned ? 'success' : 'warning'}
                                 size="small"
                               />
+                            </TableCell>
+                            <TableCell>
+                              <IconButton
+                                onClick={() => openDeleteDialog(caregiver, 'caregiver')}
+                                color="error"
+                                size="small"
+                                title="Delete caregiver"
+                              >
+                                <FaTrash />
+                              </IconButton>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -538,6 +603,7 @@ export default function AdminDashboard() {
                           <TableCell>Cancer Type</TableCell>
                           <TableCell>Consent</TableCell>
                           <TableCell>Status</TableCell>
+                          <TableCell>Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -569,6 +635,16 @@ export default function AdminDashboard() {
                                 size="small"
                               />
                             </TableCell>
+                            <TableCell>
+                              <IconButton
+                                onClick={() => openDeleteDialog(patient, 'patient')}
+                                color="error"
+                                size="small"
+                                title="Delete patient"
+                              >
+                                <FaTrash />
+                              </IconButton>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -595,7 +671,7 @@ export default function AdminDashboard() {
               >
                 {unassignedCaregivers.map((caregiver) => (
                   <MenuItem key={caregiver.caregiverId} value={caregiver.caregiverId}>
-                    {caregiver.name} - {caregiver.experience} ({caregiver.specialization})
+                    {caregiver.name} - {caregiver.relationshipToPatient || 'N/A'} (ID: {caregiver.caregiverId})
                   </MenuItem>
                 ))}
               </Select>
@@ -621,6 +697,48 @@ export default function AdminDashboard() {
           <Button onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleAssignment}>
             Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, user: null, type: null })}
+        PaperProps={{
+          sx: {
+            bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
+            color: theme.palette.text.primary
+          }
+        }}
+      >
+        <DialogTitle>
+          Delete {deleteDialog.type?.charAt(0).toUpperCase() + deleteDialog.type?.slice(1)}
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{deleteDialog.user?.name}</strong>?
+            {deleteDialog.user?.isAssigned && (
+              <><br/><br/>
+              <Typography color="warning.main" component="span">
+                ⚠️ This {deleteDialog.type} is currently assigned. Deleting will automatically unassign them.
+              </Typography></>
+            )}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setDeleteDialog({ open: false, user: null, type: null })}
+            color="primary"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteUser} 
+            color="error" 
+            variant="contained"
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

@@ -132,22 +132,8 @@ async function calculateDayGating(caregiverId, programProgress, programControl) 
     // Check for admin overrides
     const override = gating.overrides.find(o => o.day === currentDay);
     if (override) {
-    if (override) {
       gating.canStartCurrentDay = true;
       gating.blockedReason = null;
-    }
-
-    gating.currentAvailableDay = currentDay;
-    gating.lastDayCompletedAt = previousDayCompleted?.completedAt;
-      gating.blockedReason = null;
-    await gating.save();
-    return gating;
-
-  } catch (error) {
-    console.error('Gating calculation error:', error);
-    return { canStartCurrentDay: false, blockedReason: 'calculation_error' };
-  }
-}
     }
 
     gating.currentAvailableDay = currentDay;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -15,6 +15,26 @@ import { FaArrowRight } from 'react-icons/fa';
 const CaregiverForm = ({ formData, setFormData, onNext }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [currentInputValue, setCurrentInputValue] = useState('');
+  const [validationError, setValidationError] = useState('');
+
+  // Helper function to validate name input (letters, spaces, hyphens, apostrophes only)
+  const validateNameInput = (value) => {
+    const nameRegex = /^[a-zA-Z\u00c0-\u00ff\\u0100-\\u017F\\u0180-\\u024F\\u1E00-\\u1EFF\\u0900-\\u097F\\u0C80-\\u0CFF\\s\\-']*$/;
+    return nameRegex.test(value);
+  };
+
+  // Helper function to validate phone number input (10 digits only)
+  const validatePhoneInput = (value) => {
+    const phoneRegex = /^[0-9]{0,10}$/;
+    return phoneRegex.test(value);
+  };
+
+// Reset input value when question changes
+useEffect(() => {
+  setCurrentInputValue('');
+  setValidationError('');
+}, [currentQuestion]);
 
   const questions = [
     {
@@ -249,30 +269,80 @@ const CaregiverForm = ({ formData, setFormData, onNext }) => {
             <input
               type={questions[currentQuestion].type}
               placeholder="Enter your answer..."
+              value={currentInputValue}
+              onChange={(e) => {
+                const { value } = e.target;
+                const questionId = questions[currentQuestion].id;
+                
+                // Clear validation error when user starts typing
+                if (validationError) {
+                  setValidationError('');
+                }
+                
+                // Apply validation based on field type
+                if (questionId === 'name') {
+                  if (validateNameInput(value)) {
+                    setCurrentInputValue(value);
+                  }
+                } else if (questionId === 'phone') {
+                  if (validatePhoneInput(value) && value.length <= 10) {
+                    setCurrentInputValue(value);
+                  }
+                } else {
+                  setCurrentInputValue(value);
+                }
+              }}
               style={{
                 width: '100%',
                 padding: '16px',
                 fontSize: '16px',
                 border: '2px solid #e0e0e0',
                 borderRadius: '8px',
-                marginBottom: '16px'
+                marginBottom: '8px'
               }}
               onKeyPress={(e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                  handleAnswer(e.target.value.trim());
+                if (e.key === 'Enter' && currentInputValue.trim()) {
+                  handleAnswer(currentInputValue.trim());
                 }
               }}
             />
+            {/* Helper text for validation */}
+            {(questions[currentQuestion].id === 'name' || questions[currentQuestion].id === 'phone') && (
+              <Typography variant="caption" color="textSecondary" sx={{ mb: 2, display: 'block', fontSize: '0.875rem' }}>
+                {questions[currentQuestion].id === 'name' 
+                  ? 'Only letters, spaces, hyphens and apostrophes are allowed'
+                  : 'Enter exactly 10 digits for phone number'
+                }
+              </Typography>
+            )}
+            {validationError && (
+              <Typography color="error" variant="body2" sx={{ mb: 2, display: 'block', fontSize: '0.875rem' }}>
+                {validationError}
+              </Typography>
+            )}
             <Button
               fullWidth
               variant="contained"
               endIcon={<FaArrowRight />}
               onClick={() => {
-                const input = document.querySelector('input');
-                if (input.value.trim()) {
-                  handleAnswer(input.value.trim());
+                const questionId = questions[currentQuestion].id;
+                
+                // Check if it's a phone field and validate length
+                if (questionId === 'phone') {
+                  if (!currentInputValue || currentInputValue.length !== 10) {
+                    setValidationError('Phone number must be exactly 10 digits');
+                    return;
+                  }
+                }
+                
+                // Clear any existing validation errors
+                setValidationError('');
+                
+                if (currentInputValue.trim()) {
+                  handleAnswer(currentInputValue.trim());
                 }
               }}
+              disabled={!currentInputValue.trim()}
             >
               {currentQuestion === questions.length - 1 ? 'Complete Registration' : 'Next Question'}
             </Button>

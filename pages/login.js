@@ -23,10 +23,14 @@ import {
   FaSignInAlt
 } from 'react-icons/fa';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getTranslation } from '../utils/translations';
+import LanguageSelector from '../components/LanguageSelector';
 import { useRouter } from 'next/router';
 
 export default function UserLogin() {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { currentLanguage } = useLanguage();
   const [credentials, setCredentials] = useState({ userId: '', userType: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -69,10 +73,10 @@ export default function UserLogin() {
           router.push('/patient/dashboard');
         }
       } else {
-        setError(data.message || 'Login failed');
+        setError(data.message || getTranslation(currentLanguage, 'loginFailed'));
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      setError(getTranslation(currentLanguage, 'networkError'));
     } finally {
       setLoading(false);
     }
@@ -88,13 +92,17 @@ export default function UserLogin() {
       alignItems: 'center',
       justifyContent: 'center'
     }}>
-      {/* Theme Toggle */}
+      {/* Theme Toggle and Language Selector */}
       <Box sx={{
         position: 'absolute',
         top: 20,
         right: 20,
-        zIndex: 1000
+        zIndex: 1000,
+        display: 'flex',
+        gap: 2,
+        alignItems: 'center'
       }}>
+        <LanguageSelector />
         <IconButton
           onClick={toggleTheme}
           sx={{
@@ -145,10 +153,10 @@ export default function UserLogin() {
                     mb: 1
                   }}
                 >
-                  User Login
+                  {getTranslation(currentLanguage, 'userLogin')}
                 </Typography>
                 <Typography variant="h6" color="text.secondary">
-                  Access your cancer care dashboard
+                  {getTranslation(currentLanguage, 'accessDashboard')}
                 </Typography>
               </Box>
 
@@ -170,7 +178,7 @@ export default function UserLogin() {
                   transition={{ duration: 0.5 }}
                 >
                   <Alert severity="success" sx={{ mb: 3 }}>
-                    Welcome! Your registration was successful. Your login details have been pre-filled.
+                    {getTranslation(currentLanguage, 'welcomeRegistrationSuccess')}
                   </Alert>
                 </motion.div>
               )}
@@ -178,11 +186,11 @@ export default function UserLogin() {
               <form onSubmit={handleSubmit}>
                 <Box sx={{ mb: 3 }}>
                   <FormControl fullWidth>
-                    <InputLabel>I am a</InputLabel>
+                    <InputLabel>{getTranslation(currentLanguage, 'iAmA')}</InputLabel>
                     <Select
                       value={credentials.userType}
                       onChange={(e) => setCredentials({ ...credentials, userType: e.target.value })}
-                      label="I am a"
+                      label={getTranslation(currentLanguage, 'iAmA')}
                       required
                       sx={isAutoFilled ? {
                         '& .MuiOutlinedInput-root': {
@@ -196,13 +204,13 @@ export default function UserLogin() {
                       <MenuItem value="caregiver">
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <FaUserMd style={{ marginRight: '8px' }} />
-                          Caregiver
+                          {getTranslation(currentLanguage, 'caregiver')}
                         </Box>
                       </MenuItem>
                       <MenuItem value="patient">
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <FaUser style={{ marginRight: '8px' }} />
-                          Patient
+                          {getTranslation(currentLanguage, 'patient')}
                         </Box>
                       </MenuItem>
                     </Select>
@@ -212,11 +220,11 @@ export default function UserLogin() {
                 <Box sx={{ mb: 4 }}>
                   <TextField
                     fullWidth
-                    label="Your ID"
+                    label={getTranslation(currentLanguage, 'yourId')}
                     variant="outlined"
                     value={credentials.userId}
                     onChange={(e) => setCredentials({ ...credentials, userId: e.target.value })}
-                    placeholder="Enter your unique ID (e.g., CG123... or PT456...)"
+                    placeholder={getTranslation(currentLanguage, 'enterUniqueId')}
                     required
                     sx={{
                       '& .MuiOutlinedInput-root': {
@@ -258,14 +266,14 @@ export default function UserLogin() {
                       }
                     }}
                   >
-                    {loading ? 'Signing In...' : 'Sign In'}
+                    {loading ? getTranslation(currentLanguage, 'signingIn') : getTranslation(currentLanguage, 'signIn')}
                   </Button>
                 </motion.div>
               </form>
 
               <Box textAlign="center" sx={{ mt: 3 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Don't have an ID? Start your onboarding journey
+                  {getTranslation(currentLanguage, 'noIdStartOnboarding')}
                 </Typography>
                 <Button
                   variant="outlined"
@@ -279,7 +287,7 @@ export default function UserLogin() {
                     }
                   }}
                 >
-                  Get Started
+                  {getTranslation(currentLanguage, 'getStarted')}
                 </Button>
               </Box>
             </CardContent>
