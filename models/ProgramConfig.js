@@ -255,6 +255,102 @@ const ProgramConfigSchema = new mongoose.Schema({
       }
     }
   },
+  
+  // Content Management for Caregiver Dashboard
+  contentManagement: {
+    motivationMessages: {
+      mild: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      },
+      moderate: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      },
+      severe: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      }
+    },
+    healthcareTips: {
+      mild: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      },
+      moderate: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      },
+      severe: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      }
+    },
+    reminders: {
+      mild: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      },
+      moderate: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      },
+      severe: {
+        english: { type: String, default: '' },
+        kannada: { type: String, default: '' },
+        hindi: { type: String, default: '' }
+      }
+    },
+    dailyTaskTemplates: {
+      mild: [{
+        id: { type: String },
+        taskDescription: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        taskType: { type: String, enum: ['checkbox', 'text', 'reflection', 'rating', 'reminder'], default: 'checkbox' },
+        category: { type: String, enum: ['daily', 'selfcare', 'monitoring', 'communication'], default: 'daily' }
+      }],
+      moderate: [{
+        id: { type: String },
+        taskDescription: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        taskType: { type: String, enum: ['checkbox', 'text', 'reflection', 'rating', 'reminder'], default: 'checkbox' },
+        category: { type: String, enum: ['daily', 'selfcare', 'monitoring', 'communication'], default: 'daily' }
+      }],
+      severe: [{
+        id: { type: String },
+        taskDescription: {
+          english: { type: String },
+          kannada: { type: String },
+          hindi: { type: String }
+        },
+        taskType: { type: String, enum: ['checkbox', 'text', 'reflection', 'rating', 'reminder'], default: 'checkbox' },
+        category: { type: String, enum: ['daily', 'selfcare', 'monitoring', 'communication'], default: 'daily' }
+      }]
+    },
+    audioContent: {
+      type: Map,
+      of: {
+        english: { type: String },
+        kannada: { type: String },
+        hindi: { type: String }
+      }
+    }
+  },
+  
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

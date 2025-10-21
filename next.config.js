@@ -5,6 +5,10 @@ const nextConfig = {
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
+  experimental: {
+    // Increase body size limit for video uploads
+    serverComponentsExternalPackages: ['formidable']
+  }
 }
 
 module.exports = nextConfig

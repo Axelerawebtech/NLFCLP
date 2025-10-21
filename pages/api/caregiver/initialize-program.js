@@ -53,7 +53,7 @@ export default async function handler(req, res) {
         lastActiveAt: new Date()
       });
       
-      // Initialize day modules (0-9)
+      // Initialize day modules (0-7)
       program.initializeDayModules();
       
       // Populate Day 0 with intro video content from ProgramConfig

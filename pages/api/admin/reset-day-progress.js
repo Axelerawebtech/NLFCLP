@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     }
 
     // Validate day
-    if (day < 0 || day > 9) {
+    if (day < 0 || day > 7) {
       return res.status(400).json({ 
         error: 'Invalid day. Must be between 0 and 9' 
       });
@@ -55,6 +55,10 @@ export default async function handler(req, res) {
     dayModule.videoProgress = 0;
     dayModule.videoStartedAt = null;
     dayModule.videoCompletedAt = null;
+
+    // Reset audio progress
+    dayModule.audioCompleted = false;
+    dayModule.audioCompletedAt = null;
 
     // Reset task completion
     if (dayModule.tasks && dayModule.tasks.length > 0) {
@@ -115,6 +119,7 @@ export default async function handler(req, res) {
         resetBurdenTest: day === 1 ? resetBurdenTest : false,
         progressPercentage: 0,
         videoWatched: false,
+        audioCompleted: false,
         burdenTestCompleted: day === 1 ? (resetBurdenTest ? false : dayModule.burdenTestCompleted) : undefined
       }
     });

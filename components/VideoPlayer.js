@@ -14,9 +14,10 @@ export default function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [progress, setProgress] = useState(initialProgress);
+  const [progress, setProgress] = useState(0); // Always start from 0 for current session
   const [watchedPercentage, setWatchedPercentage] = useState(initialProgress);
   const [showCompleteButton, setShowCompleteButton] = useState(false);
+  const [hasBeenWatched, setHasBeenWatched] = useState(isCompleted);
   const progressUpdateInterval = useRef(null);
 
   useEffect(() => {
@@ -30,8 +31,9 @@ export default function VideoPlayer({
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
-      // Resume from last watched position
-      if (initialProgress > 0 && !isCompleted) {
+      // Only resume from last position if video was already partially watched
+      // and not yet completed
+      if (initialProgress > 0 && initialProgress < 100 && !hasBeenWatched) {
         videoRef.current.currentTime = (initialProgress / 100) * videoRef.current.duration;
       }
     }
@@ -64,7 +66,7 @@ export default function VideoPlayer({
         }
         
         // Show complete button when 95% watched (to account for slight variations)
-        if (progressPercent >= 95 && !isCompleted) {
+        if (progressPercent >= 95 && !hasBeenWatched) {
           setShowCompleteButton(true);
         }
       }
@@ -93,8 +95,19 @@ export default function VideoPlayer({
   };
 
   const handleMarkComplete = async () => {
+    console.log('🎬 VideoPlayer: Mark Complete button clicked');
+    setHasBeenWatched(true);
+    setShowCompleteButton(false);
     if (onComplete) {
+      console.log('🎬 VideoPlayer: Calling onComplete callback');
       await onComplete();
+      console.log('🎬 VideoPlayer: onComplete callback finished');
+      // Small delay to ensure database update is processed
+      setTimeout(() => {
+        console.log('🎬 VideoPlayer: Completion handling finished');
+      }, 500);
+    } else {
+      console.log('🎬 VideoPlayer: No onComplete callback provided');
     }
   };
 
@@ -211,14 +224,14 @@ export default function VideoPlayer({
           <div style={styles.timeInfo}>
             <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
             <span style={{ fontSize: '13px', color: '#9ca3af' }}>
-              {Math.round(watchedPercentage)}% watched
+              {hasBeenWatched ? '100% watched' : `${Math.round(watchedPercentage)}% watched`}
             </span>
           </div>
         </div>
       </div>
 
       {/* Complete Button (shows when 95% watched) */}
-      {showCompleteButton && !isCompleted && (
+      {showCompleteButton && !hasBeenWatched && (
         <button
           style={styles.completeButton}
           onClick={handleMarkComplete}
@@ -230,14 +243,14 @@ export default function VideoPlayer({
       )}
 
       {/* Completed Badge */}
-      {isCompleted && (
+      {hasBeenWatched && (
         <div style={styles.completedBadge}>
           ✅ Video Completed - Well done!
         </div>
       )}
 
       {/* Warning if not enough watched */}
-      {!showCompleteButton && !isCompleted && watchedPercentage > 0 && (
+      {!showCompleteButton && !hasBeenWatched && watchedPercentage > 0 && (
         <div style={{ 
           padding: '12px 16px', 
           backgroundColor: '#fef3c7', 

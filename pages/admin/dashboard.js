@@ -58,11 +58,51 @@ export default function AdminDashboard() {
   const [selectedPatient, setSelectedPatient] = useState('');
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null, type: null });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    const checkAuth = () => {
+      const adminToken = localStorage.getItem('adminToken');
+      const adminData = localStorage.getItem('adminData');
+      
+      if (!adminToken || !adminData) {
+        console.log('No admin credentials found, redirecting to login...');
+        router.push('/admin/login');
+        return;
+      }
+      
+      // Verify token hasn't expired (basic check)
+      try {
+        const tokenPayload = JSON.parse(atob(adminToken.split('.')[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+        
+        if (tokenPayload.exp && tokenPayload.exp < currentTime) {
+          console.log('Admin token expired, redirecting to login...');
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminData');
+          router.push('/admin/login');
+          return;
+        }
+        
+        setIsAuthenticated(true);
+        setAuthLoading(false);
+        // Only fetch users after authentication is confirmed
+        fetchUsers();
+      } catch (error) {
+        console.error('Error verifying token:', error);
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminData');
+        router.push('/admin/login');
+        return;
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  // Old useEffect that called fetchUsers - now integrated into auth check
 
   const fetchUsers = async () => {
     try {
@@ -199,6 +239,26 @@ export default function AdminDashboard() {
 
   const unassignedCaregivers = caregivers.filter(c => !c.isAssigned);
   const unassignedPatients = patients.filter(p => !p.isAssigned);
+
+  if (authLoading) {
+    return (
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>🔐 Verifying Admin Access...</Typography>
+          <Typography variant="body2" color="text.secondary">Please wait while we authenticate your session</Typography>
+        </div>
+      </Box>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -451,7 +511,7 @@ export default function AdminDashboard() {
                 } 
               }}
             >
-              🎯 Configure 10-Day Program
+              🎯 Configure 7-Day Program
             </Button>
           </motion.div>
           

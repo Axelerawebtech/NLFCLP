@@ -11,16 +11,31 @@ export default async function handler(req, res) {
 
     const { day, burdenLevel, content } = req.body;
 
-    if (!day || !burdenLevel || !content) {
-      return res.status(400).json({ error: 'Day, burden level, and content required' });
+    if (day === undefined || day === null || !content) {
+      return res.status(400).json({ error: 'Day and content required' });
     }
 
-    if (day < 2 || day > 9) {
-      return res.status(400).json({ error: 'Day must be between 2 and 9' });
+    if (day < 0 || day > 7) {
+      return res.status(400).json({ error: 'Day must be between 0 and 7' });
     }
 
-    if (!['mild', 'moderate', 'severe'].includes(burdenLevel)) {
-      return res.status(400).json({ error: 'Invalid burden level' });
+    // For Day 0, burden level is not required (core module)
+    if (day !== 0 && !burdenLevel) {
+      return res.status(400).json({ error: 'Burden level required for days 1-7' });
+    }
+
+    // Validate burden level for days that require it
+    if (day === 1 && !['mild', 'moderate', 'severe'].includes(burdenLevel)) {
+      return res.status(400).json({ error: 'Invalid burden level for Day 1' });
+    }
+    if (day === 2 && !['low', 'moderate', 'high'].includes(burdenLevel)) {
+      return res.status(400).json({ error: 'Invalid stress level for Day 2' });
+    }
+    if (day === 3 && !['physical', 'psychological', 'social', 'environment'].includes(burdenLevel)) {
+      return res.status(400).json({ error: 'Invalid domain for Day 3' });
+    }
+    if (day === 4 && !['wound-care', 'drain-care', 'stoma-care', 'feeding-tube', 'urinary-catheter', 'oral-anticancer', 'bedbound-patient'].includes(burdenLevel)) {
+      return res.status(400).json({ error: 'Invalid care type for Day 4' });
     }
 
     // Find or create global config
@@ -33,30 +48,53 @@ export default async function handler(req, res) {
       });
     }
 
-    // Initialize contentRules if needed
-    if (!config.contentRules) {
-      config.contentRules = { mild: {}, moderate: {}, severe: {} };
-    }
+    if (day === 0) {
+      // Handle Day 0 (Core module) - no burden level needed
+      if (!config.day0IntroVideo) {
+        config.day0IntroVideo = {
+          title: { english: '', kannada: '', hindi: '' },
+          videoUrl: { english: '', kannada: '', hindi: '' },
+          description: { english: '', kannada: '', hindi: '' }
+        };
+      }
+      
+      // Update Day 0 content
+      config.day0IntroVideo.title = content.videoTitle || config.day0IntroVideo.title;
+      config.day0IntroVideo.videoUrl = content.videoUrl || config.day0IntroVideo.videoUrl;
+      config.day0IntroVideo.description = content.content || config.day0IntroVideo.description;
+      
+    } else {
+      // Handle Days 1-7 with burden levels
+      // Initialize contentRules if needed
+      if (!config.contentRules) {
+        config.contentRules = {};
+      }
 
-    if (!config.contentRules[burdenLevel]) {
-      config.contentRules[burdenLevel] = {};
-    }
+      if (!config.contentRules[burdenLevel]) {
+        config.contentRules[burdenLevel] = {};
+      }
 
-    if (!config.contentRules[burdenLevel].days) {
-      config.contentRules[burdenLevel].days = new Map();
-    }
+      if (!config.contentRules[burdenLevel].days) {
+        config.contentRules[burdenLevel].days = new Map();
+      }
 
-    // Set content for the specific day
-    config.contentRules[burdenLevel].days.set(day.toString(), content);
+      // Set content for the specific day
+      config.contentRules[burdenLevel].days.set(day.toString(), content);
+    }
+    
     config.updatedAt = new Date();
 
     await config.save();
 
-    console.log(`✅ Day ${day} content saved for ${burdenLevel} burden level`);
+    if (day === 0) {
+      console.log(`✅ Day ${day} content saved (Core Module)`);
+    } else {
+      console.log(`✅ Day ${day} content saved for ${burdenLevel} level`);
+    }
 
     return res.status(200).json({
       success: true,
-      message: `Day ${day} content saved successfully for ${burdenLevel} burden level`,
+      message: day === 0 ? `Day ${day} content saved successfully (Core Module)` : `Day ${day} content saved successfully for ${burdenLevel} level`,
       config
     });
 

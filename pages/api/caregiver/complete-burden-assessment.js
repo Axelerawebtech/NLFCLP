@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         config = await ProgramConfig.findOne({ configType: 'global' });
       }
       
-      // Assign dynamic content for days 2-9 based on burden level
+      // Assign dynamic content for days 2-7 based on burden level
       if (config) {
         await program.assignDynamicContent(config);
       }
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
       
       // Schedule remaining days (2-9) based on between-days wait time
       const betweenDaysWaitTime = program.customWaitTimes?.betweenDays || config?.waitTimes?.betweenDays || 24;
-      for (let day = 2; day <= 9; day++) {
+      for (let day = 2; day <= 7; day++) {
         program.scheduleDayUnlock(day, betweenDaysWaitTime);
       }
       

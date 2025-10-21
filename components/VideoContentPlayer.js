@@ -44,9 +44,9 @@ export default function VideoContentPlayer({
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
   // Use currentLanguage with fallback to 'en'
-  const language = 'en'; // FORCE ENGLISH FOR DEBUGGING
+  const language = currentLanguage || 'en';
   
-  console.log(`🔍 Language Debug - currentLanguage: ${currentLanguage}, FORCED language: ${language}`);
+  console.log(`🔍 Language Debug - currentLanguage: ${currentLanguage}, using language: ${language}`);
   
   // Add fallback for burdenLevel
   const safeBurdenLevel = burdenLevel || 'moderate';

@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const { caregiverId } = req.query;
+      const { caregiverId, day, burdenLevel } = req.query;
       
       let config;
       if (caregiverId) {
@@ -36,6 +36,40 @@ export default async function handler(req, res) {
             }
           }
         });
+      }
+      
+      // If day and burdenLevel are provided, return specific day content
+      if (day !== undefined) {
+        const dayNum = parseInt(day);
+        
+        if (dayNum === 0) {
+          // Return Day 0 content
+          const dayContent = config.day0IntroVideo ? {
+            videoTitle: config.day0IntroVideo.title || { english: '', kannada: '', hindi: '' },
+            videoUrl: config.day0IntroVideo.videoUrl || { english: '', kannada: '', hindi: '' },
+            content: config.day0IntroVideo.description || { english: '', kannada: '', hindi: '' },
+            tasks: []
+          } : null;
+          
+          return res.status(200).json({
+            success: true,
+            dayContent
+          });
+        } else if (burdenLevel && config.contentRules && config.contentRules[burdenLevel]) {
+          // Return content for specific day and burden level
+          const dayContent = config.contentRules[burdenLevel].days ? 
+            config.contentRules[burdenLevel].days.get(day.toString()) : null;
+          
+          return res.status(200).json({
+            success: true,
+            dayContent
+          });
+        } else {
+          return res.status(200).json({
+            success: true,
+            dayContent: null
+          });
+        }
       }
       
       return res.status(200).json({

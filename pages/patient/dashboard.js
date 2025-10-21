@@ -366,7 +366,7 @@ export default function PatientDashboard() {
                     Post-Test Coming Soon
                   </Typography>
                   <Typography variant="h6" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
-                    Your caregiver is currently working through a 10-day emotional support program.
+                    Your caregiver is currently working through a 7-day emotional support program.
                     Once they complete the program, your post-test will become available.
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
@@ -415,7 +415,7 @@ export default function PatientDashboard() {
                     Post-Test Available
                   </Typography>
                   <Typography variant="h6" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
-                    Your caregiver has completed the 10-day program! Take this test to show how well
+                    Your caregiver has completed the 7-day program! Take this test to show how well
                     they've shared their knowledge about emotional support and stress management with you.
                   </Typography>
 

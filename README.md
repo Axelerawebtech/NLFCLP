@@ -83,7 +83,7 @@ npm run dev
 
 ### Test 6: Complete Caregiver Program
 1. Login as caregiver
-2. Go through 10-day program
+2. Go through 7-day program
 3. Complete all days
 4. ✅ Patient post-test should become available
 
@@ -106,7 +106,7 @@ npm run dev
 ## 🎯 Key Features to Test
 
 ### Caregiver Dashboard:
-- ✅ 10-Day Program with interactive lessons
+- ✅ 7-Day Program with interactive lessons
 - ✅ Red Alert emergency button
 - ✅ Daily Health Tips categorized
 - ✅ Progress tracking

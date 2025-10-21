@@ -51,7 +51,7 @@ export default function ProgramConfigManager() {
   
   // Days 2-9 Configuration
   const [selectedBurdenLevel, setSelectedBurdenLevel] = useState('mild');
-  const [selectedDay, setSelectedDay] = useState(2);
+  const [selectedDay, setSelectedDay] = useState(0);
   const [dayContent, setDayContent] = useState({
     videoTitle: { english: '', kannada: '', hindi: '' },
     videoUrl: { english: '', kannada: '', hindi: '' },
@@ -70,6 +70,28 @@ export default function ProgramConfigManager() {
   const [syncing, setSyncing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Video upload and save tracking
+  const [videoUploadedButNotSaved, setVideoUploadedButNotSaved] = useState(false);
+  const [lastSaveStatus, setLastSaveStatus] = useState(''); // 'saved', 'error', or ''
+
+  // Content Management States for Days 0-7
+  const [selectedContentDay, setSelectedContentDay] = useState(0);
+  const [contentType, setContentType] = useState('motivation');
+  const [contentData, setContentData] = useState({
+    motivation: { english: '', kannada: '', hindi: '' },
+    healthcareTips: { english: '', kannada: '', hindi: '' },
+    reminder: { english: '', kannada: '', hindi: '' },
+    dailyTasks: { english: '', kannada: '', hindi: '' },
+    audioContent: { english: '', kannada: '', hindi: '' }
+  });
+  const [uploadingContent, setUploadingContent] = useState({
+    motivation: { english: false, kannada: false, hindi: false },
+    healthcareTips: { english: false, kannada: false, hindi: false },
+    reminder: { english: false, kannada: false, hindi: false },
+    dailyTasks: { english: false, kannada: false, hindi: false },
+    audioContent: { english: false, kannada: false, hindi: false }
+  });
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
     checkMobile();
@@ -81,6 +103,29 @@ export default function ProgramConfigManager() {
   useEffect(() => {
     loadDayContent();
   }, [selectedDay, selectedBurdenLevel]);
+
+  // Reset selectedBurdenLevel to first option when day changes
+  useEffect(() => {
+    const getFirstOptionForDay = (day) => {
+      switch (day) {
+        case 1: return 'mild';
+        case 2: return 'low';
+        case 3: return 'physical';
+        case 4: return 'wound-care';
+        default: return 'mild';
+      }
+    };
+    
+    const firstOption = getFirstOptionForDay(selectedDay);
+    if (selectedBurdenLevel !== firstOption) {
+      setSelectedBurdenLevel(firstOption);
+    }
+  }, [selectedDay]);
+
+  // Load content data when selected day or content type changes
+  useEffect(() => {
+    loadContentData();
+  }, [selectedContentDay, contentType]);
 
   const loadConfig = async () => {
     try {
@@ -137,9 +182,16 @@ export default function ProgramConfigManager() {
     const formData = new FormData();
     formData.append('video', file);
 
+    // Validate file size before upload
+    const fileSizeInMB = file.size / (1024 * 1024);
+    if (fileSizeInMB > 500) {
+      alert(`❌ File too large! Maximum size is 500MB. Your file is ${fileSizeInMB.toFixed(2)}MB`);
+      return;
+    }
+
     // Set uploading state based on context
     if (isDay0) {
-      setUploadingDay0({ ...uploadingDay0, [targetLanguage]: true });
+      setUploadingDayVideo(true);
     } else if (burdenLevel) {
       // Day 1 upload
       setUploadingDay1({
@@ -154,26 +206,77 @@ export default function ProgramConfigManager() {
     }
 
     try {
+      // Create timeout controller with longer timeout for large files
+      const controller = new AbortController();
+      const timeoutDuration = fileSizeInMB > 100 ? 300000 : 180000; // 5 minutes for large files, 3 minutes for smaller
+      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+
+      console.log(`📤 Starting upload: ${fileSizeInMB.toFixed(2)}MB file with ${timeoutDuration/1000}s timeout`);
+
       const response = await fetch('/api/admin/upload-video', {
         method: 'POST',
         body: formData,
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
         
         if (isDay0) {
-          setDay0IntroVideo({
+          // For Day 0, update dayContent state (not day0IntroVideo) when uploading from video config section
+          const updatedDayContent = {
+            ...dayContent,
+            videoUrl: {
+              ...dayContent.videoUrl,
+              [targetLanguage]: data.url
+            }
+          };
+          setDayContent(updatedDayContent);
+          
+          // Also update day0IntroVideo for saving
+          const updatedDay0IntroVideo = {
             ...day0IntroVideo,
             videoUrl: {
               ...day0IntroVideo.videoUrl,
               [targetLanguage]: data.url
             }
-          });
-          alert(`Day 0 video uploaded successfully for ${targetLanguage}!`);
+          };
+          setDay0IntroVideo(updatedDay0IntroVideo);
+          
+          alert(`✅ Day 0 video uploaded successfully for ${targetLanguage}!\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n💾 Auto-saving configuration...`);
+          
+          // Auto-save Day 0 configuration
+          try {
+            const saveResponse = await fetch('/api/admin/program/config/day0', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ day0IntroVideo: updatedDay0IntroVideo }),
+            });
+            
+            if (saveResponse.ok) {
+              setVideoUploadedButNotSaved(false);
+              setLastSaveStatus('saved');
+              alert(`🎉 Day 0 video uploaded and saved successfully for ${targetLanguage}!\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n✅ Configuration auto-saved to database`);
+              setTimeout(() => setLastSaveStatus(''), 3000);
+            } else {
+              setVideoUploadedButNotSaved(true);
+              setLastSaveStatus('error');
+              alert(`✅ Video uploaded for ${targetLanguage}, but auto-save failed.\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n⚠️ Please click 'Save Configuration' button manually.`);
+              setTimeout(() => setLastSaveStatus(''), 3000);
+            }
+          } catch (saveError) {
+            console.error('Auto-save error:', saveError);
+            setVideoUploadedButNotSaved(true);
+            setLastSaveStatus('error');
+            alert(`✅ Video uploaded for ${targetLanguage}, but auto-save failed.\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n⚠️ Please click 'Save Configuration' button manually.`);
+            setTimeout(() => setLastSaveStatus(''), 3000);
+          }
+          
         } else if (burdenLevel) {
           // Day 1 video
-          setDay1Config({
+          const updatedDay1Config = {
             ...day1Config,
             [burdenLevel]: {
               ...day1Config[burdenLevel],
@@ -182,28 +285,105 @@ export default function ProgramConfigManager() {
                 [targetLanguage]: data.url
               }
             }
-          });
-          alert(`Day 1 video uploaded successfully for ${burdenLevel} burden - ${targetLanguage}!`);
+          };
+          setDay1Config(updatedDay1Config);
+          
+          alert(`✅ Day 1 video uploaded successfully for ${burdenLevel} burden - ${targetLanguage}!\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n💾 Auto-saving configuration...`);
+          
+          // Auto-save Day 1 configuration
+          try {
+            const saveResponse = await fetch('/api/admin/program/config/day1', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                day1Config: updatedDay1Config,
+                burdenTestQuestions
+              }),
+            });
+            
+            if (saveResponse.ok) {
+              setVideoUploadedButNotSaved(false);
+              setLastSaveStatus('saved');
+              alert(`🎉 Day 1 video uploaded and saved successfully for ${burdenLevel} burden - ${targetLanguage}!\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n✅ Configuration auto-saved to database`);
+              setTimeout(() => setLastSaveStatus(''), 3000);
+            } else {
+              setVideoUploadedButNotSaved(true);
+              setLastSaveStatus('error');
+              alert(`✅ Video uploaded for ${burdenLevel} burden - ${targetLanguage}, but auto-save failed.\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n⚠️ Please click 'Save Configuration' button manually.`);
+              setTimeout(() => setLastSaveStatus(''), 3000);
+            }
+          } catch (saveError) {
+            console.error('Auto-save error:', saveError);
+            setVideoUploadedButNotSaved(true);
+            setLastSaveStatus('error');
+            alert(`✅ Video uploaded for ${burdenLevel} burden - ${targetLanguage}, but auto-save failed.\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n⚠️ Please click 'Save Configuration' button manually.`);
+            setTimeout(() => setLastSaveStatus(''), 3000);
+          }
+          
         } else {
-          setDayContent({
+          // Days 2-7 video
+          const updatedDayContent = {
             ...dayContent,
             videoUrl: {
               ...dayContent.videoUrl,
               [targetLanguage]: data.url
             }
-          });
-          alert(`Day ${selectedDay} video uploaded successfully for ${targetLanguage}!`);
+          };
+          setDayContent(updatedDayContent);
+          
+          alert(`✅ Day ${selectedDay} video uploaded successfully for ${targetLanguage}!\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n💾 Auto-saving configuration...`);
+          
+          // Auto-save Days 2-7 configuration
+          try {
+            const saveResponse = await fetch('/api/admin/program/config/dynamic', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                day: selectedDay,
+                dayContent: updatedDayContent 
+              }),
+            });
+            
+            if (saveResponse.ok) {
+              setVideoUploadedButNotSaved(false);
+              setLastSaveStatus('saved');
+              alert(`🎉 Day ${selectedDay} video uploaded and saved successfully for ${targetLanguage}!\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n✅ Configuration auto-saved to database`);
+              setTimeout(() => setLastSaveStatus(''), 3000);
+            } else {
+              setVideoUploadedButNotSaved(true);
+              setLastSaveStatus('error');
+              alert(`✅ Video uploaded for Day ${selectedDay} - ${targetLanguage}, but auto-save failed.\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n⚠️ Please click 'Save Configuration' button manually.`);
+              setTimeout(() => setLastSaveStatus(''), 3000);
+            }
+          } catch (saveError) {
+            console.error('Auto-save error:', saveError);
+            setVideoUploadedButNotSaved(true);
+            setLastSaveStatus('error');
+            alert(`✅ Video uploaded for Day ${selectedDay} - ${targetLanguage}, but auto-save failed.\n📹 Size: ${fileSizeInMB.toFixed(2)}MB\n⚠️ Please click 'Save Configuration' button manually.`);
+            setTimeout(() => setLastSaveStatus(''), 3000);
+          }
         }
       } else {
         const error = await response.json();
-        alert(`Upload failed: ${error.error}`);
+        console.error('Upload response error:', error);
+        alert(`❌ Upload failed: ${error.error || 'Unknown error'}\n${error.details || 'Please check your internet connection and try again.'}`);
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload failed. Please try again.');
+      
+      if (error.name === 'AbortError') {
+        const timeoutMinutes = fileSizeInMB > 100 ? 5 : 3;
+        alert(`❌ Upload timed out after ${timeoutMinutes} minutes. Please try with a smaller file or check your internet connection.`);
+      } else if (error.message.includes('NetworkError') || error.message.includes('fetch')) {
+        alert('❌ Network error during upload. Please check your internet connection and try again.');
+      } else if (error.message.includes('413') || error.message.includes('Payload Too Large')) {
+        alert(`❌ File too large for upload (${fileSizeInMB.toFixed(2)}MB). Please use a smaller video file (recommended: under 100MB).`);
+      } else {
+        alert(`❌ Upload failed: ${error.message || 'Unknown error'}. Please try again.`);
+      }
     } finally {
       if (isDay0) {
-        setUploadingDay0({ ...uploadingDay0, [targetLanguage]: false });
+        setUploadingDayVideo(false);
       } else if (burdenLevel) {
         // Day 1 upload finished
         setUploadingDay1({
@@ -216,6 +396,81 @@ export default function ProgramConfigManager() {
       } else {
         setUploadingDayVideo(false);
       }
+    }
+  };
+
+  const handleVideoDelete = async (targetLanguage, isDay0 = false, burdenLevel = null) => {
+    if (!confirm(`Are you sure you want to delete the ${targetLanguage} video for Day ${selectedDay}?`)) {
+      return;
+    }
+
+    try {
+      let videoUrl = '';
+      let requestData = {
+        day: selectedDay,
+        language: targetLanguage,
+        burdenLevel: burdenLevel
+      };
+
+      // Get the current video URL for deletion
+      if (isDay0) {
+        videoUrl = dayContent.videoUrl[targetLanguage];
+      } else if (burdenLevel) {
+        videoUrl = day1Config[burdenLevel]?.videoUrl?.[targetLanguage];
+      } else {
+        videoUrl = dayContent.videoUrl[targetLanguage];
+      }
+
+      if (videoUrl) {
+        requestData.videoUrl = videoUrl;
+      }
+
+      const response = await fetch('/api/admin/delete-video', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData),
+      });
+
+      if (response.ok) {
+        // Update local state to remove the video
+        if (isDay0) {
+          setDayContent({
+            ...dayContent,
+            videoUrl: {
+              ...dayContent.videoUrl,
+              [targetLanguage]: ''
+            }
+          });
+        } else if (burdenLevel) {
+          setDay1Config({
+            ...day1Config,
+            [burdenLevel]: {
+              ...day1Config[burdenLevel],
+              videoUrl: {
+                ...day1Config[burdenLevel].videoUrl,
+                [targetLanguage]: ''
+              }
+            }
+          });
+        } else {
+          setDayContent({
+            ...dayContent,
+            videoUrl: {
+              ...dayContent.videoUrl,
+              [targetLanguage]: ''
+            }
+          });
+        }
+
+        alert(`✅ Video deleted successfully!`);
+        setVideoUploadedButNotSaved(true); // Enable save button
+      } else {
+        const error = await response.json();
+        alert(`❌ Delete failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('❌ Delete failed. Please try again.');
     }
   };
 
@@ -247,10 +502,20 @@ export default function ProgramConfigManager() {
       });
       if (response.ok) {
         alert('Day 0 configuration saved successfully!');
+        // Reset upload flags and set save status
+        setVideoUploadedButNotSaved(false);
+        setLastSaveStatus('saved');
+        // Clear save status after 3 seconds
+        setTimeout(() => setLastSaveStatus(''), 3000);
+      } else {
+        setLastSaveStatus('error');
+        setTimeout(() => setLastSaveStatus(''), 3000);
       }
     } catch (error) {
       console.error('Error saving Day 0 config:', error);
       alert('Failed to save Day 0 configuration');
+      setLastSaveStatus('error');
+      setTimeout(() => setLastSaveStatus(''), 3000);
     }
     setSaving(false);
   };
@@ -322,19 +587,115 @@ export default function ProgramConfigManager() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           day: selectedDay,
-          burdenLevel: selectedBurdenLevel,
+          burdenLevel: selectedDay === 0 ? null : selectedBurdenLevel,
           content: dayContent
         }),
       });
       if (response.ok) {
-        alert(`Day ${selectedDay} content saved for ${selectedBurdenLevel} burden level!`);
+        const message = selectedDay === 0 
+          ? `✅ Day ${selectedDay} content saved successfully (Core Module)!`
+          : `✅ Day ${selectedDay} content saved successfully for ${selectedBurdenLevel} level!`;
+        alert(message);
+        // Reset upload flags and set save status
+        setVideoUploadedButNotSaved(false);
+        setLastSaveStatus('saved');
+        // Clear save status after 3 seconds
+        setTimeout(() => setLastSaveStatus(''), 3000);
         loadDayContent();
+      } else {
+        // Get the error details from the response
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Save failed with status:', response.status, errorData);
+        alert(`❌ Failed to save content: ${errorData.error || 'Unknown error'}`);
+        setLastSaveStatus('error');
+        setTimeout(() => setLastSaveStatus(''), 3000);
       }
     } catch (error) {
       console.error('Error saving day content:', error);
-      alert('Failed to save day content');
+      alert(`❌ Failed to save day content: ${error.message}`);
+      setLastSaveStatus('error');
+      setTimeout(() => setLastSaveStatus(''), 3000);
     }
     setSaving(false);
+  };
+
+  // Content Management Functions
+  const handleContentUpload = async (file, language, type, day) => {
+    setUploadingContent(prev => ({
+      ...prev,
+      [type]: { ...prev[type], [language]: true }
+    }));
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('language', language);
+      formData.append('contentType', type);
+      formData.append('day', day.toString());
+
+      const response = await fetch('/api/admin/upload-content', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setContentData(prev => ({
+          ...prev,
+          [type]: { ...prev[type], [language]: data.url }
+        }));
+        alert(`${type} file uploaded successfully for Day ${day} in ${language}!`);
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading content:', error);
+      alert(`Failed to upload ${type} file`);
+    }
+
+    setUploadingContent(prev => ({
+      ...prev,
+      [type]: { ...prev[type], [language]: false }
+    }));
+  };
+
+  const saveContentData = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/admin/program/content-management', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          day: selectedContentDay,
+          contentType: contentType,
+          content: contentData[contentType]
+        }),
+      });
+      if (response.ok) {
+        alert(`Day ${selectedContentDay} ${contentType} content saved successfully!`);
+      }
+    } catch (error) {
+      console.error('Error saving content:', error);
+      alert('Failed to save content');
+    }
+    setSaving(false);
+  };
+
+  const loadContentData = async () => {
+    try {
+      const response = await fetch(`/api/admin/program/content-management?day=${selectedContentDay}&contentType=${contentType}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.content) {
+          setContentData(prev => ({
+            ...prev,
+            [contentType]: data.content
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading content:', error);
+    }
   };
 
   const addTask = () => {
@@ -505,6 +866,20 @@ export default function ProgramConfigManager() {
 
   return (
     <div style={styles.container}>
+      <style jsx>{`
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.02); }
+          100% { transform: scale(1); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .success-notification {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
       {/* Language Selector */}
       <div style={styles.card}>
         <h2 style={styles.cardTitle}>Select Language for Configuration</h2>
@@ -567,312 +942,11 @@ export default function ProgramConfigManager() {
         </button>
       </div>
 
-      {/* Day 0: Introductory Video */}
+      {/* Days 0-7: Dynamic Content */}
       <div style={styles.card}>
-        <h2 style={styles.cardTitle}>📺 Day 0: Introductory Video</h2>
-        <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '24px' }}>
-          This intro video is shown to ALL users before they take the burden assessment on Day 1.
-        </p>
-
-        <div>
-          <label style={styles.label}>Video Title ({selectedLanguage})</label>
-          <input
-            type="text"
-            style={styles.input}
-            value={day0IntroVideo.title[selectedLanguage] || ''}
-            onChange={(e) => setDay0IntroVideo({
-              ...day0IntroVideo,
-              title: { ...day0IntroVideo.title, [selectedLanguage]: e.target.value }
-            })}
-            placeholder={`Enter video title in ${selectedLanguage}`}
-          />
-        </div>
-
-        <div style={{ marginTop: '16px' }}>
-          <label style={styles.label}>Description ({selectedLanguage})</label>
-          <textarea
-            style={styles.textarea}
-            value={day0IntroVideo.description[selectedLanguage] || ''}
-            onChange={(e) => setDay0IntroVideo({
-              ...day0IntroVideo,
-              description: { ...day0IntroVideo.description, [selectedLanguage]: e.target.value }
-            })}
-            placeholder={`Enter video description in ${selectedLanguage}`}
-          />
-        </div>
-
-        <div style={{ marginTop: '16px' }}>
-          <label style={styles.label}>Video URL ({selectedLanguage})</label>
-          <input
-            type="text"
-            style={styles.input}
-            value={day0IntroVideo.videoUrl[selectedLanguage] || ''}
-            readOnly
-            placeholder="Upload video to get URL"
-          />
-          
-          <div style={styles.uploadSection}>
-            <p style={{ margin: '0 0 16px 0', color: '#6b7280' }}>
-              📤 Upload video for {selectedLanguage}
-            </p>
-            <input
-              type="file"
-              id={`day0-upload-${selectedLanguage}`}
-              style={styles.fileInput}
-              accept="video/*"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) handleVideoUpload(file, selectedLanguage, true);
-              }}
-            />
-            <label htmlFor={`day0-upload-${selectedLanguage}`} style={styles.uploadButton}>
-              {uploadingDay0[selectedLanguage] ? 'Uploading...' : 'Choose Video File'}
-            </label>
-            <p style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
-              Supported: MP4, MOV, AVI • Max 100MB (Free tier)
-            </p>
-          </div>
-        </div>
-
-        <button
-          style={{ ...styles.button, ...styles.buttonPrimary, marginTop: '24px' }}
-          onClick={saveDay0Config}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save Day 0 Configuration'}
-        </button>
-
-        <button
-          style={{ 
-            ...styles.button, 
-            backgroundColor: syncing ? '#9ca3af' : '#059669',
-            color: 'white',
-            marginTop: '12px',
-            width: '100%'
-          }}
-          onClick={syncDay0ToAllCaregivers}
-          disabled={syncing}
-        >
-          {syncing ? '🔄 Syncing...' : '🔄 Sync Day 0 to All Caregivers'}
-        </button>
-
-        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' }}>
-          💡 Click "Sync" after saving to update all existing caregiver programs with the latest Day 0 videos
-        </p>
-      </div>
-
-      {/* Day 1: Burden Test + Videos */}
-      <div style={styles.card}>
-        <h2 style={styles.cardTitle}>📋 Day 1: Burden Assessment + Video</h2>
-        
-        {/* Burden Test Questions Management */}
-        <div style={{ marginBottom: '32px' }}>
-          <h3 style={styles.sectionTitle}>Zarit Burden Assessment Questions</h3>
-          <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-            Manage the 7 MCQ questions for burden assessment. Caregivers answer these first, then see a video based on their score.
-          </p>
-          
-          {burdenTestQuestions.map((question, index) => (
-            <div key={question.id} style={{ 
-              padding: '16px', 
-              border: '1px solid #e5e7eb', 
-              borderRadius: '8px',
-              marginBottom: '12px',
-              backgroundColor: question.enabled ? 'white' : '#f9fafb'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <input
-                  type="checkbox"
-                  checked={question.enabled}
-                  onChange={() => toggleQuestion(question.id)}
-                  style={{ marginTop: '4px', cursor: 'pointer' }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <strong style={{ color: '#111827' }}>Question {index + 1}:</strong>
-                    <span style={{ 
-                      padding: '2px 8px', 
-                      borderRadius: '4px', 
-                      fontSize: '12px',
-                      backgroundColor: question.enabled ? '#dcfce7' : '#f3f4f6',
-                      color: question.enabled ? '#166534' : '#6b7280'
-                    }}>
-                      {question.enabled ? 'Active' : 'Disabled'}
-                    </span>
-                  </div>
-                  <textarea
-                    value={question.text}
-                    onChange={(e) => updateQuestionText(question.id, e.target.value)}
-                    disabled={!question.enabled}
-                    style={{
-                      ...styles.input,
-                      minHeight: '60px',
-                      opacity: question.enabled ? 1 : 0.6
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Day 1 Videos by Burden Level */}
-        <div style={{ marginBottom: '24px' }}>
-          <h3 style={styles.sectionTitle}>Post-Assessment Videos</h3>
-          <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-            Upload videos that will be shown AFTER the burden test, based on the caregiver's score.
-          </p>
-          
-          {/* Burden Level Selector for Day 1 */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={styles.label}>Select Burden Level</label>
-            <select
-              style={styles.input}
-              value={day1SelectedBurden}
-              onChange={(e) => setDay1SelectedBurden(e.target.value)}
-            >
-              <option value="mild">😊 Mild Burden (Score 0-10)</option>
-              <option value="moderate">😐 Moderate Burden (Score 11-20)</option>
-              <option value="severe">😟 Severe Burden (Score 21-28)</option>
-            </select>
-          </div>
-
-          {/* Language Tabs for Day 1 */}
-          <div style={styles.languageTabs}>
-            {['english', 'kannada', 'hindi'].map(lang => (
-              <button
-                key={lang}
-                onClick={() => setSelectedLanguage(lang)}
-                style={{
-                  ...styles.languageTab,
-                  ...(selectedLanguage === lang ? styles.languageTabActive : {})
-                }}
-              >
-                {lang === 'english' ? 'English' : lang === 'kannada' ? 'ಕನ್ನಡ' : 'हिंदी'}
-              </button>
-            ))}
-          </div>
-
-          {/* Video Configuration for Selected Burden Level */}
-          <div style={{ marginTop: '24px' }}>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={styles.label}>Video Title ({selectedLanguage})</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={day1Config[day1SelectedBurden].videoTitle[selectedLanguage] || ''}
-                onChange={(e) => setDay1Config({
-                  ...day1Config,
-                  [day1SelectedBurden]: {
-                    ...day1Config[day1SelectedBurden],
-                    videoTitle: {
-                      ...day1Config[day1SelectedBurden].videoTitle,
-                      [selectedLanguage]: e.target.value
-                    }
-                  }
-                })}
-                placeholder={`Enter video title in ${selectedLanguage}`}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={styles.label}>Video URL ({selectedLanguage})</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={day1Config[day1SelectedBurden].videoUrl[selectedLanguage] || ''}
-                onChange={(e) => setDay1Config({
-                  ...day1Config,
-                  [day1SelectedBurden]: {
-                    ...day1Config[day1SelectedBurden],
-                    videoUrl: {
-                      ...day1Config[day1SelectedBurden].videoUrl,
-                      [selectedLanguage]: e.target.value
-                    }
-                  }
-                })}
-                placeholder="Upload video to get URL"
-              />
-              
-              <div style={styles.uploadSection}>
-                <p style={{ margin: '0 0 16px 0', color: '#6b7280' }}>
-                  📤 Upload video for {day1SelectedBurden} burden - {selectedLanguage}
-                </p>
-                <input
-                  type="file"
-                  id={`day1-upload-${day1SelectedBurden}-${selectedLanguage}`}
-                  style={styles.fileInput}
-                  accept="video/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      handleVideoUpload(file, selectedLanguage, false, day1SelectedBurden);
-                    }
-                  }}
-                />
-                <label 
-                  htmlFor={`day1-upload-${day1SelectedBurden}-${selectedLanguage}`} 
-                  style={styles.uploadButton}
-                >
-                  {uploadingDay1[day1SelectedBurden][selectedLanguage] ? 'Uploading...' : 'Choose Video File'}
-                </label>
-                <p style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
-                  Supported: MP4, MOV, AVI • Max 100MB (Free tier)
-                </p>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={styles.label}>Description ({selectedLanguage})</label>
-              <textarea
-                style={{ ...styles.input, minHeight: '80px' }}
-                value={day1Config[day1SelectedBurden].description[selectedLanguage] || ''}
-                onChange={(e) => setDay1Config({
-                  ...day1Config,
-                  [day1SelectedBurden]: {
-                    ...day1Config[day1SelectedBurden],
-                    description: {
-                      ...day1Config[day1SelectedBurden].description,
-                      [selectedLanguage]: e.target.value
-                    }
-                  }
-                })}
-                placeholder={`Enter video description in ${selectedLanguage}`}
-              />
-            </div>
-          </div>
-        </div>
-
-        <button
-          style={{ ...styles.button, ...styles.buttonPrimary, marginTop: '24px', width: '100%' }}
-          onClick={saveDay1Config}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save Day 1 Configuration'}
-        </button>
-
-        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' }}>
-          💡 Upload videos for all 3 burden levels (mild, moderate, severe) and all 3 languages
-        </p>
-      </div>
-
-      {/* Days 2-9: Dynamic Content */}
-      <div style={styles.card}>
-        <h2 style={styles.cardTitle}>🎯 Days 2-9: Personalized Content</h2>
+                <h2 style={styles.cardTitle}>🎯 Days 0-7: Video Content Management</h2>
         
         <div style={styles.grid}>
-          <div>
-            <label style={styles.label}>Select Burden Level</label>
-            <select
-              style={styles.input}
-              value={selectedBurdenLevel}
-              onChange={(e) => setSelectedBurdenLevel(e.target.value)}
-            >
-              <option value="mild">😊 Mild Burden</option>
-              <option value="moderate">😐 Moderate Burden</option>
-              <option value="severe">😟 Severe Burden</option>
-            </select>
-          </div>
           <div>
             <label style={styles.label}>Select Day</label>
             <select
@@ -880,14 +954,205 @@ export default function ProgramConfigManager() {
               value={selectedDay}
               onChange={(e) => setSelectedDay(parseInt(e.target.value))}
             >
-              {[2, 3, 4, 5, 6, 7, 8, 9].map(day => (
+              {[0, 1, 2, 3, 4, 5, 6, 7].map(day => (
                 <option key={day} value={day}>Day {day}</option>
               ))}
             </select>
           </div>
+          
+          <div>
+            {selectedDay === 0 && (
+              <div style={{ 
+                padding: '16px', 
+                backgroundColor: '#f0f9ff', 
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#1e40af'
+              }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                  📺 Day 0 - Core Module (Introduction)
+                </p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
+                  Same video for all caregivers - introductory content
+                </p>
+              </div>
+            )}
+
+            {selectedDay === 1 && (
+              <>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#334155',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: '8px'
+                  }}>
+                    📋 Module Assignment
+                  </h4>
+                  <div>
+                    <label style={styles.label}>Select Burden Level</label>
+                    <select
+                      style={styles.input}
+                      value={selectedBurdenLevel}
+                      onChange={(e) => setSelectedBurdenLevel(e.target.value)}
+                    >
+                      <option value="mild">😊 Mild Burden</option>
+                      <option value="moderate">😐 Moderate Burden</option>
+                      <option value="severe">😟 Severe Burden</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {selectedDay === 2 && (
+              <>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#334155',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: '8px'
+                  }}>
+                    📊 Module Assignment
+                  </h4>
+                  <div>
+                    <label style={styles.label}>Select Stress Level</label>
+                    <select
+                      style={styles.input}
+                      value={selectedBurdenLevel}
+                      onChange={(e) => setSelectedBurdenLevel(e.target.value)}
+                    >
+                      <option value="low">😌 Low Stress</option>
+                      <option value="moderate">😐 Moderate Stress</option>
+                      <option value="high">😰 High Stress</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {selectedDay === 3 && (
+              <>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#334155',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: '8px'
+                  }}>
+                    🧠 Module Assignment
+                  </h4>
+                  <div>
+                    <label style={styles.label}>WHOQOL-BREF Questions Interpretations</label>
+                    <select
+                      style={styles.input}
+                      value={selectedBurdenLevel}
+                      onChange={(e) => setSelectedBurdenLevel(e.target.value)}
+                    >
+                      <option value="physical">🏃‍♂️ Physical Health Domain</option>
+                      <option value="psychological">🧠 Psychological Domain</option>
+                      <option value="social">👥 Social Relationships Domain</option>
+                      <option value="environment">🌍 Environment Domain</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {selectedDay === 4 && (
+              <>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#334155',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: '8px'
+                  }}>
+                    🏥 Module Assignment
+                  </h4>
+                  <div>
+                    <label style={styles.label}>Care Type Options</label>
+                    <select
+                      style={styles.input}
+                      value={selectedBurdenLevel}
+                      onChange={(e) => setSelectedBurdenLevel(e.target.value)}
+                    >
+                      <option value="wound-care">🩹 Wound Care</option>
+                      <option value="drain-care">🔧 Drain Care</option>
+                      <option value="stoma-care">🎯 Stoma Care</option>
+                      <option value="feeding-tube">🍽️ Feeding Tube (NG/PEG)</option>
+                      <option value="urinary-catheter">💧 Urinary Catheter</option>
+                      <option value="oral-anticancer">💊 Oral Anticancer Medication</option>
+                      <option value="bedbound-patient">🛏️ Bedbound Patient</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {selectedDay >= 5 && selectedDay <= 7 && (
+              <div style={{ 
+                padding: '16px', 
+                backgroundColor: '#f3f4f6', 
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#6b7280'
+              }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                  📝 No video upload required for Day {selectedDay}
+                </p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
+                  This day is reserved for assessments and other activities
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <h3 style={styles.sectionTitle}>Video Configuration</h3>
+        {/* Video Configuration - Only show for days 0-4 */}
+        {selectedDay >= 0 && selectedDay <= 4 && (
+          <>
+            <h3 style={styles.sectionTitle}>
+              Video Configuration - Day {selectedDay} 
+              {selectedDay === 0 ? ' (Core Module - All Caregivers)' :
+               selectedDay === 1 ? ` (${selectedBurdenLevel} Burden Level)` :
+               selectedDay === 2 ? ` (${selectedBurdenLevel} Stress Level)` :
+               selectedDay === 3 ? ` (${selectedBurdenLevel} Domain)` :
+               selectedDay === 4 ? ` (${selectedBurdenLevel} Care Type)` : ''}
+            </h3>
         
         <div>
           <label style={styles.label}>Video Title ({selectedLanguage})</label>
@@ -913,10 +1178,30 @@ export default function ProgramConfigManager() {
             placeholder="Upload video to get URL"
           />
           
+          {/* Show video preview if URL exists */}
+          {dayContent.videoUrl[selectedLanguage] && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              backgroundColor: '#f0f9ff',
+              borderRadius: '8px',
+              border: '1px solid #0ea5e9'
+            }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0369a1', fontWeight: '500' }}>
+                ✅ Video uploaded successfully
+              </p>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                URL: {dayContent.videoUrl[selectedLanguage].substring(0, 60)}...
+              </p>
+            </div>
+          )}
+          
           <div style={styles.uploadSection}>
             <p style={{ margin: '0 0 16px 0', color: '#6b7280' }}>
-              📤 Upload video for Day {selectedDay} ({selectedBurdenLevel}) in {selectedLanguage}
+              📤 {dayContent.videoUrl[selectedLanguage] ? 'Replace' : 'Upload'} video for Day {selectedDay} {selectedDay === 0 ? '(Core Module)' : `(${selectedBurdenLevel})`} in {selectedLanguage}
             </p>
+            
+            {/* Upload/Replace Button */}
             <input
               type="file"
               id={`day-${selectedDay}-upload-${selectedLanguage}`}
@@ -924,12 +1209,37 @@ export default function ProgramConfigManager() {
               accept="video/*"
               onChange={(e) => {
                 const file = e.target.files[0];
-                if (file) handleVideoUpload(file, selectedLanguage, false);
+                if (file) handleVideoUpload(file, selectedLanguage, selectedDay === 0);
               }}
             />
-            <label htmlFor={`day-${selectedDay}-upload-${selectedLanguage}`} style={styles.uploadButton}>
-              {uploadingDayVideo ? 'Uploading...' : 'Choose Video File'}
+            <label 
+              htmlFor={`day-${selectedDay}-upload-${selectedLanguage}`} 
+              style={{
+                ...styles.uploadButton,
+                backgroundColor: uploadingDayVideo ? '#9ca3af' : styles.uploadButton.backgroundColor,
+                cursor: uploadingDayVideo ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {uploadingDayVideo ? 'Uploading...' : dayContent.videoUrl[selectedLanguage] ? '🔄 Replace Video' : '📤 Upload Video'}
             </label>
+            
+            {/* Delete Button - Only show if video exists */}
+            {dayContent.videoUrl[selectedLanguage] && !uploadingDayVideo && (
+              <button
+                onClick={() => handleVideoDelete(selectedLanguage, selectedDay === 0)}
+                style={{
+                  ...styles.uploadButton,
+                  backgroundColor: '#ef4444',
+                  marginLeft: '12px'
+                }}
+              >
+                🗑️ Delete Video
+              </button>
+            )}
+            
+            <p style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
+              Supported: MP4, MOV, AVI • Max 500MB
+            </p>
           </div>
         </div>
 
@@ -946,76 +1256,169 @@ export default function ProgramConfigManager() {
           />
         </div>
 
-        <h3 style={styles.sectionTitle}>Daily Tasks</h3>
         
-        <div style={{ marginBottom: '16px' }}>
-          {dayContent.tasks && dayContent.tasks.length > 0 ? (
-            dayContent.tasks.map((task, index) => (
-              <div key={task.taskId} style={styles.taskItem}>
-                <div style={{ flex: 1 }}>
-                  <strong>Task {index + 1}:</strong> {task.taskDescription[selectedLanguage] || task.taskDescription.english || '(No translation)'}
-                  <br />
-                  <span style={{ fontSize: '12px', color: '#6b7280' }}>Type: {task.taskType}</span>
-                </div>
-                <button
-                  style={{ ...styles.button, ...styles.buttonDanger, padding: '8px 16px' }}
-                  onClick={() => removeTask(task.taskId)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))
-          ) : (
-            <p style={{ color: '#6b7280', textAlign: 'center', padding: '20px' }}>No tasks added yet</p>
-          )}
-        </div>
 
-        <div style={{ border: '2px solid #e5e7eb', borderRadius: '8px', padding: '16px', backgroundColor: '#f9fafb' }}>
-          <h4 style={{ marginTop: 0, fontSize: '16px', fontWeight: '600' }}>Add New Task</h4>
-          
+            <button
+              style={{ 
+                ...styles.button, 
+                ...styles.buttonPrimary, 
+                marginTop: '24px', 
+                width: '100%',
+                backgroundColor: lastSaveStatus === 'saved' ? '#10b981' : 
+                               lastSaveStatus === 'error' ? '#ef4444' : 
+                               videoUploadedButNotSaved ? '#f59e0b' : 
+                               styles.buttonPrimary.backgroundColor,
+                animation: lastSaveStatus === 'saved' ? 'pulse 0.5s' : 'none'
+              }}
+              onClick={saveDayContent}
+              disabled={saving}
+            >
+              {saving ? '💾 Saving...' : 
+               lastSaveStatus === 'saved' ? '✅ Configuration Saved!' : 
+               lastSaveStatus === 'error' ? '❌ Save Failed - Retry' : 
+               videoUploadedButNotSaved ? '💾 Save Configuration' :
+               `💾 Save Day ${selectedDay} Configuration`}
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Content Management Section */}
+      <div style={styles.card}>
+        <h2 style={styles.cardTitle}>📝 Content Management - Days 0-7</h2>
+        <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '24px' }}>
+          Upload and manage various types of content for caregivers including motivation messages, healthcare tips, reminders, daily tasks, and audio content.
+        </p>
+
+        <div style={styles.grid}>
           <div>
-            <label style={styles.label}>Task Description ({selectedLanguage})</label>
-            <textarea
-              style={{ ...styles.textarea, minHeight: '80px' }}
-              value={newTask.taskDescription[selectedLanguage] || ''}
-              onChange={(e) => setNewTask({
-                ...newTask,
-                taskDescription: { ...newTask.taskDescription, [selectedLanguage]: e.target.value }
-              })}
-              placeholder={`Enter task description in ${selectedLanguage}`}
-            />
-          </div>
-
-          <div style={{ marginTop: '12px' }}>
-            <label style={styles.label}>Task Type</label>
+            <label style={styles.label}>Select Day</label>
             <select
               style={styles.input}
-              value={newTask.taskType}
-              onChange={(e) => setNewTask({ ...newTask, taskType: e.target.value })}
+              value={selectedContentDay}
+              onChange={(e) => setSelectedContentDay(parseInt(e.target.value))}
             >
-              <option value="checkbox">✓ Checkbox (Yes/No)</option>
-              <option value="text">✏️ Text Input</option>
-              <option value="reflection">💭 Reflection</option>
-              <option value="problem-solving">🧩 Problem Solving</option>
+              {[0, 1, 2, 3, 4, 5, 6, 7].map(day => (
+                <option key={day} value={day}>Day {day}</option>
+              ))}
             </select>
           </div>
 
-          <button
-            style={{ ...styles.button, ...styles.buttonSecondary, marginTop: '12px' }}
-            onClick={addTask}
-          >
-            + Add Task
-          </button>
+          <div>
+            <label style={styles.label}>Content Type</label>
+            <select
+              style={styles.input}
+              value={contentType}
+              onChange={(e) => setContentType(e.target.value)}
+            >
+              <option value="motivation">💪 Motivation Message</option>
+              <option value="healthcareTips">🏥 Healthcare Tips</option>
+              <option value="reminder">⏰ Reminder</option>
+              <option value="dailyTasks">📋 Daily Tasks</option>
+              <option value="audioContent">🎵 Audio Content</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Language Tabs */}
+        <div style={styles.languageTabs}>
+          {['english', 'kannada', 'hindi'].map(lang => (
+            <button
+              key={lang}
+              onClick={() => setSelectedLanguage(lang)}
+              style={{
+                ...styles.languageTab,
+                ...(selectedLanguage === lang ? styles.languageTabActive : {})
+              }}
+            >
+              {lang === 'english' ? 'English' : lang === 'kannada' ? 'ಕನ್ನಡ' : 'हिंदी'}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Type Specific Fields */}
+        <div style={{ marginTop: '24px' }}>
+          <h3 style={styles.sectionTitle}>
+            {contentType === 'motivation' ? '💪 Motivation Message Configuration' :
+             contentType === 'healthcareTips' ? '🏥 Healthcare Tips Configuration' :
+             contentType === 'reminder' ? '⏰ Reminder Configuration' :
+             contentType === 'dailyTasks' ? '📋 Daily Tasks Configuration' :
+             '🎵 Audio Content Configuration'} - Day {selectedContentDay}
+          </h3>
+
+          {contentType === 'audioContent' ? (
+            <div>
+              <label style={styles.label}>Audio File URL ({selectedLanguage})</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={contentData[contentType][selectedLanguage] || ''}
+                readOnly
+                placeholder="Upload audio file to get URL"
+              />
+              
+              <div style={styles.uploadSection}>
+                <p style={{ margin: '0 0 16px 0', color: '#6b7280' }}>
+                  🎵 Upload audio for Day {selectedContentDay} in {selectedLanguage}
+                </p>
+                <input
+                  type="file"
+                  id={`content-audio-${selectedContentDay}-${selectedLanguage}`}
+                  style={styles.fileInput}
+                  accept="audio/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) handleContentUpload(file, selectedLanguage, contentType, selectedContentDay);
+                  }}
+                />
+                <label htmlFor={`content-audio-${selectedContentDay}-${selectedLanguage}`} style={styles.uploadButton}>
+                  {uploadingContent[contentType][selectedLanguage] ? 'Uploading...' : 'Choose Audio File'}
+                </label>
+                <p style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
+                  Supported: MP3, WAV, M4A • Max 50MB
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label style={styles.label}>
+                {contentType === 'motivation' ? 'Motivation Message' :
+                 contentType === 'healthcareTips' ? 'Healthcare Tips' :
+                 contentType === 'reminder' ? 'Reminder Text' :
+                 'Daily Tasks'} ({selectedLanguage})
+              </label>
+              <textarea
+                style={{ ...styles.textarea, minHeight: '120px' }}
+                value={contentData[contentType][selectedLanguage] || ''}
+                onChange={(e) => setContentData({
+                  ...contentData,
+                  [contentType]: {
+                    ...contentData[contentType],
+                    [selectedLanguage]: e.target.value
+                  }
+                })}
+                placeholder={`Enter ${contentType === 'motivation' ? 'motivation message' :
+                  contentType === 'healthcareTips' ? 'healthcare tips' :
+                  contentType === 'reminder' ? 'reminder text' :
+                  'daily tasks'} in ${selectedLanguage}`}
+              />
+            </div>
+          )}
         </div>
 
         <button
           style={{ ...styles.button, ...styles.buttonPrimary, marginTop: '24px', width: '100%' }}
-          onClick={saveDayContent}
+          onClick={saveContentData}
           disabled={saving}
         >
-          {saving ? 'Saving...' : `Save Day ${selectedDay} Configuration`}
+          {saving ? 'Saving...' : `Save Day ${selectedContentDay} ${contentType} Content`}
         </button>
+
+        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' }}>
+          💡 Configure content for all days (0-7) and all content types in multiple languages
+        </p>
       </div>
+
     </div>
   );
 }

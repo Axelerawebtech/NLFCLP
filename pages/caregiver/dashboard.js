@@ -45,7 +45,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import ZaritBurdenAssessment from '../../components/ZaritBurdenAssessment';
 import ZaritBurdenAssessmentPreTest from '../../components/ZaritBurdenAssessmentPreTest';
 import NotificationSettings from '../../components/NotificationSettings';
-import TenDayProgramDashboard from '../../components/TenDayProgramDashboard';
+import SevenDayProgramDashboard from '../../components/SevenDayProgramDashboard';
 
 export default function CaregiverDashboard() {
   const router = useRouter();
@@ -114,16 +114,18 @@ export default function CaregiverDashboard() {
         setCaregiverData(data.caregiver);
         setProgramData(data.program);
         
-        // Check core module completion status
-        const coreModuleStatus = data.program?.dayModules?.[0]?.videoCompleted || false;
+        // Check core module completion status - Day 0 is complete only when both video AND audio are completed
+        const day0Module = data.program?.dayModules?.[0];
+        const coreModuleStatus = day0Module ? 
+          (day0Module.videoCompleted && day0Module.audioCompleted) : false;
         setCoreModuleCompleted(coreModuleStatus);
         
         // Determine initial view based on program state
         if (!data.program) {
           setCurrentView('assessment');
         } else {
-          // Default to 10-day program view for all users with a program
-          setCurrentView('tenDayProgram');
+          // Default to 7-day program view for all users with a program
+          setCurrentView('sevenDayProgram');
         }
         
         // Set current day from program data
@@ -166,8 +168,8 @@ export default function CaregiverDashboard() {
 
   const handleAssessmentComplete = (assessmentData) => {
     setProgramData(assessmentData.program);
-    // After completing assessment, go to 10-day program view
-    setCurrentView('tenDayProgram');
+    // After completing assessment, go to 7-day program view
+    setCurrentView('sevenDayProgram');
   };
 
   const handleStartDay1 = () => {
@@ -379,18 +381,18 @@ export default function CaregiverDashboard() {
               Overview
             </Button>
             <Button
-              variant={currentView === 'tenDayProgram' ? 'contained' : 'outlined'}
-              onClick={() => setCurrentView('tenDayProgram')}
+              variant={currentView === 'sevenDayProgram' ? 'contained' : 'outlined'}
+              onClick={() => setCurrentView('sevenDayProgram')}
               disabled={!programData}
               startIcon={<FaCalendarAlt />}
               sx={{ 
-                background: currentView === 'tenDayProgram' ? 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)' : 'transparent',
+                background: currentView === 'sevenDayProgram' ? 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)' : 'transparent',
                 '&:hover': {
-                  background: currentView === 'tenDayProgram' ? 'linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%)' : 'transparent'
+                  background: currentView === 'sevenDayProgram' ? 'linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%)' : 'transparent'
                 }
               }}
             >
-              10-Day Program
+              7-Day Program
             </Button>
             <Button
               variant={currentView === 'assessment' ? 'contained' : 'outlined'}
@@ -412,8 +414,8 @@ export default function CaregiverDashboard() {
         </Paper>
 
         {/* Content based on current view */}
-        {currentView === 'tenDayProgram' && caregiverData && (
-          <TenDayProgramDashboard 
+        {currentView === 'sevenDayProgram' && caregiverData && (
+          <SevenDayProgramDashboard 
             key={currentLanguage} 
             caregiverId={caregiverData._id} 
           />
@@ -498,12 +500,28 @@ export default function CaregiverDashboard() {
                           
                           <LinearProgress 
                             variant="determinate" 
-                            value={coreModuleCompleted ? 100 : 0}
+                            value={(() => {
+                              const day0Module = programData.dayModules?.[0];
+                              if (!day0Module) return 0;
+                              // Calculate progress: video (50%) + audio (50%)
+                              let progress = 0;
+                              if (day0Module.videoCompleted) progress += 50;
+                              if (day0Module.audioCompleted) progress += 50;
+                              return progress;
+                            })()}
                             sx={{ mb: 1, height: 8, borderRadius: 4 }}
                           />
                           
                           <Typography variant="body2" color="text.secondary">
-                            {coreModuleCompleted ? '100' : '0'}% Complete
+                            {(() => {
+                              const day0Module = programData.dayModules?.[0];
+                              if (!day0Module) return '0% Complete';
+                              // Calculate progress: video (50%) + audio (50%)
+                              let progress = 0;
+                              if (day0Module.videoCompleted) progress += 50;
+                              if (day0Module.audioCompleted) progress += 50;
+                              return `${progress}% Complete`;
+                            })()}
                           </Typography>
                           
                           {programData.currentDay === 0 && (

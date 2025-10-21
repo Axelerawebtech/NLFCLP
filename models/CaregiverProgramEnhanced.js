@@ -70,6 +70,14 @@ const DayModuleSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  // Audio completion tracking (for Day 0 sequential flow)
+  audioCompleted: {
+    type: Boolean,
+    default: false
+  },
+  audioCompletedAt: {
+    type: Date
+  },
   tasksCompleted: {
     type: Boolean,
     default: false
@@ -239,9 +247,10 @@ CaregiverProgramSchema.methods.updateDayProgress = function(day) {
 
   let progress = 0;
   
-  // Day 0 (Core module) - only video
+  // Day 0 (Core module) - video (50%) + audio (50%)
   if (day === 0) {
-    if (dayModule.videoCompleted) progress = 100;
+    if (dayModule.videoCompleted) progress += 50;
+    if (dayModule.audioCompleted) progress += 50;
   } else {
     // Days 1-7: Assessment (40%) + Video (40%) + Tasks (20%)
     if (dayModule.dailyAssessment) progress += 40;
@@ -272,6 +281,18 @@ CaregiverProgramSchema.methods.checkDayUnlock = function() {
       }
     }
   }
+};
+
+// Unlock day (automatically or manually by admin)
+CaregiverProgramSchema.methods.unlockDay = function(day, method = 'automatic') {
+  const dayModule = this.dayModules.find(m => m.day === day);
+  if (!dayModule) return false;
+  
+  const now = new Date();
+  dayModule.adminPermissionGranted = true;
+  dayModule.unlockedAt = now;
+  
+  return true;
 };
 
 const CaregiverProgram = mongoose.models.CaregiverProgram || mongoose.model('CaregiverProgram', CaregiverProgramSchema);

@@ -35,10 +35,16 @@ const DailyTaskSchema = new mongoose.Schema({
 });
 
 const DayModuleSchema = new mongoose.Schema({
-  day: { type: Number, required: true }, // 0-9 (10 days)
+  day: { type: Number, required: true }, // 0-7 (7 days + day 0)
   videoWatched: { type: Boolean, default: false },
   videoProgress: { type: Number, default: 0 }, // percentage
+  videoStartedAt: { type: Date },
+  videoCompletedAt: { type: Date },
   videoId: { type: String }, // Dynamic video based on burden level
+  
+  // Audio completion tracking
+  audioCompleted: { type: Boolean, default: false },
+  audioCompletedAt: { type: Date },
   
   // Day 1 specific fields (burden test)
   burdenTestCompleted: { type: Boolean, default: false }, // For Day 1 only
@@ -75,7 +81,8 @@ const DayModuleSchema = new mongoose.Schema({
   progressPercentage: { type: Number, default: 0 }, // overall module completion
   adminPermissionGranted: { type: Boolean, default: false },
   unlockedAt: { type: Date }, // When this day was unlocked
-  scheduledUnlockAt: { type: Date } // When this day should unlock based on wait time
+  scheduledUnlockAt: { type: Date }, // When this day should unlock based on wait time
+  lastModifiedAt: { type: Date, default: Date.now }
 });
 
 const CaregiverProgramSchema = new mongoose.Schema({
@@ -88,7 +95,7 @@ const CaregiverProgramSchema = new mongoose.Schema({
   zaritBurdenAssessment: ZaritBurdenSchema,
   dayModules: [DayModuleSchema],
   dailyTasks: [DailyTaskSchema],
-  currentDay: { type: Number, default: 0 }, // Current active day (0-9 for 10 days)
+  currentDay: { type: Number, default: 0 }, // Current active day (0-7 for 7 days + day 0)
   overallProgress: { type: Number, default: 0 }, // Overall program progress percentage
   burdenLevel: { 
     type: String, 
@@ -129,12 +136,12 @@ const CaregiverProgramSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Initialize day modules for new caregiver (10 days: 0-9)
+// Initialize day modules for new caregiver (7 days: 0-7)
 CaregiverProgramSchema.methods.initializeDayModules = function() {
   this.dayModules = [];
   const now = new Date();
   
-  for (let i = 0; i <= 9; i++) {
+  for (let i = 0; i <= 7; i++) {
     this.dayModules.push({
       day: i,
       adminPermissionGranted: i === 0 ? true : false, // Day 0 is always available
@@ -236,8 +243,8 @@ CaregiverProgramSchema.methods.assignDynamicContent = async function(programConf
     return false;
   }
   
-  // Assign content for days 2-9
-  for (let day = 2; day <= 9; day++) {
+  // Assign content for days 2-7
+  for (let day = 2; day <= 7; day++) {
     const dayContent = contentRules.days.get(String(day));
     const dayModule = this.dayModules.find(m => m.day === day);
     
@@ -269,9 +276,9 @@ CaregiverProgramSchema.methods.completeDayModule = function(day) {
     dayModule.completedAt = new Date();
     dayModule.progressPercentage = 100;
     
-    // Update overall progress (10 days total: 0-9)
+    // Update overall progress (7 days total: 0-7)
     const completedModules = this.dayModules.filter(module => module.progressPercentage === 100).length;
-    this.overallProgress = (completedModules / 10) * 100;
+    this.overallProgress = (completedModules / 8) * 100;
     
     this.lastActiveAt = new Date();
   }

@@ -43,8 +43,8 @@ export default function Home() {
     },
     {
       icon: <FaHeart style={{ fontSize: '3rem', color: '#ef4444' }} />,
-      title: t('tenDayProgram') || '10-Day Program',
-      description: t('tenDayProgramDesc') || 'Comprehensive stress management and emotional support program'
+      title: t('sevenDayProgram') || '7-Day Program',
+      description: t('sevenDayProgramDesc') || 'Comprehensive stress management and emotional support program'
     },
     {
       icon: <FaUsers style={{ fontSize: '3rem', color: '#10b981' }} />,

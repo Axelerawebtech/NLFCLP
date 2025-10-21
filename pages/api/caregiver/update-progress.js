@@ -1,5 +1,5 @@
 import dbConnect from '../../../lib/mongodb';
-import CaregiverProgram from '../../../models/CaregiverProgram';
+import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
 import ProgramConfig from '../../../models/ProgramConfig';
 
 export default async function handler(req, res) {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { caregiverId, day, videoProgress, videoWatched, taskResponses, tasksCompleted } = req.body;
+      const { caregiverId, day, videoProgress, videoWatched, videoCompleted, taskResponses, tasksCompleted } = req.body;
       
       if (!caregiverId || day === undefined) {
         return res.status(400).json({
@@ -43,6 +43,16 @@ export default async function handler(req, res) {
         dayModule.videoWatched = videoWatched;
       }
       
+      if (videoCompleted !== undefined) {
+        dayModule.videoCompleted = videoCompleted;
+        if (videoCompleted) {
+          dayModule.videoCompletedAt = new Date();
+          // Mark as watched when completed
+          dayModule.videoWatched = true;
+          dayModule.videoProgress = 100;
+        }
+      }
+      
       // Update task responses
       if (taskResponses && Array.isArray(taskResponses)) {
         dayModule.taskResponses = taskResponses;
@@ -54,17 +64,17 @@ export default async function handler(req, res) {
       
       // Calculate progress percentage
       let progress = 0;
-      if (dayModule.videoWatched) progress += 50;
+      if (dayModule.videoCompleted || dayModule.videoWatched) progress += 50;
       if (dayModule.tasksCompleted) progress += 50;
       dayModule.progressPercentage = progress;
       
       // Mark as completed if both video and tasks are done
-      if (dayModule.videoWatched && dayModule.tasksCompleted && !dayModule.completedAt) {
+      if ((dayModule.videoCompleted || dayModule.videoWatched) && dayModule.tasksCompleted && !dayModule.completedAt) {
         dayModule.completedAt = new Date();
         
         // Auto-unlock next day if configured
         const nextDay = day + 1;
-        if (nextDay <= 9) {
+        if (nextDay <= 7) {
           const config = await ProgramConfig.findOne({
             configType: 'caregiver-specific',
             caregiverId
@@ -82,7 +92,7 @@ export default async function handler(req, res) {
       
       // Update current day if this day is completed and it's the current day
       if (dayModule.progressPercentage === 100 && day === program.currentDay) {
-        program.currentDay = Math.min(day + 1, 9);
+        program.currentDay = Math.min(day + 1, 7);
       }
       
       // Recalculate overall progress

@@ -1,5 +1,5 @@
 import dbConnect from '../../../lib/mongodb';
-import CaregiverProgram from '../../../models/CaregiverProgram';
+import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
 import ProgramConfig from '../../../models/ProgramConfig';
 
 export default async function handler(req, res) {
@@ -29,26 +29,34 @@ export default async function handler(req, res) {
       const now = new Date();
       let unlockedDays = [];
       
-      for (const dayModule of program.dayModules) {
-        // Skip if already unlocked
-        if (dayModule.adminPermissionGranted) continue;
-        
-        // Check if scheduled unlock time has passed
-        if (dayModule.scheduledUnlockAt && dayModule.scheduledUnlockAt <= now) {
-          program.unlockDay(dayModule.day, 'automatic');
-          unlockedDays.push(dayModule.day);
+      if (program.dayModules && program.dayModules.length > 0) {
+        for (const dayModule of program.dayModules) {
+          // Skip if already unlocked
+          if (dayModule.adminPermissionGranted) continue;
+          
+          // Check if scheduled unlock time has passed
+          if (dayModule.scheduledUnlockAt && dayModule.scheduledUnlockAt <= now) {
+            // Use unlockDay method if available, otherwise set manually
+            if (typeof program.unlockDay === 'function') {
+              program.unlockDay(dayModule.day, 'automatic');
+            } else {
+              dayModule.adminPermissionGranted = true;
+              dayModule.unlockedAt = now;
+            }
+            unlockedDays.push(dayModule.day);
+          }
         }
-      }
-      
-      // Save if any days were unlocked
-      if (unlockedDays.length > 0) {
-        await program.save();
+        
+        // Save if any days were unlocked
+        if (unlockedDays.length > 0) {
+          await program.save();
+        }
       }
       
       // Get available days
       const availableDays = program.dayModules
-        .filter(m => m.adminPermissionGranted)
-        .map(m => m.day);
+        ? program.dayModules.filter(m => m.adminPermissionGranted).map(m => m.day)
+        : [];
       
       return res.status(200).json({
         success: true,

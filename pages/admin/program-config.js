@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import ProgramConfigManager from '../../components/ProgramConfigManager';
@@ -8,6 +8,71 @@ export default function ProgramConfigPage() {
   const router = useRouter();
   const [isBackHovered, setIsBackHovered] = useState(false);
   const [activeTab, setActiveTab] = useState('program'); // 'program' or 'burden'
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Authentication check
+  useEffect(() => {
+    const checkAuth = () => {
+      const adminToken = localStorage.getItem('adminToken');
+      const adminData = localStorage.getItem('adminData');
+      
+      if (!adminToken || !adminData) {
+        console.log('No admin credentials found, redirecting to login...');
+        router.push('/admin/login');
+        return;
+      }
+      
+      // Verify token hasn't expired (basic check)
+      try {
+        const tokenPayload = JSON.parse(atob(adminToken.split('.')[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+        
+        if (tokenPayload.exp && tokenPayload.exp < currentTime) {
+          console.log('Admin token expired, redirecting to login...');
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminData');
+          router.push('/admin/login');
+          return;
+        }
+        
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Error verifying token:', error);
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminData');
+        router.push('/admin/login');
+        return;
+      }
+      
+      setLoading(false);
+    };
+
+    checkAuth();
+  }, [router]);
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        backgroundColor: '#f9fafb' 
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '18px', marginBottom: '10px' }}>🔐 Verifying Admin Access...</div>
+          <div style={{ fontSize: '14px', color: '#666' }}>Please wait while we authenticate your session</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Only render the page if authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const styles = {
     pageContainer: {
@@ -111,7 +176,7 @@ export default function ProgramConfigPage() {
   return (
     <>
       <Head>
-        <title>10-Day Program Configuration - Admin</title>
+        <title>7-Day Program Configuration - Admin</title>
       </Head>
       
       <div style={styles.pageContainer}>
@@ -129,7 +194,7 @@ export default function ProgramConfigPage() {
                   ← Back to Dashboard
                 </button>
                 <h1 style={styles.title}>
-                  10-Day Program Configuration
+                  7-Day Program Configuration
                 </h1>
                 <p style={styles.subtitle}>
                   Configure wait times and dynamic content for caregiver programs

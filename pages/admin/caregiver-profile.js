@@ -743,7 +743,7 @@ export default function CaregiverProfile() {
               {/* Progress Tab */}
               {activeTab === 'progress' && (
                 <div>
-                  <h3 style={styles.sectionTitle}>10-Day Program Progress</h3>
+                  <h3 style={styles.sectionTitle}>7-Day Program Progress</h3>
                   
                   <div>
                     {statistics.daysProgress.map((day) => (
@@ -781,6 +781,21 @@ export default function CaregiverProfile() {
                                   {Math.round(day.videoProgress)}%
                                 </p>
                                 <p style={{ fontSize: '0.75rem', color: '#6b7280' }}>Video Watched</p>
+                              </div>
+                            )}
+                            
+                            {/* Audio Completion Status */}
+                            {day.day === 0 && (
+                              <div style={{ textAlign: 'center' }}>
+                                <p style={{ 
+                                  fontSize: '1.25rem', 
+                                  fontWeight: 'bold', 
+                                  color: day.audioCompleted ? '#16a34a' : '#6b7280', 
+                                  margin: 0 
+                                }}>
+                                  {day.audioCompleted ? '✅' : '⏳'}
+                                </p>
+                                <p style={{ fontSize: '0.75rem', color: '#6b7280' }}>Audio Status</p>
                               </div>
                             )}
                             

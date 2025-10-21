@@ -54,7 +54,7 @@ export default async function handler(req, res) {
       
       // Calculate detailed statistics
       let statistics = {
-        totalDays: 10,
+        totalDays: 8,
         completedDays: 0,
         currentDay: program?.currentDay || 0,
         overallProgress: program?.overallProgress || 0,
@@ -87,6 +87,8 @@ export default async function handler(req, res) {
             progressPercentage: module.progressPercentage,
             videoProgress: module.videoProgress || 0, // Add video progress percentage
             videoWatched: module.videoWatched,
+            audioCompleted: module.audioCompleted || false, // Add audio completion status
+            audioCompletedAt: module.audioCompletedAt,
             tasksCompleted: module.tasksCompleted,
             completedAt: module.completedAt,
             unlockedAt: module.unlockedAt,
