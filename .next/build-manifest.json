@@ -32,10 +32,10 @@
       "static/chunks/main.js",
       "static/chunks/pages/admin/program-config.js"
     ],
-    "/caregiver/dashboard": [
+    "/login": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/caregiver/dashboard.js"
+      "static/chunks/pages/login.js"
     ]
   },
   "ampFirstPages": []

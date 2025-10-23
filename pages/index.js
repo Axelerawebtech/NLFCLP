@@ -54,35 +54,43 @@ export default function Home() {
   ];
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      background: isDarkMode
-        ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
-        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    }}>
-      {/* Header */}
-      <Box sx={{
-        position: 'absolute',
-        top: 20,
-        right: 20,
-        zIndex: 1000,
-        display: 'flex',
-        gap: 2,
-        alignItems: 'center'
+    <Box 
+      component="main"
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #4338ca 0%, #5b21b6 100%)',
+        position: 'relative'
       }}>
-        <LanguageSelector />
-        <IconButton
-          onClick={toggleTheme}
-          sx={{
-            color: 'white',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            }
-          }}
-        >
-          {isDarkMode ? <FaSun /> : <FaMoon />}
-        </IconButton>
+      {/* Header with Logos */}
+      <Box sx={{
+        padding: '20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+      }}>
+        <Box component="img" src="/images/logo-1-nlfcp.png" alt="Logo 1" sx={{ height: '60px' }} />
+        <Box sx={{
+          display: 'flex',
+          gap: 2,
+          alignItems: 'center'
+        }}>
+          <LanguageSelector />
+          <IconButton
+            onClick={toggleTheme}
+            sx={{
+              color: 'white',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              }
+            }}
+          >
+            {isDarkMode ? <FaSun /> : <FaMoon />}
+          </IconButton>
+        </Box>
+        <Box component="img" src="/images/logo-2-nlfcp.png" alt="Logo 2" sx={{ height: '60px' }} />
       </Box>
 
       <Container maxWidth="lg" sx={{ pt: 8, pb: 4 }}>
@@ -232,44 +240,415 @@ export default function Home() {
           </motion.div>
         )}
 
-        {/* Features Section */}
-        <Grid container spacing={4} sx={{ mb: 8 }}>
-          {features.map((feature, index) => (
-            <Grid item xs={12} md={4} key={index}>
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: index * 0.2 }}
-                whileHover={{ y: -10 }}
+        {/* Feature Tags - Top Row */}
+        <Grid container spacing={2} sx={{ mb: 4, px: 2 }}>
+          <Grid item xs={6} md={4}>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Card sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                p: 1.5,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                }
+              }}>
+                <Box sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#f0f9ff',
+                  color: '#3b82f6',
+                  fontSize: '1.3rem'
+                }}>
+                  🧠
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
+                  Assessment
+                </Typography>
+              </Card>
+            </motion.div>
+          </Grid>
+          <Grid item xs={6} md={4}>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Card sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                p: 1.5,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                }
+              }}>
+                <Box sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#fef2f2',
+                  color: '#ef4444',
+                  fontSize: '1.3rem'
+                }}>
+                  🎥
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
+                  Learning Modules
+                </Typography>
+              </Card>
+            </motion.div>
+          </Grid>
+          <Grid item xs={6} md={4}>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Card sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                p: 1.5,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                }
+              }}>
+                <Box sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#f0fdf4',
+                  color: '#22c55e',
+                  fontSize: '1.3rem'
+                }}>
+                  💬
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
+                  Nurse Chat
+                </Typography>
+              </Card>
+            </motion.div>
+          </Grid>
+        </Grid>
+
+        {/* Profile Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Box textAlign="center" sx={{ mb: 4 }}>
+            <Card sx={{
+              maxWidth: 600,
+              mx: 'auto',
+              p: 0,
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
+              borderRadius: '16px',
+              overflow: 'hidden'
+            }}>
+              {/* Header Background */}
+              <Box sx={{
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                p: 3,
+                position: 'relative',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: '40px',
+                  background: 'linear-gradient(to top right, #fff 50%, transparent 51%)',
+                }
+              }}>
+                <Typography variant="h4" sx={{ 
+                  color: 'white', 
+                  fontWeight: 700, 
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  position: 'relative',
+                  zIndex: 1
+                }}>
+                  Mr. James Raj K
+                </Typography>
+              </Box>
+
+              {/* Content */}
+              <Box sx={{ 
+                p: 4, 
+                pt: 2,
+                background: 'white'
+              }}>
+                {/* Role & Institution Section */}
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1.5,
+                    mb: 2,
+                    p: 2,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderRadius: '8px'
+                  }}>
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      fontSize: '1.5rem'
+                    }}>
+                      🎓
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ color: '#1e40af', fontWeight: 600, lineHeight: 1.2 }}>
+                        PhD Scholar
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ color: '#6b7280' }}>
+                        KLE University, Belgaum
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1.5,
+                    p: 2,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderRadius: '8px'
+                  }}>
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      fontSize: '1.5rem'
+                    }}>
+                      👨‍🏫
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ color: '#1e40af', fontWeight: 600, lineHeight: 1.2 }}>
+                        Assistant Professor
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ color: '#6b7280' }}>
+                        Dayananda Sagar University
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+            </Card>
+          </Box>
+        </motion.div>
+
+        {/* Feature Tags - Bottom Row */}
+        <Box sx={{ mb: 8 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={6} md={4}>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Card sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                p: 1.5,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                }
+              }}>
+                <Box sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#fff7ed',
+                  color: '#f97316',
+                  fontSize: '1.3rem'
+                }}>
+                  📅
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
+                  Reminders
+                </Typography>
+              </Card>
+            </motion.div>
+          </Grid>
+          <Grid item xs={6} md={4}>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Card sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                p: 1.5,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                }
+              }}>
+                <Box sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#faf5ff',
+                  color: '#a855f7',
+                  fontSize: '1.3rem'
+                }}>
+                  📈
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
+                  Progress
+                </Typography>
+              </Card>
+            </motion.div>
+          </Grid>
+          <Grid item xs={6} md={4}>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Box
+                component="a"
+                href="tel:18008914416"
+                onClick={(e) => {
+                  const isMobile = /iPhone|iPad|iPod|Android/i.test(
+                    typeof navigator !== 'undefined' ? navigator.userAgent : ''
+                  );
+                  
+                  if (isMobile) {
+                    // Let the native mobile handling work directly
+                    // The href="tel:" will work automatically
+                    return true;
+                  } else {
+                    // Desktop handling
+                    e.preventDefault();
+                    const phoneNumber = '1800-89-14416';
+                    alert(`Please dial: ${phoneNumber}`);
+                  }
+                }}
+                sx={{
+                  display: 'block',
+                  textDecoration: 'none',
+                  WebkitTapHighlightColor: 'rgba(0,0,0,0)', // Remove tap highlight on mobile
+                  '&:active': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)' // Subtle feedback on tap
+                  }
+                }}
               >
-                <Card sx={{
-                  height: '100%',
-                  textAlign: 'center',
-                  p: 3,
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  transition: 'all 0.3s ease',
+                <Button
+                  fullWidth
+                  variant="contained"
+                  sx={{
+                    textTransform: 'none',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    color: '#1e40af',
+                    p: 2, // Increased padding for better touch target
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    borderRadius: '12px',
+                    boxShadow: 'none',
+                    minHeight: '56px', // Ensure good touch target size
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 1)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    },
+                    '&:active': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      transform: 'scale(0.98)',
+                    },
+                    '@media (max-width: 600px)': {
+                      p: 2.5, // Even more padding on mobile
+                    },
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  p: 1.5,
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  textDecoration: 'none',
                   '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
                   }
                 }}>
-                  <CardContent>
-                    <Box sx={{ mb: 2 }}>
-                      {feature.icon}
-                    </Box>
-                    <Typography variant="h5" sx={{ mb: 2, color: '#1e293b' }}>
-                      {feature.title}
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
-                      {feature.description}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </Grid>
-          ))}
+                <Box sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#ecfdf5',
+                  color: '#10b981',
+                  fontSize: '1.3rem'
+                }}>
+                  🔗
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  TELE-MANAS
+                </Typography>
+                <Typography variant="caption" sx={{ ml: 'auto', color: '#4b5563' }}>
+                  1800-89-14416
+                </Typography>
+              </Button>
+              </Box>
+            </motion.div>
+          </Grid>
         </Grid>
 
         {/* Call to Action */}
@@ -324,8 +703,9 @@ export default function Home() {
               </Button>
             </motion.div>
           </Box>
-        </motion.div>
-      </Container>
-    </Box>
-  );
+            </motion.div>
+          </Box>
+        </Container>
+      </Box>
+    );
 }
