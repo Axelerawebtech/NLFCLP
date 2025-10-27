@@ -61,16 +61,15 @@ export default function Home() {
         background: 'linear-gradient(135deg, #4338ca 0%, #5b21b6 100%)',
         position: 'relative'
       }}>
-      {/* Header with Logos */}
+      {/* Header with Controls */}
       <Box sx={{
         padding: '20px',
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(10px)',
       }}>
-        <Box component="img" src="/images/logo-1-nlfcp.png" alt="Logo 1" sx={{ height: '60px' }} />
         <Box sx={{
           display: 'flex',
           gap: 2,
@@ -90,7 +89,6 @@ export default function Home() {
             {isDarkMode ? <FaSun /> : <FaMoon />}
           </IconButton>
         </Box>
-        <Box component="img" src="/images/logo-2-nlfcp.png" alt="Logo 2" sx={{ height: '60px' }} />
       </Box>
 
       <Container maxWidth="lg" sx={{ pt: 8, pb: 4 }}>
@@ -355,126 +353,6 @@ export default function Home() {
             </motion.div>
           </Grid>
         </Grid>
-
-        {/* Profile Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Box textAlign="center" sx={{ mb: 4 }}>
-            <Card sx={{
-              maxWidth: 600,
-              mx: 'auto',
-              p: 0,
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
-              borderRadius: '16px',
-              overflow: 'hidden'
-            }}>
-              {/* Header Background */}
-              <Box sx={{
-                background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
-                p: 3,
-                position: 'relative',
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: '40px',
-                  background: 'linear-gradient(to top right, #fff 50%, transparent 51%)',
-                }
-              }}>
-                <Typography variant="h4" sx={{ 
-                  color: 'white', 
-                  fontWeight: 700, 
-                  textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  position: 'relative',
-                  zIndex: 1
-                }}>
-                  Mr. James Raj K
-                </Typography>
-              </Box>
-
-              {/* Content */}
-              <Box sx={{ 
-                p: 4, 
-                pt: 2,
-                background: 'white'
-              }}>
-                {/* Role & Institution Section */}
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 1.5,
-                    mb: 2,
-                    p: 2,
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    borderRadius: '8px'
-                  }}>
-                    <Box sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: '#3b82f6',
-                      color: 'white',
-                      fontSize: '1.5rem'
-                    }}>
-                      🎓
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" sx={{ color: '#1e40af', fontWeight: 600, lineHeight: 1.2 }}>
-                        PhD Scholar
-                      </Typography>
-                      <Typography variant="subtitle2" sx={{ color: '#6b7280' }}>
-                        KLE University, Belgaum
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 1.5,
-                    p: 2,
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    borderRadius: '8px'
-                  }}>
-                    <Box sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: '#3b82f6',
-                      color: 'white',
-                      fontSize: '1.5rem'
-                    }}>
-                      👨‍🏫
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" sx={{ color: '#1e40af', fontWeight: 600, lineHeight: 1.2 }}>
-                        Assistant Professor
-                      </Typography>
-                      <Typography variant="subtitle2" sx={{ color: '#6b7280' }}>
-                        Dayananda Sagar University
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              </Box>
-            </Card>
-          </Box>
-        </motion.div>
 
         {/* Feature Tags - Bottom Row */}
         <Box sx={{ mb: 8 }}>
