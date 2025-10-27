@@ -12,7 +12,6 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [selectedDay, setSelectedDay] = useState(null);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [useOrderedContent, setUseOrderedContent] = useState(true); // Enable ordered content system
 
   // Map language codes: en -> english, kn -> kannada, hi -> hindi
   const getLanguageKey = () => {
@@ -617,31 +616,37 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           </div>
           
           <div style={styles.contentBody}>
-            {/* Toggle between legacy and ordered content */}
-            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <label style={{ fontSize: '14px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={useOrderedContent}
-                  onChange={(e) => setUseOrderedContent(e.target.checked)}
-                  style={{ width: '16px', height: '16px' }}
-                />
-                Use New Ordered Content System
-              </label>
-              <span style={{ fontSize: '12px', color: '#9ca3af' }}>
-                (Sequential content unlocking with completion tracking)
-              </span>
-            </div>
+            {/* Always display ordered content system */}
+            <OrderedContentPlayer 
+              caregiverId={caregiverId}
+              day={selectedDay}
+              burdenLevel={programData?.burdenLevel}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            {useOrderedContent ? (
-              /* NEW: Ordered Content System */
-              <OrderedContentPlayer 
-                caregiverId={caregiverId}
-                day={selectedDay}
-                burdenLevel={programData?.burdenLevel}
-              />
-            ) : (
-              /* LEGACY: Original content system */
+  if (error) {
+    return (
+      <div style={{ 
+        padding: '32px',
+        textAlign: 'center',
+        color: '#dc2626',
+        backgroundColor: '#fef2f2',
+        border: '1px solid #fecaca',
+        borderRadius: '8px',
+        margin: '16px'
+      }}>
+        <h3 style={{ margin: '0 0 8px 0' }}>⚠️ Error Loading Program</h3>
+        <p style={{ margin: 0 }}>{error}</p>
+      </div>
+    );
+  }
+
+  return null;
+}
               <>
                 {/* Day 1 Special Handling: Burden Test → Video → Tasks */}
                 {selectedDay === 1 && (

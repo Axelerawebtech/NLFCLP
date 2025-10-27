@@ -516,10 +516,12 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
 
       // Submit to API with full caregiver payload
       submitRegistration({
-        ...mergedAnswers,
         userType: 'caregiver',
-        caregiverId: generatedId,
         consentAccepted: !!consentAccepted,
+        userData: {
+          ...mergedAnswers,
+          caregiverId: generatedId
+        },
         questionnaireAnswers: mergedAnswers
       });
 
@@ -676,10 +678,12 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
 
       // Submit to API
       submitRegistration({ 
-        ...newAnswers, 
         userType: 'caregiver', 
-        caregiverId: generatedId,
         consentAccepted: consentAccepted,
+        userData: {
+          ...newAnswers,
+          caregiverId: generatedId
+        },
         questionnaireAnswers: newAnswers
       });
       onNext();
@@ -706,15 +710,23 @@ function CaregiverForm({ formData, setFormData, onNext, onBack, consentAccepted 
       
       const result = await response.json();
       console.log('Caregiver registration response:', result);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
       
       if (!response.ok) {
-        throw new Error(result.message || getTranslation(currentLanguage, 'registrationFailed'));
+        console.error('Registration failed with status:', response.status);
+        console.error('Error details:', result);
+        throw new Error(result.message || result.error || getTranslation(currentLanguage, 'registrationFailed'));
       }
       
       console.log('Caregiver registration successful:', result);
+      // Show success message instead of just logging
+      alert('Registration successful! Welcome to the Cancer Care Support Program.');
     } catch (error) {
       console.error('Caregiver registration error:', error);
-      alert(getTranslation(currentLanguage, 'registrationFailed') + ': ' + error.message);
+      console.error('Error stack:', error.stack);
+      const errorMessage = error.message || 'Unknown error occurred';
+      alert(getTranslation(currentLanguage, 'registrationFailed') + ': ' + errorMessage);
     }
   };
 
@@ -1441,13 +1453,20 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
       setFormData({ ...newAnswers, userType: 'patient', generatedId });
 
       // Submit to API
-      submitRegistration({ 
-        ...newAnswers, 
+      const registrationData = {
         userType: 'patient', 
-        patientId: generatedId,
         consentAccepted: !!consentAccepted,
+        userData: {
+          ...newAnswers,
+          patientId: generatedId
+        },
         questionnaireAnswers: newAnswers
-      });
+      };
+      console.log('=== FRONTEND DEBUG ===');
+      console.log('newAnswers:', newAnswers);
+      console.log('generatedId:', generatedId);
+      console.log('Final registration data:', registrationData);
+      submitRegistration(registrationData);
       onNext();
     }
   };
@@ -1472,15 +1491,23 @@ const PatientForm = ({ formData, setFormData, onNext, onBack, consentAccepted })
       
       const result = await response.json();
       console.log('Patient registration response:', result);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
       
       if (!response.ok) {
-        throw new Error(result.message || getTranslation(currentLanguage, 'registrationFailed'));
+        console.error('Registration failed with status:', response.status);
+        console.error('Error details:', result);
+        throw new Error(result.message || result.error || getTranslation(currentLanguage, 'registrationFailed'));
       }
       
       console.log('Patient registration successful:', result);
+      // Show success message instead of just logging
+      alert('Registration successful! Welcome to the Cancer Care Support Program.');
     } catch (error) {
       console.error('Patient registration error:', error);
-      alert(getTranslation(currentLanguage, 'registrationFailed') + ': ' + error.message);
+      console.error('Error stack:', error.stack);
+      const errorMessage = error.message || 'Unknown error occurred';
+      alert(getTranslation(currentLanguage, 'registrationFailed') + ': ' + errorMessage);
     }
   };
 
