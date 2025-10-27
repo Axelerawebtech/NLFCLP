@@ -48,6 +48,55 @@ export default function ProgramConfigManager() {
     { id: 6, text: 'Does your relative expect you to be the only caregiver?', enabled: true },
     { id: 7, text: 'Do you wish you could leave care to someone else?', enabled: true }
   ]);
+
+  // Quick Assessment Questions (Yes/No type)
+  const [quickAssessmentQuestions, setQuickAssessmentQuestions] = useState([
+    { 
+      id: 1, 
+      questionText: {
+        english: 'Did you complete your daily self-care routine today?',
+        kannada: 'ನೀವು ಇಂದು ನಿಮ್ಮ ದೈನಂದಿನ ಸ್ವಯಂ-ಆರೈಕೆ ದಿನಚರಿಯನ್ನು ಪೂರ್ಣಗೊಳಿಸಿದ್ದೀರಾ?',
+        hindi: 'क्या आपने आज अपनी दैनिक स्व-देखभाल की दिनचर्या पूरी की?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 2, 
+      questionText: {
+        english: 'Did you feel stressed while caregiving today?',
+        kannada: 'ಇಂದು ಆರೈಕೆ ನೀಡುವಾಗ ನೀವು ಒತ್ತಡವನ್ನು ಅನುಭವಿಸಿದ್ದೀರಾ?',
+        hindi: 'क्या आज देखभाल करते समय आपको तनाव महसूस हुआ?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 3, 
+      questionText: {
+        english: 'Did you take any time for yourself today?',
+        kannada: 'ಇಂದು ನೀವು ನಿಮಗಾಗಿ ಸ್ವಲ್ಪ ಸಮಯ ತೆಗೆದುಕೊಂಡಿದ್ದೀರಾ?',
+        hindi: 'क्या आज आपने अपने लिए कुछ समय निकाला?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 4, 
+      questionText: {
+        english: 'Did you connect with family or friends today?',
+        kannada: 'ಇಂದು ನೀವು ಕುಟುಂಬ ಅಥವಾ ಸ್ನೇಹಿತರೊಂದಿಗೆ ಸಂಪರ್ಕದಲ್ಲಿದ್ದೀರಾ?',
+        hindi: 'क्या आज आपने परिवार या दोस्तों से संपर्क किया?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 5, 
+      questionText: {
+        english: 'Did you feel confident in your caregiving abilities today?',
+        kannada: 'ಇಂದು ನಿಮ್ಮ ಆರೈಕೆ ಸಾಮರ್ಥ್ಯದಲ್ಲಿ ನೀವು ವಿಶ್ವಾಸ ಹೊಂದಿದ್ದೀರಾ?',
+        hindi: 'क्या आज आपको अपनी देखभाल क्षमताओं पर भरोसा महसूस हुआ?'
+      },
+      enabled: true 
+    }
+  ]);
   
   // Days 2-9 Configuration
   const [selectedBurdenLevel, setSelectedBurdenLevel] = useState('mild');
@@ -82,14 +131,16 @@ export default function ProgramConfigManager() {
     healthcareTips: { english: '', kannada: '', hindi: '' },
     reminder: { english: '', kannada: '', hindi: '' },
     dailyTasks: { english: '', kannada: '', hindi: '' },
-    audioContent: { english: '', kannada: '', hindi: '' }
+    audioContent: { english: '', kannada: '', hindi: '' },
+    quickAssessment: { english: '', kannada: '', hindi: '' }
   });
   const [uploadingContent, setUploadingContent] = useState({
     motivation: { english: false, kannada: false, hindi: false },
     healthcareTips: { english: false, kannada: false, hindi: false },
     reminder: { english: false, kannada: false, hindi: false },
     dailyTasks: { english: false, kannada: false, hindi: false },
-    audioContent: { english: false, kannada: false, hindi: false }
+    audioContent: { english: false, kannada: false, hindi: false },
+    quickAssessment: { english: false, kannada: false, hindi: false }
   });
 
   useEffect(() => {
@@ -126,6 +177,11 @@ export default function ProgramConfigManager() {
   useEffect(() => {
     loadContentData();
   }, [selectedContentDay, contentType]);
+
+  // Load quick assessment questions on component mount
+  useEffect(() => {
+    loadQuickAssessmentQuestions();
+  }, []);
 
   const loadConfig = async () => {
     try {
@@ -728,6 +784,90 @@ export default function ProgramConfigManager() {
     });
   };
 
+  // Quick Assessment Management Functions
+  const addQuickAssessmentQuestion = () => {
+    const newQuestion = {
+      id: Date.now(),
+      questionText: {
+        english: '',
+        kannada: '',
+        hindi: ''
+      },
+      enabled: true
+    };
+    setQuickAssessmentQuestions([...quickAssessmentQuestions, newQuestion]);
+  };
+
+  const updateQuickAssessmentQuestion = (id, field, value, language = null) => {
+    setQuickAssessmentQuestions(quickAssessmentQuestions.map(q => {
+      if (q.id === id) {
+        if (language) {
+          return {
+            ...q,
+            [field]: {
+              ...q[field],
+              [language]: value
+            }
+          };
+        } else {
+          return { ...q, [field]: value };
+        }
+      }
+      return q;
+    }));
+  };
+
+  const removeQuickAssessmentQuestion = (id) => {
+    setQuickAssessmentQuestions(quickAssessmentQuestions.filter(q => q.id !== id));
+  };
+
+  // Load quick assessment questions from API
+  const loadQuickAssessmentQuestions = async () => {
+    try {
+      const response = await fetch('/api/admin/quick-assessment', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setQuickAssessmentQuestions(data.questions || []);
+      } else {
+        console.log('No existing quick assessment questions found');
+        // Keep default questions if none exist
+      }
+    } catch (error) {
+      console.error('Error loading quick assessment questions:', error);
+      showNotification('Failed to load quick assessment questions', 'error');
+    }
+  };
+
+  const saveQuickAssessmentQuestions = async () => {
+    try {
+      setSaving(true);
+      const response = await fetch('/api/admin/quick-assessment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questions: quickAssessmentQuestions
+        }),
+      });
+
+      if (response.ok) {
+        showNotification('Quick Assessment questions saved successfully!', 'success');
+      } else {
+        throw new Error('Failed to save questions');
+      }
+    } catch (error) {
+      console.error('Error saving quick assessment questions:', error);
+      showNotification('Failed to save Quick Assessment questions', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const styles = {
     container: { display: 'flex', flexDirection: 'column', gap: '32px' },
     card: {
@@ -1316,6 +1456,7 @@ export default function ProgramConfigManager() {
               <option value="reminder">⏰ Reminder</option>
               <option value="dailyTasks">📋 Daily Tasks</option>
               <option value="audioContent">🎵 Audio Content</option>
+              <option value="quickAssessment">❓ Quick Assessment</option>
             </select>
           </div>
         </div>
@@ -1343,6 +1484,7 @@ export default function ProgramConfigManager() {
              contentType === 'healthcareTips' ? '🏥 Healthcare Tips Configuration' :
              contentType === 'reminder' ? '⏰ Reminder Configuration' :
              contentType === 'dailyTasks' ? '📋 Daily Tasks Configuration' :
+             contentType === 'quickAssessment' ? '❓ Quick Assessment Configuration' :
              '🎵 Audio Content Configuration'} - Day {selectedContentDay}
           </h3>
 
@@ -1377,6 +1519,115 @@ export default function ProgramConfigManager() {
                 <p style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
                   Supported: MP3, WAV, M4A • Max 50MB
                 </p>
+              </div>
+            </div>
+          ) : contentType === 'quickAssessment' ? (
+            <div>
+              <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f0f9ff', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#1e40af', fontSize: '16px', fontWeight: '600' }}>
+                  ❓ Quick Assessment Questions
+                </h4>
+                <p style={{ margin: 0, fontSize: '14px', color: '#1e40af' }}>
+                  Create Yes/No questions for daily caregiver assessments. These will be shown to caregivers for quick daily check-ins.
+                </p>
+              </div>
+
+              {quickAssessmentQuestions.map((question, index) => (
+                <div key={question.id} style={{ 
+                  padding: '20px', 
+                  backgroundColor: '#f9fafb', 
+                  borderRadius: '8px', 
+                  marginBottom: '16px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h5 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                      Question {index + 1}
+                    </h5>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <label style={{ fontSize: '12px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <input
+                          type="checkbox"
+                          checked={question.enabled}
+                          onChange={(e) => updateQuickAssessmentQuestion(question.id, 'enabled', e.target.checked)}
+                        />
+                        Enabled
+                      </label>
+                      <button
+                        onClick={() => removeQuickAssessmentQuestion(question.id)}
+                        style={{
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🗑️ Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div>
+                      <label style={{ ...styles.label, fontSize: '12px' }}>English</label>
+                      <textarea
+                        style={{ ...styles.textarea, minHeight: '60px', fontSize: '14px' }}
+                        value={question.questionText.english}
+                        onChange={(e) => updateQuickAssessmentQuestion(question.id, 'questionText', e.target.value, 'english')}
+                        placeholder="Enter question in English"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ ...styles.label, fontSize: '12px' }}>ಕನ್ನಡ (Kannada)</label>
+                      <textarea
+                        style={{ ...styles.textarea, minHeight: '60px', fontSize: '14px' }}
+                        value={question.questionText.kannada}
+                        onChange={(e) => updateQuickAssessmentQuestion(question.id, 'questionText', e.target.value, 'kannada')}
+                        placeholder="Enter question in Kannada"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ ...styles.label, fontSize: '12px' }}>हिंदी (Hindi)</label>
+                      <textarea
+                        style={{ ...styles.textarea, minHeight: '60px', fontSize: '14px' }}
+                        value={question.questionText.hindi}
+                        onChange={(e) => updateQuickAssessmentQuestion(question.id, 'questionText', e.target.value, 'hindi')}
+                        placeholder="Enter question in Hindi"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <button
+                  onClick={addQuickAssessmentQuestion}
+                  style={{
+                    ...styles.button,
+                    backgroundColor: '#10b981',
+                    color: 'white'
+                  }}
+                >
+                  ➕ Add Question
+                </button>
+                <button
+                  onClick={saveQuickAssessmentQuestions}
+                  disabled={saving}
+                  style={{
+                    ...styles.button,
+                    ...styles.buttonPrimary
+                  }}
+                >
+                  {saving ? 'Saving...' : '💾 Save Questions'}
+                </button>
+              </div>
+
+              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fef3c7', borderRadius: '6px', fontSize: '12px', color: '#92400e' }}>
+                <strong>Note:</strong> These questions will appear as Yes/No options in the caregiver's daily assessment. 
+                Keep questions clear and focused on daily caregiving experiences.
               </div>
             </div>
           ) : (

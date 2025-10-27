@@ -348,7 +348,17 @@ const ProgramConfigSchema = new mongoose.Schema({
         kannada: { type: String },
         hindi: { type: String }
       }
-    }
+    },
+    quickAssessmentQuestions: [{
+      id: { type: String, required: true },
+      questionText: {
+        english: { type: String, required: true },
+        kannada: { type: String, required: true },
+        hindi: { type: String, required: true }
+      },
+      enabled: { type: Boolean, default: true },
+      createdAt: { type: Date, default: Date.now }
+    }]
   },
   
   isActive: { type: Boolean, default: true },
