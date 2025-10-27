@@ -728,7 +728,7 @@ export default function AdminDashboard() {
                             </TableCell>
                             <TableCell>
                               <IconButton
-                                onClick={() => router.push(`/admin/caregiver-profile?id=${caregiver._id}`)}
+                                onClick={() => router.push(`/admin/patient-profile?id=${patient._id}`)}
                                 color="primary"
                                 size="small"
                                 title="View profile"
@@ -737,10 +737,10 @@ export default function AdminDashboard() {
                                 <FaUser />
                               </IconButton>
                               <IconButton
-                                onClick={() => openDeleteDialog(caregiver, 'caregiver')}
+                                onClick={() => openDeleteDialog(patient, 'patient')}
                                 color="error"
                                 size="small"
-                                title="Delete caregiver"
+                                title="Delete patient"
                               >
                                 <FaTrash />
                               </IconButton>

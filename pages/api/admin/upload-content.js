@@ -3,7 +3,6 @@ import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { MongoClient } from 'mongodb';
 import dbConnect from '../../../lib/mongodb';
 import ProgramConfig from '../../../models/ProgramConfig';
 
@@ -100,57 +99,62 @@ export default async function handler(req, res) {
 
     // Update ProgramConfig with the new content URL
     try {
-      // Use direct MongoDB operations for better control
-      const client = new MongoClient(process.env.MONGODB_URI);
-      await client.connect();
+      await dbConnect();
       
-      const db = client.db();
-      const collection = db.collection('programconfigs');
-      
-      // Find the global config
-      let config = await collection.findOne({ 
+      // Find or create the global config
+      let config = await ProgramConfig.findOne({ 
         configType: 'global', 
         caregiverId: null 
       });
 
       if (!config) {
         // Create new config if none exists
-        const newConfig = {
+        config = new ProgramConfig({
           configType: 'global',
           caregiverId: null,
-          contentManagement: {
-            [contentType]: {
-              [day]: {
-                [language]: uploadResult.secure_url
-              }
-            }
-          },
           isActive: true,
           createdAt: new Date(),
           updatedAt: new Date()
-        };
-        
-        await collection.insertOne(newConfig);
-        console.log(`✅ New config created with content URL for Day ${day}, ${language}, ${contentType}`);
-      } else {
-        // Update existing config using dot notation
-        const updatePath = `contentManagement.${contentType}.${day}.${language}`;
-        
-        const result = await collection.updateOne(
-          { configType: 'global', caregiverId: null },
-          { 
-            $set: { 
-              [updatePath]: uploadResult.secure_url,
-              updatedAt: new Date()
-            }
-          }
-        );
-        
-        console.log(`✅ Content URL saved to database for Day ${day}, ${language}, ${contentType}`);
-        console.log(`📊 Update result: ${result.modifiedCount} document(s) modified`);
+        });
       }
+
+      // Initialize contentManagement if needed
+      if (!config.contentManagement) {
+        config.contentManagement = {};
+      }
+
+      // For audioContent (Map type), handle it properly
+      if (contentType === 'audioContent') {
+        if (!config.contentManagement.audioContent) {
+          config.contentManagement.audioContent = new Map();
+        }
+        
+        // Set the day map if it doesn't exist
+        if (!config.contentManagement.audioContent.get(day)) {
+          config.contentManagement.audioContent.set(day, {
+            english: '',
+            kannada: '',
+            hindi: ''
+          });
+        }
+        
+        // Update the specific language
+        const dayContent = config.contentManagement.audioContent.get(day) || {};
+        dayContent[language] = uploadResult.secure_url;
+        config.contentManagement.audioContent.set(day, dayContent);
+        
+        console.log(`✅ Audio content saved to Map for Day ${day}, ${language}`);
+      } else {
+        // For other content types, use the existing dot notation approach
+        const updatePath = `contentManagement.${contentType}.${day}.${language}`;
+        config.set(updatePath, uploadResult.secure_url);
+        console.log(`✅ Content saved using dot notation for Day ${day}, ${language}, ${contentType}`);
+      }
+
+      config.updatedAt = new Date();
+      await config.save();
       
-      await client.close();
+      console.log(`✅ Content URL saved to database for Day ${day}, ${language}, ${contentType}`);
 
     } catch (dbError) {
       console.error('Database save error:', dbError);

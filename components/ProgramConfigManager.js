@@ -676,6 +676,52 @@ export default function ProgramConfigManager() {
   };
 
   // Content Management Functions
+  const handleContentDelete = async (language, type, day) => {
+    if (!confirm(`Are you sure you want to delete the ${type} for Day ${day} in ${language}?`)) {
+      return;
+    }
+
+    try {
+      const contentUrl = contentData[type][language];
+      if (!contentUrl) {
+        alert('No content to delete.');
+        return;
+      }
+
+      const response = await fetch('/api/admin/delete-content', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language,
+          contentType: type,
+          day,
+          contentUrl
+        }),
+      });
+
+      if (response.ok) {
+        // Update local state to remove the content
+        setContentData(prev => ({
+          ...prev,
+          [type]: {
+            ...prev[type],
+            [language]: ''
+          }
+        }));
+        alert(`✅ ${type} deleted successfully for Day ${day} in ${language}!`);
+        
+        // Content is already deleted from database by delete-content API
+        // No need to call saveContentData again
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Delete failed' }));
+        throw new Error(errorData.error || 'Delete failed');
+      }
+    } catch (error) {
+      console.error('Error deleting content:', error);
+      alert(`❌ Failed to delete ${type}: ${error.message}`);
+    }
+  };
+
   const handleContentUpload = async (file, language, type, day) => {
     setUploadingContent(prev => ({
       ...prev,
@@ -700,13 +746,17 @@ export default function ProgramConfigManager() {
           ...prev,
           [type]: { ...prev[type], [language]: data.url }
         }));
-        alert(`${type} file uploaded successfully for Day ${day} in ${language}!`);
+        alert(`✅ ${type} uploaded successfully for Day ${day} in ${language}!`);
+        
+        // Content is already saved to database by upload-content API
+        // No need to call saveContentData again
       } else {
-        throw new Error('Upload failed');
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || 'Upload failed');
       }
     } catch (error) {
       console.error('Error uploading content:', error);
-      alert(`Failed to upload ${type} file`);
+      alert(`❌ Failed to upload ${type} file: ${error.message}`);
     }
 
     setUploadingContent(prev => ({
@@ -718,21 +768,45 @@ export default function ProgramConfigManager() {
   const saveContentData = async () => {
     setSaving(true);
     try {
-      const response = await fetch('/api/admin/program/content-management', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          day: selectedContentDay,
-          contentType: contentType,
-          content: contentData[contentType]
-        }),
-      });
-      if (response.ok) {
-        alert(`Day ${selectedContentDay} ${contentType} content saved successfully!`);
+      // Save content for each language that has data
+      const languages = ['english', 'kannada', 'hindi'];
+      let savePromises = [];
+      
+      for (const language of languages) {
+        const content = contentData[contentType][language];
+        if (content && content.trim() !== '') {
+          savePromises.push(
+            fetch('/api/admin/program/content-management', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                day: selectedContentDay,
+                contentType: contentType,
+                language: language,
+                url: content
+              }),
+            })
+          );
+        }
+      }
+      
+      if (savePromises.length === 0) {
+        alert('No content to save');
+        setSaving(false);
+        return;
+      }
+      
+      const responses = await Promise.all(savePromises);
+      const allSuccess = responses.every(response => response.ok);
+      
+      if (allSuccess) {
+        alert(`✅ Day ${selectedContentDay} ${contentType} content saved successfully!`);
+      } else {
+        throw new Error('Some saves failed');
       }
     } catch (error) {
       console.error('Error saving content:', error);
-      alert('Failed to save content');
+      alert('❌ Failed to save content');
     }
     setSaving(false);
   };
@@ -1349,7 +1423,15 @@ export default function ProgramConfigManager() {
               accept="video/*"
               onChange={(e) => {
                 const file = e.target.files[0];
-                if (file) handleVideoUpload(file, selectedLanguage, selectedDay === 0);
+                if (file) {
+                  if (selectedDay === 0) {
+                    handleVideoUpload(file, selectedLanguage, true); // Day 0
+                  } else if (selectedDay === 1) {
+                    handleVideoUpload(file, selectedLanguage, false, selectedBurdenLevel); // Day 1 with burden level
+                  } else {
+                    handleVideoUpload(file, selectedLanguage, false, null); // Days 2-7
+                  }
+                }
               }}
             />
             <label 
@@ -1366,7 +1448,15 @@ export default function ProgramConfigManager() {
             {/* Delete Button - Only show if video exists */}
             {dayContent.videoUrl[selectedLanguage] && !uploadingDayVideo && (
               <button
-                onClick={() => handleVideoDelete(selectedLanguage, selectedDay === 0)}
+                onClick={() => {
+                  if (selectedDay === 0) {
+                    handleVideoDelete(selectedLanguage, true); // Day 0
+                  } else if (selectedDay === 1) {
+                    handleVideoDelete(selectedLanguage, false, selectedBurdenLevel); // Day 1 with burden level
+                  } else {
+                    handleVideoDelete(selectedLanguage, false, null); // Days 2-7
+                  }
+                }}
                 style={{
                   ...styles.uploadButton,
                   backgroundColor: '#ef4444',
@@ -1499,9 +1589,29 @@ export default function ProgramConfigManager() {
                 placeholder="Upload audio file to get URL"
               />
               
+              {/* Show audio preview if URL exists */}
+              {contentData[contentType][selectedLanguage] && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '12px',
+                  backgroundColor: '#f0f9ff',
+                  borderRadius: '8px',
+                  border: '1px solid #0ea5e9',
+                  marginBottom: '16px'
+                }}>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0369a1', fontWeight: '500' }}>
+                    ✅ Audio uploaded successfully
+                  </p>
+                  <audio controls style={{ width: '100%', marginTop: '8px' }}>
+                    <source src={contentData[contentType][selectedLanguage]} type="audio/mpeg" />
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
+              )}
+
               <div style={styles.uploadSection}>
                 <p style={{ margin: '0 0 16px 0', color: '#6b7280' }}>
-                  🎵 Upload audio for Day {selectedContentDay} in {selectedLanguage}
+                  🎵 {contentData[contentType][selectedLanguage] ? 'Replace' : 'Upload'} audio for Day {selectedContentDay} in {selectedLanguage}
                 </p>
                 <input
                   type="file"
@@ -1513,9 +1623,32 @@ export default function ProgramConfigManager() {
                     if (file) handleContentUpload(file, selectedLanguage, contentType, selectedContentDay);
                   }}
                 />
-                <label htmlFor={`content-audio-${selectedContentDay}-${selectedLanguage}`} style={styles.uploadButton}>
-                  {uploadingContent[contentType][selectedLanguage] ? 'Uploading...' : 'Choose Audio File'}
+                <label 
+                  htmlFor={`content-audio-${selectedContentDay}-${selectedLanguage}`} 
+                  style={{
+                    ...styles.uploadButton,
+                    backgroundColor: uploadingContent[contentType][selectedLanguage] ? '#9ca3af' : '#10b981',
+                    cursor: uploadingContent[contentType][selectedLanguage] ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {uploadingContent[contentType][selectedLanguage] ? '📤 Uploading...' : 
+                   contentData[contentType][selectedLanguage] ? '🔄 Replace Audio' : '📤 Upload Audio'}
                 </label>
+
+                {/* Delete Button - Only show if audio exists */}
+                {contentData[contentType][selectedLanguage] && !uploadingContent[contentType][selectedLanguage] && (
+                  <button
+                    onClick={() => handleContentDelete(selectedLanguage, contentType, selectedContentDay)}
+                    style={{
+                      ...styles.uploadButton,
+                      backgroundColor: '#ef4444',
+                      marginLeft: '12px'
+                    }}
+                  >
+                    🗑️ Delete Audio
+                  </button>
+                )}
+                
                 <p style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
                   Supported: MP3, WAV, M4A • Max 50MB
                 </p>

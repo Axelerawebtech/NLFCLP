@@ -92,20 +92,59 @@ export default async function handler(req, res) {
     // Extract the specific content for the requested day and type
     let content = null;
     
-    if (config.contentManagement && 
-        config.contentManagement[contentType] && 
-        config.contentManagement[contentType][day]) {
-      
-      content = config.contentManagement[contentType][day];
-      console.log(`✅ Content found for Day ${day}, Type: ${contentType}`);
+    // Handle both string and number keys for day (ensure consistency)
+    const dayKey = day.toString(); // Convert to string for consistency
+    
+    console.log(`🔍 Looking for content at: contentManagement.${contentType}.${dayKey}`);
+    console.log(`📊 Available contentTypes:`, Object.keys(config.contentManagement || {}));
+    
+    if (contentType === 'audioContent') {
+      // Handle audioContent as Map type
+      if (config.contentManagement && 
+          config.contentManagement.audioContent && 
+          config.contentManagement.audioContent instanceof Map &&
+          config.contentManagement.audioContent.has(dayKey)) {
+          
+        content = config.contentManagement.audioContent.get(dayKey);
+        console.log(`✅ Audio content found from Map for Day ${day}, Type: ${contentType}:`, content);
+      } else {
+        console.log(`⚠️ No audio content found in Map for Day ${day}`);
+        
+        // Debug: Show what's actually available in the Map
+        if (config.contentManagement && config.contentManagement.audioContent instanceof Map) {
+          const mapKeys = Array.from(config.contentManagement.audioContent.keys());
+          console.log(`📊 Available Map keys for audioContent:`, mapKeys);
+        }
+        
+        content = {
+          english: '',
+          kannada: '',
+          hindi: ''
+        };
+      }
     } else {
-      console.log(`⚠️ No content found for Day ${day}, Type: ${contentType}`);
-      // Return empty content structure for different languages
-      content = {
-        english: '',
-        kannada: '',
-        hindi: ''
-      };
+      // Handle other content types as regular objects
+      if (config.contentManagement && 
+          config.contentManagement[contentType] && 
+          config.contentManagement[contentType][dayKey]) {
+        
+        content = config.contentManagement[contentType][dayKey];
+        console.log(`✅ Content found for Day ${day}, Type: ${contentType}:`, content);
+      } else {
+        console.log(`⚠️ No content found for Day ${day}, Type: ${contentType}`);
+        
+        // Debug: Show what's actually available
+        if (config.contentManagement && config.contentManagement[contentType]) {
+          console.log(`📊 Available days for ${contentType}:`, Object.keys(config.contentManagement[contentType]));
+        }
+        
+        // Return empty content structure for different languages
+        content = {
+          english: '',
+          kannada: '',
+          hindi: ''
+        };
+      }
     }
 
     return res.status(200).json({
