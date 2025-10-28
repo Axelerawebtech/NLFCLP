@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     console.log('Database connection successful');
 
     console.log('Registration API received:', req.body);
-    const { userType, consentAccepted, questionnaireAnswers, ...userData } = req.body;
+    const { userType, consentAccepted, questionnaireAnswers, userData } = req.body;
 
     if (userType === 'caregiver') {
       console.log('Creating caregiver with data:', userData);
@@ -58,7 +58,12 @@ export default async function handler(req, res) {
       });
 
     } else if (userType === 'patient') {
-      console.log('Creating patient with data:', userData);
+      console.log('=== PATIENT REGISTRATION DEBUG ===');
+      console.log('Request body:', req.body);
+      console.log('userType:', userType);
+      console.log('userData received:', userData);
+      console.log('consentAccepted:', consentAccepted);
+      console.log('questionnaireAnswers:', questionnaireAnswers);
       
       const patientData = {
         ...userData,

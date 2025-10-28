@@ -58,7 +58,7 @@ export default function Home() {
       component="main"
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #4338ca 0%, #5b21b6 100%)',
+        background: 'linear-gradient(135deg, #cabe38ff 0%, #9a9e53ff 100%)',
         position: 'relative'
       }}>
       {/* Header with Controls */}

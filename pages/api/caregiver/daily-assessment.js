@@ -6,11 +6,25 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { caregiverId, day, assessmentType, responses, totalScore } = req.body;
+  const { caregiverId, day, assessmentType, responses, totalScore, language = 'english', questionTexts = {} } = req.body;
 
-  if (!caregiverId || !day || !assessmentType || !responses || totalScore === undefined) {
+  // Check for missing fields with detailed logging
+  const missingFields = [];
+  if (!caregiverId) missingFields.push('caregiverId');
+  if (day === undefined || day === null) missingFields.push('day');
+  if (!assessmentType) missingFields.push('assessmentType');
+  if (!responses) missingFields.push('responses');
+
+  // For quick_assessment, totalScore is not required (we'll record responses only)
+  if (assessmentType !== 'quick_assessment' && (totalScore === undefined || totalScore === null)) {
+    missingFields.push('totalScore');
+  }
+
+  if (missingFields.length > 0) {
     return res.status(400).json({ 
-      error: 'Missing required fields: caregiverId, day, assessmentType, responses, totalScore' 
+      error: 'Missing required fields',
+      missingFields,
+      received: { caregiverId, day, assessmentType, responses, totalScore }
     });
   }
 
@@ -24,90 +38,208 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Caregiver program not found' });
     }
 
-    // Calculate score level based on day and score
-    const scoreLevel = program.calculateScoreLevel(day, totalScore);
-
-    // Find the day module
-    let dayModule = program.dayModules.find(module => module.day === day);
-    
-    if (!dayModule) {
-      // Create new day module if it doesn't exist
-      dayModule = {
-        day: day,
-        adminPermissionGranted: day === 1 ? true : false // Day 1 should be unlocked after Day 0
-      };
-      program.dayModules.push(dayModule);
-      dayModule = program.dayModules[program.dayModules.length - 1];
-    }
-
-    // Create the daily assessment
-    dayModule.dailyAssessment = {
-      day,
-      assessmentType,
-      responses: new Map(Object.entries(responses)),
-      totalScore,
-      scoreLevel,
-      completedAt: new Date()
-    };
-
-    // Set content level based on score
-    dayModule.contentLevel = scoreLevel;
-
-    // Update progress for this day module
-    program.updateDayProgress(day);
-
-    // For Day 1, also update the legacy Zarit assessment if it's zarit_burden type
-    if (day === 1 && assessmentType === 'zarit_burden') {
-      const burdenLevel = scoreLevel === 'low' ? 'mild' : 
-                         scoreLevel === 'moderate' ? 'moderate' : 'severe';
+    // Handle Quick Assessment (daily, no scoring)
+    if (assessmentType === 'quick_assessment') {
       
-      program.zaritBurdenAssessment = {
-        question1: responses.q1 || 0,
-        question2: responses.q2 || 0,
-        question3: responses.q3 || 0,
-        question4: responses.q4 || 0,
-        question5: responses.q5 || 0,
-        question6: responses.q6 || 0,
-        question7: responses.q7 || 0,
-        totalScore,
-        burdenLevel,
+      // Format responses with question text and response text
+      const formattedResponses = [];
+      
+      Object.entries(responses).forEach(([questionId, responseValue]) => {
+        const questionText = questionTexts[questionId] || `Question ${questionId}`;
+        
+        // Convert response value to readable text
+        let responseText = '';
+        if (typeof responseValue === 'number') {
+          // For yes/no questions
+          if (responseValue === 1) {
+            responseText = 'Yes';
+          } else if (responseValue === 0) {
+            responseText = 'No';
+          } else {
+            responseText = responseValue.toString();
+          }
+        } else {
+          responseText = responseValue.toString();
+        }
+        
+        formattedResponses.push({
+          questionId,
+          questionText,
+          responseValue,
+          responseText,
+          answeredAt: new Date()
+        });
+      });
+
+      // Store the quick assessment responses in a structured format
+      const quickAssessmentData = {
+        day: parseInt(day),
+        type: 'quick_assessment',
+        responses: formattedResponses,
+        language,
+        totalQuestions: formattedResponses.length,
         completedAt: new Date()
       };
-      
-      program.burdenLevel = burdenLevel;
+
+      // Use updateOne to store quick assessment
+      const updateResult = await CaregiverProgram.updateOne(
+        { caregiverId },
+        {
+          $push: {
+            quickAssessments: quickAssessmentData
+          },
+          $set: {
+            lastActiveAt: new Date()
+          }
+        },
+        { runValidators: false }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Day ${day} quick assessment completed successfully`,
+        assessment: quickAssessmentData,
+        program: {
+          currentDay: program.currentDay,
+          overallProgress: program.overallProgress
+        }
+      });
     }
 
-    // Update last active time
-    program.lastActiveAt = new Date();
+    // Handle One-time Assessments with scoring
+    else if (['zarit_burden', 'stress_burden', 'whoqol', 'practical_questions'].includes(assessmentType)) {
+      
+      // Format responses with question text
+      const formattedResponses = [];
+      
+      Object.entries(responses).forEach(([questionId, responseValue]) => {
+        const questionText = questionTexts[questionId] || `Question ${questionId}`;
+        
+        formattedResponses.push({
+          questionId,
+          questionText,
+          responseValue,
+          answeredAt: new Date()
+        });
+      });
 
-    // Mark the dayModules array as modified for Mongoose
-    program.markModified('dayModules');
-
-    // Save the program
-    await program.save();
-
-    res.status(200).json({
-      success: true,
-      message: `Day ${day} assessment completed successfully`,
-      assessment: {
-        day,
-        assessmentType,
+      // Create assessment data with score
+      const assessmentData = {
+        type: assessmentType,
+        responses: formattedResponses,
         totalScore,
-        scoreLevel,
-        contentLevel: scoreLevel
-      },
-      dayModule: {
-        day: dayModule.day,
-        contentLevel: dayModule.contentLevel,
-        progressPercentage: dayModule.progressPercentage,
-        dailyAssessment: dayModule.dailyAssessment
-      },
-      program: {
-        currentDay: program.currentDay,
-        overallProgress: program.overallProgress,
-        burdenLevel: program.burdenLevel
+        language,
+        totalQuestions: formattedResponses.length,
+        completedAt: new Date()
+      };
+
+      // Determine score level for scored assessments
+      if (totalScore !== undefined && totalScore !== null) {
+        assessmentData.scoreLevel = program.calculateScoreLevel ? 
+          program.calculateScoreLevel(day, totalScore) : 'moderate';
       }
-    });
+
+      // Store in oneTimeAssessments array
+      const updateResult = await CaregiverProgram.updateOne(
+        { caregiverId },
+        {
+          $push: {
+            oneTimeAssessments: assessmentData
+          },
+          $set: {
+            lastActiveAt: new Date()
+          }
+        },
+        { runValidators: false }
+      );
+
+      // Special handling for Zarit Burden Assessment (legacy compatibility)
+      if (assessmentType === 'zarit_burden') {
+        const burdenLevel = program.calculateBurdenLevel ? 
+          program.calculateBurdenLevel(responses).burdenLevel : 'moderate';
+        
+        // Update the legacy zaritBurdenAssessment field and burdenLevel
+        await CaregiverProgram.updateOne(
+          { caregiverId },
+          {
+            $set: {
+              'zaritBurdenAssessment': {
+                ...responses,
+                totalScore,
+                burdenLevel,
+                completedAt: new Date()
+              },
+              burdenLevel
+            }
+          }
+        );
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `${assessmentType} assessment completed successfully`,
+        assessment: assessmentData,
+        program: {
+          currentDay: program.currentDay,
+          overallProgress: program.overallProgress
+        }
+      });
+    }
+
+    // Handle Daily Module Assessments (Days 1-7 with scoring)
+    else {
+      // Find the day module
+      const dayModule = program.dayModules.find(module => module.day === parseInt(day));
+      
+      if (!dayModule) {
+        return res.status(404).json({ error: `Day ${day} module not found` });
+      }
+
+      // Format responses with question text
+      const formattedResponses = [];
+      
+      Object.entries(responses).forEach(([questionId, responseValue]) => {
+        const questionText = questionTexts[questionId] || `Question ${questionId}`;
+        
+        formattedResponses.push({
+          questionId,
+          questionText,
+          responseValue,
+          answeredAt: new Date()
+        });
+      });
+
+      // Create daily assessment data
+      const dailyAssessmentData = {
+        day: parseInt(day),
+        assessmentType,
+        responses: formattedResponses,
+        totalScore,
+        scoreLevel: program.calculateScoreLevel ? 
+          program.calculateScoreLevel(day, totalScore) : 'moderate',
+        totalQuestions: formattedResponses.length,
+        completedAt: new Date()
+      };
+
+      // Update the day module with assessment
+      dayModule.dailyAssessment = dailyAssessmentData;
+      dayModule.contentLevel = dailyAssessmentData.scoreLevel;
+
+      // Update day progress
+      program.updateDayProgress(parseInt(day));
+      
+      await program.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `Day ${day} ${assessmentType} assessment completed successfully`,
+        assessment: dailyAssessmentData,
+        program: {
+          currentDay: program.currentDay,
+          overallProgress: program.overallProgress
+        }
+      });
+    }
 
   } catch (error) {
     console.error('Daily assessment submission error:', error);
