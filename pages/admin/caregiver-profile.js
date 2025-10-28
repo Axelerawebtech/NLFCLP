@@ -531,7 +531,7 @@ export default function CaregiverProfile() {
     );
   }
 
-  const { caregiver, program, statistics } = profileData;
+  const { caregiver, program, statistics, assessments } = profileData;
 
   return (
     <>
@@ -881,24 +881,350 @@ export default function CaregiverProfile() {
               {/* Assessment Tab */}
               {activeTab === 'assessment' && (
                 <div>
-                  <h3 style={styles.sectionTitle}>Zarit Burden Assessment</h3>
-                  
-                  {program?.zaritBurdenAssessment ? (
-                    <div>
+                  {/* Assessment Overview */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={styles.sectionTitle}>Assessment Overview</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                      <div style={{ backgroundColor: '#e0f2fe', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #81d4fa' }}>
+                        <p style={styles.infoLabel}>Quick Assessments</p>
+                        <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0277bd' }}>
+                          {profileData?.assessments?.quickAssessments?.length || 0}
+                        </p>
+                        <p style={{ fontSize: '0.75rem', color: '#455a64' }}>Daily responses recorded</p>
+                      </div>
+                      <div style={{ backgroundColor: '#e8f5e8', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #a5d6a7' }}>
+                        <p style={styles.infoLabel}>One-time Assessments</p>
+                        <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2e7d32' }}>
+                          {profileData?.assessments?.oneTimeAssessments?.length || 0}
+                        </p>
+                        <p style={{ fontSize: '0.75rem', color: '#455a64' }}>Scored assessments completed</p>
+                      </div>
+                      <div style={{ backgroundColor: '#fff3e0', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #ffcc02' }}>
+                        <p style={styles.infoLabel}>Module Assessments</p>
+                        <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#f57c00' }}>
+                          {profileData?.assessments?.dailyModuleAssessments?.length || 0}
+                        </p>
+                        <p style={{ fontSize: '0.75rem', color: '#455a64' }}>Daily module assessments</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Assessments Section */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={styles.sectionTitle}>📋 Quick Assessments (Daily)</h3>
+                    {profileData?.assessments?.quickAssessments?.length > 0 ? (
+                      <div>
+                        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                          These assessments are completed daily by the caregiver. No scoring is calculated, only responses are recorded.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          {profileData.assessments.quickAssessments.map((assessment, index) => (
+                            <div key={index} style={{ 
+                              backgroundColor: '#f8fafc', 
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '0.5rem',
+                              padding: '1rem'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                <div>
+                                  <span style={{ 
+                                    fontSize: '0.875rem', 
+                                    fontWeight: '600',
+                                    color: '#1e40af',
+                                    backgroundColor: '#dbeafe',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '1rem'
+                                  }}>
+                                    Day {assessment.day}
+                                  </span>
+                                  <span style={{ 
+                                    fontSize: '0.75rem', 
+                                    color: '#6b7280',
+                                    marginLeft: '0.75rem'
+                                  }}>
+                                    {assessment.responseCount} responses • {assessment.language}
+                                  </span>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                                    {new Date(assessment.completedAt).toLocaleDateString()}
+                                  </p>
+                                  <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                                    {new Date(assessment.completedAt).toLocaleTimeString()}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {/* Show responses for Quick Assessments */}
+                              <div style={{ marginTop: '0.75rem' }}>
+                                <details style={{ cursor: 'pointer' }}>
+                                  <summary style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                                    View Responses ({assessment.responseCount})
+                                  </summary>
+                                  <div style={{ marginTop: '0.75rem', paddingLeft: '1rem' }}>
+                                    {assessment.responses && Array.isArray(assessment.responses) ? (
+                                      assessment.responses.map((response, idx) => (
+                                        <div key={idx} style={{ 
+                                          padding: '0.75rem', 
+                                          backgroundColor: 'white',
+                                          border: '1px solid #e5e7eb',
+                                          borderRadius: '0.5rem',
+                                          marginBottom: '0.75rem'
+                                        }}>
+                                          <div style={{ marginBottom: '0.5rem' }}>
+                                            <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, fontWeight: '500' }}>
+                                              Q: {response.questionText}
+                                            </p>
+                                          </div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <p style={{ fontSize: '0.875rem', color: '#16a34a', margin: 0, fontWeight: '600' }}>
+                                              A: {response.responseText || response.responseValue}
+                                            </p>
+                                            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                                              {new Date(response.answeredAt).toLocaleTimeString()}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : assessment.responses && typeof assessment.responses === 'object' ? (
+                                      // Fallback for old format
+                                      Object.entries(assessment.responses).map(([questionId, response], idx) => (
+                                        <div key={idx} style={{ 
+                                          padding: '0.5rem', 
+                                          backgroundColor: 'white',
+                                          border: '1px solid #e5e7eb',
+                                          borderRadius: '0.25rem',
+                                          marginBottom: '0.5rem'
+                                        }}>
+                                          <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                                            Question ID: {questionId}
+                                          </p>
+                                          <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, fontWeight: '500' }}>
+                                            Response: {typeof response === 'object' ? JSON.stringify(response) : response}
+                                          </p>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p style={{ fontSize: '0.875rem', color: '#6b7280', fontStyle: 'italic' }}>
+                                        No detailed responses available
+                                      </p>
+                                    )}
+                                  </div>
+                                </details>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+                        <p style={{ color: '#6b7280', fontSize: '1rem' }}>No quick assessments completed yet</p>
+                        <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                          Quick assessments will appear here as the caregiver completes them daily
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* One-time Assessments Section */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={styles.sectionTitle}>🎯 One-time Assessments (Scored)</h3>
+                    {profileData?.assessments?.oneTimeAssessments?.length > 0 ? (
+                      <div>
+                        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                          These assessments are completed once by the caregiver and include scoring for burden level determination.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          {profileData.assessments.oneTimeAssessments.map((assessment, index) => (
+                            <div key={index} style={{ 
+                              backgroundColor: '#f0fdf4', 
+                              border: '1px solid #bbf7d0',
+                              borderRadius: '0.5rem',
+                              padding: '1rem'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                <div>
+                                  <span style={{ 
+                                    fontSize: '0.875rem', 
+                                    fontWeight: '600',
+                                    color: '#166534',
+                                    backgroundColor: '#dcfce7',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '1rem'
+                                  }}>
+                                    {assessment.type.replace('_', ' ').toUpperCase()}
+                                  </span>
+                                  <span style={{ 
+                                    fontSize: '0.75rem', 
+                                    color: '#6b7280',
+                                    marginLeft: '0.75rem'
+                                  }}>
+                                    {assessment.responseCount} responses • {assessment.language}
+                                  </span>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#166534', margin: 0 }}>
+                                    Score: {assessment.totalScore}
+                                  </p>
+                                  <span style={getBurdenLevelStyle(assessment.scoreLevel)}>
+                                    {assessment.scoreLevel?.toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                                Completed: {new Date(assessment.completedAt).toLocaleDateString()} at {new Date(assessment.completedAt).toLocaleTimeString()}
+                              </div>
+                              
+                              {/* Show responses for One-time Assessments */}
+                              <div style={{ marginTop: '0.75rem' }}>
+                                <details style={{ cursor: 'pointer' }}>
+                                  <summary style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                                    View Responses ({assessment.responseCount})
+                                  </summary>
+                                  <div style={{ marginTop: '0.75rem', paddingLeft: '1rem' }}>
+                                    {assessment.responses && Array.isArray(assessment.responses) ? (
+                                      assessment.responses.map((response, idx) => (
+                                        <div key={idx} style={{ 
+                                          padding: '0.75rem', 
+                                          backgroundColor: 'white',
+                                          border: '1px solid #e5e7eb',
+                                          borderRadius: '0.5rem',
+                                          marginBottom: '0.75rem'
+                                        }}>
+                                          <div style={{ marginBottom: '0.5rem' }}>
+                                            <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, fontWeight: '500' }}>
+                                              Q: {response.questionText}
+                                            </p>
+                                          </div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <p style={{ fontSize: '0.875rem', color: '#16a34a', margin: 0, fontWeight: '600' }}>
+                                              A: {response.responseValue}
+                                            </p>
+                                            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                                              {new Date(response.answeredAt).toLocaleTimeString()}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : assessment.responses && typeof assessment.responses === 'object' ? (
+                                      // Fallback for old format
+                                      Object.entries(assessment.responses).map(([questionId, response], idx) => (
+                                        <div key={idx} style={{ 
+                                          padding: '0.5rem', 
+                                          backgroundColor: 'white',
+                                          border: '1px solid #e5e7eb',
+                                          borderRadius: '0.25rem',
+                                          marginBottom: '0.5rem'
+                                        }}>
+                                          <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                                            Question ID: {questionId}
+                                          </p>
+                                          <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, fontWeight: '500' }}>
+                                            Response: {typeof response === 'object' ? JSON.stringify(response) : response}
+                                          </p>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p style={{ fontSize: '0.875rem', color: '#6b7280', fontStyle: 'italic' }}>
+                                        No detailed responses available
+                                      </p>
+                                    )}
+                                  </div>
+                                </details>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+                        <p style={{ color: '#6b7280', fontSize: '1rem' }}>No one-time assessments completed yet</p>
+                        <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                          Zarit Burden, Stress Burden, WHOQOL, and other scored assessments will appear here
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Daily Module Assessments Section */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={styles.sectionTitle}>📅 Daily Module Assessments</h3>
+                    {profileData?.assessments?.dailyModuleAssessments?.length > 0 ? (
+                      <div>
+                        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                          These are day-specific assessments completed as part of daily modules (Days 1-7).
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          {profileData.assessments.dailyModuleAssessments.map((assessment, index) => (
+                            <div key={index} style={{ 
+                              backgroundColor: '#fffbeb', 
+                              border: '1px solid #fed7aa',
+                              borderRadius: '0.5rem',
+                              padding: '1rem'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                <div>
+                                  <span style={{ 
+                                    fontSize: '0.875rem', 
+                                    fontWeight: '600',
+                                    color: '#c2410c',
+                                    backgroundColor: '#fed7aa',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '1rem'
+                                  }}>
+                                    Day {assessment.day} - {assessment.assessmentType.replace('_', ' ').toUpperCase()}
+                                  </span>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#c2410c', margin: 0 }}>
+                                    Score: {assessment.totalScore}
+                                  </p>
+                                  <span style={getBurdenLevelStyle(assessment.scoreLevel)}>
+                                    {assessment.scoreLevel?.toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                Completed: {new Date(assessment.completedAt).toLocaleDateString()} at {new Date(assessment.completedAt).toLocaleTimeString()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+                        <p style={{ color: '#6b7280', fontSize: '1rem' }}>No module assessments completed yet</p>
+                        <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                          Daily module assessments for Days 1-7 will appear here
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Legacy Zarit Burden Assessment (for backward compatibility) */}
+                  {program?.zaritBurdenAssessment && (
+                    <div style={{ marginTop: '2rem', backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                      <h3 style={{ ...styles.sectionTitle, color: '#6b7280' }}>📊 Legacy Zarit Burden Assessment</h3>
+                      <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                        This is the legacy Zarit assessment format (kept for compatibility).
+                      </p>
+                      
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                        <div style={{ backgroundColor: '#f9fafb', padding: '1rem', borderRadius: '0.5rem' }}>
+                        <div style={{ backgroundColor: 'white', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
                           <p style={styles.infoLabel}>Total Score</p>
                           <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#2563eb' }}>
                             {program.zaritBurdenAssessment.totalScore} / 28
                           </p>
                         </div>
-                        <div style={{ backgroundColor: '#f9fafb', padding: '1rem', borderRadius: '0.5rem' }}>
+                        <div style={{ backgroundColor: 'white', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
                           <p style={styles.infoLabel}>Burden Level</p>
                           <span style={getBurdenLevelStyle(program.zaritBurdenAssessment.burdenLevel)}>
                             {program.zaritBurdenAssessment.burdenLevel?.toUpperCase()}
                           </span>
                         </div>
-                        <div style={{ backgroundColor: '#f9fafb', padding: '1rem', borderRadius: '0.5rem' }}>
+                        <div style={{ backgroundColor: 'white', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
                           <p style={styles.infoLabel}>Completed Date</p>
                           <p style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
                             {program.zaritBurdenAssessment.completedAt 
@@ -908,103 +1234,6 @@ export default function CaregiverProfile() {
                           </p>
                         </div>
                       </div>
-                      
-                      <div>
-                        <h4 style={{ ...styles.sectionTitle, fontSize: '1.125rem' }}>Question Responses</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                          {(() => {
-                            const questions = [
-                              'Do you feel that your relative asks for more help than he/she needs?',
-                              'Do you feel that because of the time you spend with your relative you don\'t have enough time for yourself?',
-                              'Do you feel stressed between caring for your relative and trying to meet other responsibilities (work/family)?',
-                              'Do you feel embarrassed over your relative\'s behavior?',
-                              'Do you feel angry when you are around your relative?',
-                              'Do you feel that your social life has suffered because you are caring for your relative?',
-                              'Overall, how burdened do you feel in caring for your relative?'
-                            ];
-                            
-                            const scaleLabels = ['Never', 'Rarely', 'Sometimes', 'Quite Frequently', 'Nearly Always'];
-                            
-                            // Handle both formats: answers array (new) or question1-7 (old)
-                            let answersArray = [];
-                            
-                            if (program.zaritBurdenAssessment.answers && Array.isArray(program.zaritBurdenAssessment.answers)) {
-                              // New format: answers array
-                              answersArray = program.zaritBurdenAssessment.answers;
-                            } else {
-                              // Old format: question1, question2, etc.
-                              for (let i = 1; i <= 7; i++) {
-                                const questionKey = `question${i}`;
-                                if (program.zaritBurdenAssessment[questionKey] !== undefined) {
-                                  answersArray.push(program.zaritBurdenAssessment[questionKey]);
-                                }
-                              }
-                            }
-                            
-                            if (answersArray.length === 0) {
-                              return (
-                                <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
-                                  <p style={{ color: '#6b7280' }}>No individual question responses available</p>
-                                </div>
-                              );
-                            }
-                            
-                            return answersArray.map((answer, index) => (
-                              <div key={index} style={{ 
-                                padding: '1rem', 
-                                backgroundColor: '#f9fafb', 
-                                borderRadius: '0.5rem',
-                                borderLeft: '4px solid #2563eb'
-                              }}>
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                  <span style={{ 
-                                    fontSize: '0.75rem', 
-                                    fontWeight: '700', 
-                                    color: '#2563eb',
-                                    backgroundColor: '#dbeafe',
-                                    padding: '0.25rem 0.5rem',
-                                    borderRadius: '0.25rem'
-                                  }}>
-                                    Question {index + 1}
-                                  </span>
-                                </div>
-                                <p style={{ 
-                                  fontSize: '0.875rem', 
-                                  color: '#374151', 
-                                  marginBottom: '0.5rem',
-                                  fontWeight: '500'
-                                }}>
-                                  {questions[index]}
-                                </p>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <span style={{ 
-                                    fontSize: '0.875rem', 
-                                    fontWeight: '600',
-                                    color: '#16a34a'
-                                  }}>
-                                    Answer: {scaleLabels[answer]} ({answer}/4)
-                                  </span>
-                                </div>
-                              </div>
-                            ));
-                          })()}
-                        </div>
-                      </div>
-                      
-                      {program.contentAssignedDynamically && (
-                        <div style={{ ...styles.alertBox, marginTop: '1.5rem' }}>
-                          <p style={styles.alertText}>
-                            ℹ️ Dynamic content has been assigned to days 2-9 based on this burden assessment.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
-                      <p style={{ color: '#6b7280', fontSize: '1rem' }}>No assessment data available yet</p>
-                      <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                        The caregiver hasn't completed the Zarit Burden Assessment
-                      </p>
                     </div>
                   )}
                 </div>

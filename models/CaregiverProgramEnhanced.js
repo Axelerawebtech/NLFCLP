@@ -5,7 +5,7 @@ const DailyAssessmentSchema = new mongoose.Schema({
   day: {
     type: Number,
     required: true,
-    min: 1,
+    min: 1, // Day 0 quick assessments are stored separately
     max: 7
   },
   assessmentType: {
@@ -143,13 +143,53 @@ const CaregiverProgramSchema = new mongoose.Schema({
     required: true,
     unique: true 
   },
-  // Legacy Zarit assessment (kept for compatibility)
-  zaritBurdenAssessment: ZaritBurdenSchema,
+  // Legacy Zarit assessment (kept for compatibility, not required)
+  zaritBurdenAssessment: {
+    type: ZaritBurdenSchema,
+    required: false
+  },
   // New enhanced day modules with daily assessments
   dayModules: [DayModuleSchema],
   dailyTasks: [DailyTaskSchema],
   currentDay: { type: Number, default: 0 },
   overallProgress: { type: Number, default: 0 },
+  // Quick assessments for Day 0 (daily pre-module assessments)
+  quickAssessments: [{
+    day: { type: Number, required: true },
+    type: { type: String, default: 'quick_assessment' },
+    responses: [{
+      questionId: { type: String, required: true },
+      questionText: { type: String, required: true },
+      responseValue: { type: mongoose.Schema.Types.Mixed },
+      responseText: { type: String },
+      answeredAt: { type: Date, default: Date.now }
+    }],
+    language: { type: String, default: 'english' },
+    totalQuestions: { type: Number, default: 0 },
+    completedAt: { type: Date, default: Date.now }
+  }],
+  // One-time assessments (Zarit Burden, Stress, WHOQOL, etc.)
+  oneTimeAssessments: [{
+    type: { 
+      type: String, 
+      enum: ['zarit_burden', 'stress_burden', 'whoqol', 'practical_questions'],
+      required: true 
+    },
+    responses: [{
+      questionId: { type: String, required: true },
+      questionText: { type: String, required: true },
+      responseValue: { type: mongoose.Schema.Types.Mixed },
+      answeredAt: { type: Date, default: Date.now }
+    }],
+    totalScore: { type: Number },
+    scoreLevel: { 
+      type: String, 
+      enum: ['low', 'moderate', 'high']
+    },
+    language: { type: String, default: 'english' },
+    totalQuestions: { type: Number, default: 0 },
+    completedAt: { type: Date, default: Date.now }
+  }],
   // Overall burden level (from Day 1 Zarit assessment)
   burdenLevel: { 
     type: String, 

@@ -1,6 +1,6 @@
 import dbConnect from '../../../../lib/mongodb';
 import Caregiver from '../../../../models/Caregiver';
-import CaregiverProgram from '../../../../models/CaregiverProgram';
+import CaregiverProgram from '../../../../models/CaregiverProgramEnhanced';
 
 export default async function handler(req, res) {
   await dbConnect();
@@ -52,6 +52,67 @@ export default async function handler(req, res) {
         console.log('ProgramConfig not available:', configError.message);
       }
       
+      // Organize assessment data
+      let assessmentData = {
+        quickAssessments: [],           // Daily assessments organized by day
+        oneTimeAssessments: [],         // Scored assessments (zarit, stress, whoqol, etc.)
+        dailyModuleAssessments: [],     // Day-specific module assessments
+        zaritBurdenAssessment: null     // Legacy Zarit assessment for compatibility
+      };
+
+      if (program) {
+        // Organize quick assessments by day
+        if (program.quickAssessments && program.quickAssessments.length > 0) {
+          assessmentData.quickAssessments = program.quickAssessments
+            .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+            .map(qa => ({
+              day: qa.day,
+              type: qa.type,
+              responses: qa.responses || [],
+              language: qa.language || 'english',
+              totalQuestions: qa.totalQuestions || 0,
+              completedAt: qa.completedAt,
+              responseCount: qa.responses ? qa.responses.length : 0
+            }));
+        }
+
+        // Organize one-time assessments
+        if (program.oneTimeAssessments && program.oneTimeAssessments.length > 0) {
+          assessmentData.oneTimeAssessments = program.oneTimeAssessments
+            .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+            .map(ota => ({
+              type: ota.type,
+              responses: ota.responses || [],
+              totalScore: ota.totalScore,
+              scoreLevel: ota.scoreLevel,
+              language: ota.language || 'english',
+              totalQuestions: ota.totalQuestions || 0,
+              completedAt: ota.completedAt,
+              responseCount: ota.responses ? ota.responses.length : 0
+            }));
+        }
+
+        // Extract daily module assessments (from dayModules)
+        if (program.dayModules && program.dayModules.length > 0) {
+          assessmentData.dailyModuleAssessments = program.dayModules
+            .filter(module => module.dailyAssessment)
+            .map(module => ({
+              day: module.day,
+              assessmentType: module.dailyAssessment.assessmentType,
+              responses: module.dailyAssessment.responses,
+              totalScore: module.dailyAssessment.totalScore,
+              scoreLevel: module.dailyAssessment.scoreLevel,
+              completedAt: module.dailyAssessment.completedAt
+            }))
+            .sort((a, b) => a.day - b.day);
+        }
+
+        // Legacy Zarit assessment (for backward compatibility)
+        if (program.zaritBurdenAssessment) {
+          assessmentData.zaritBurdenAssessment = program.zaritBurdenAssessment;
+        }
+      }
+      
       // Calculate detailed statistics
       let statistics = {
         totalDays: 8,
@@ -60,7 +121,12 @@ export default async function handler(req, res) {
         overallProgress: program?.overallProgress || 0,
         burdenLevel: program?.burdenLevel || 'Not assessed',
         burdenTestScore: program?.burdenTestScore || null,
-        daysProgress: []
+        daysProgress: [],
+        assessmentCounts: {
+          quickAssessments: assessmentData.quickAssessments.length,
+          oneTimeAssessments: assessmentData.oneTimeAssessments.length,
+          dailyModuleAssessments: assessmentData.dailyModuleAssessments.length
+        }
       };
       
       if (program && program.dayModules) {
@@ -145,6 +211,7 @@ export default async function handler(req, res) {
             supportTriggered: program.supportTriggered,
             adminNotes: program.adminNotes
           } : null,
+          assessments: assessmentData,
           customConfig,
           statistics
         }

@@ -3,16 +3,16 @@ import { useLanguage } from '../contexts/LanguageContext';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
 import InlineBurdenAssessment from './InlineBurdenAssessment';
-import OrderedContentPlayer from './OrderedContentPlayer';
+import DailyAssessment from './DailyAssessment';
 
 export default function SevenDayProgramDashboard({ caregiverId }) {
   const { currentLanguage } = useLanguage();
   const [programData, setProgramData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(0); // Default to Day 0 for new caregivers
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [useOrderedContent, setUseOrderedContent] = useState(true); // Enable ordered content system
+  const [showAssessment, setShowAssessment] = useState(false);
 
   // Map language codes: en -> english, kn -> kannada, hi -> hindi
   const getLanguageKey = () => {
@@ -299,8 +299,17 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         }
         
         setProgramData(enhancedData);
-        if (!selectedDay && enhancedData.currentDay !== undefined) {
-          setSelectedDay(enhancedData.currentDay);
+        
+        // Auto-select day logic - prioritize Day 0 for new users
+        if (!selectedDay || selectedDay === 0) {
+          // If Day 0 exists and is not completed, select it
+          const day0Module = enhancedData.dayModules?.find(m => m.day === 0);
+          if (day0Module && !day0Module.completedAt) {
+            setSelectedDay(0);
+          } else if (enhancedData.currentDay !== undefined && !showAssessment) {
+            // Otherwise, use the current day
+            setSelectedDay(enhancedData.currentDay);
+          }
         }
       } else {
         setError(data.message);
@@ -316,6 +325,15 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const handleDayClick = (day, isUnlocked) => {
     if (isUnlocked) {
       setSelectedDay(day);
+      setShowAssessment(false); // Reset assessment state when changing days
+      
+      // Check if Day 0 should show assessment (video completed but assessment not done)
+      if (day === 0 && programData) {
+        const dayData = programData.dayModules?.find(d => d.day === day);
+        if (dayData && dayData.videoCompleted && !dayData.dailyAssessment) {
+          setShowAssessment(true);
+        }
+      }
     }
   };
 
@@ -333,6 +351,15 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       });
       
       if (response.ok) {
+        // Show quick assessment for Day 0 after video completion (if not already completed)
+        if (day === 0) {
+          const dayData = programData?.dayModules?.find(d => d.day === day);
+          if (!dayData?.dailyAssessment) {
+            setShowAssessment(true);
+          }
+        }
+        
+        // Refresh program status after setting assessment state
         fetchProgramStatus();
       } else {
         console.error('Failed to update video progress:', response.status);
@@ -360,6 +387,41 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       }
     } catch (err) {
       console.error('Failed to update task progress:', err);
+    }
+  };
+
+  const handleAssessmentComplete = (assessmentData) => {
+    setShowAssessment(false);
+    fetchProgramStatus(); // Refresh the program status
+  };
+
+  const handleDayComplete = async (day) => {
+    try {
+      const response = await fetch('/api/caregiver/complete-day-module', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caregiverId,
+          day
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`Day ${day} marked as complete:`, result);
+        
+        // If Day 0 is completed, automatically move to Day 1
+        if (day === 0) {
+          setSelectedDay(1);
+        }
+        
+        // Refresh the program status to get updated data
+        fetchProgramStatus();
+      } else {
+        console.error('Failed to mark day as complete');
+      }
+    } catch (err) {
+      console.error('Error completing day:', err);
     }
   };
 
@@ -617,199 +679,63 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           </div>
           
           <div style={styles.contentBody}>
-            {/* Toggle between legacy and ordered content */}
-            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <label style={{ fontSize: '14px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={useOrderedContent}
-                  onChange={(e) => setUseOrderedContent(e.target.checked)}
-                  style={{ width: '16px', height: '16px' }}
-                />
-                Use New Ordered Content System
-              </label>
-              <span style={{ fontSize: '12px', color: '#9ca3af' }}>
-                (Sequential content unlocking with completion tracking)
-              </span>
-            </div>
-
-            {useOrderedContent ? (
-              /* NEW: Ordered Content System */
-              <OrderedContentPlayer 
-                caregiverId={caregiverId}
-                day={selectedDay}
-                burdenLevel={programData?.burdenLevel}
-              />
-            ) : (
-              /* LEGACY: Original content system */
+            {/* Day 1 Special Handling: Burden Test → Video → Tasks */}
+            {selectedDay === 1 && (
               <>
-                {/* Day 1 Special Handling: Burden Test → Video → Tasks */}
-                {selectedDay === 1 && (
-                  <>
-                    {/* Phase 1: Burden Test - INLINE (always show if test completed but no video available) */}
-                    {(!selectedDayData.videoCompleted && (!getLocalizedText(selectedDayData.videoUrl) || !selectedDayData.burdenTestCompleted)) && (
-                      <InlineBurdenAssessment 
-                        caregiverId={caregiverId}
-                        existingAnswers={(() => {
-                          // Get existing answers - handle both old and new format
-                          if (!selectedDayData.burdenTestCompleted) return null;
-                          
-                          const assessment = programData?.zaritBurdenAssessment;
-                          if (!assessment) return null;
-                          
-                          // New format: answers array
-                          if (assessment.answers && Array.isArray(assessment.answers)) {
-                            return assessment.answers;
-                          }
-                          
-                          // Old format: question1-7 properties
-                          const answers = [];
-                          for (let i = 1; i <= 7; i++) {
-                            const questionKey = `question${i}`;
-                            if (assessment[questionKey] !== undefined) {
-                              answers.push(assessment[questionKey]);
-                            }
-                          }
-                          
-                          return answers.length === 7 ? answers : null;
-                        })()}
-                        existingScore={selectedDayData.burdenScore}
-                        existingLevel={selectedDayData.burdenLevel}
-                        onComplete={() => fetchProgramStatus()} // Refresh to show video
-                      />
-                    )}
-
-                    {/* Phase 2: Video (if test completed and video available but not watched) */}
-                    {selectedDayData.burdenTestCompleted && !selectedDayData.videoCompleted && getLocalizedText(selectedDayData.videoUrl) && (
-                      <div style={{ marginBottom: '24px' }}>
-                        <div style={{
-                          padding: '16px',
-                          backgroundColor: '#dcfce7',
-                          border: '2px solid #86efac',
-                          borderRadius: '12px',
-                          marginBottom: '16px'
-                        }}>
-                          <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '15px' }}>
-                            ✅ Assessment Complete! Your burden level: <strong style={{ textTransform: 'capitalize' }}>{selectedDayData.burdenLevel || 'Moderate'}</strong>
-                          </p>
-                          <p style={{ margin: '4px 0 0 0', color: '#166534', fontSize: '14px' }}>
-                            Watch the video below designed specifically for your situation.
-                          </p>
-                        </div>
-                        
-                        <h4 style={styles.sectionTitle}>📹 Personalized Video for You</h4>
-                        
-                        <VideoPlayer
-                          videoUrl={getLocalizedText(selectedDayData.videoUrl)}
-                          videoTitle={getLocalizedText(selectedDayData.videoTitle)}
-                          initialProgress={selectedDayData.videoProgress || 0}
-                          isCompleted={selectedDayData.videoCompleted || false}
-                          caregiverId={caregiverId}
-                          day={selectedDay}
-                          onProgressUpdate={async (progressPercent) => {
-                            try {
-                              await fetch('/api/caregiver/update-progress', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  caregiverId,
-                                  day: selectedDay,
-                                  videoProgress: progressPercent
-                                })
-                              });
-                            } catch (err) {
-                              console.error('Failed to update video progress:', err);
-                            }
-                          }}
-                          onComplete={async () => {
-                            await handleVideoComplete(selectedDay);
-                          }}
-                        />
-
-                        {/* Audio Content (if available) */}
-                        {getLocalizedText(selectedDayData.audioUrl) && (
-                          <div>
-                            <AudioPlayer
-                            audioUrl={getLocalizedText(selectedDayData.audioUrl)}
-                            audioTitle={getLocalizedText(selectedDayData.audioTitle) || `Day ${selectedDay} Audio Content`}
-                            isVideoCompleted={selectedDayData.videoCompleted || false}
-                            caregiverId={caregiverId}
-                            day={selectedDay}
-                            onComplete={async () => {
-                              console.log(`✅ Audio completed for Day ${selectedDay}`);
-                              // Refresh program data to get updated progress
-                              fetchProgramStatus();
-                            }}
-                            style={{ marginTop: '16px' }}
-                          />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Phase 3: Tasks (if video watched and tasks exist) */}
-                    {selectedDayData.burdenTestCompleted && selectedDayData.videoCompleted && selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 && (
-                      <div>
-                        <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {selectedDayData.taskResponses.map((task, idx) => (
-                            <div key={idx} style={{
-                              padding: '12px 16px',
-                              backgroundColor: task.completed ? '#f0fdf4' : '#fff',
-                              border: `2px solid ${task.completed ? '#86efac' : '#e5e7eb'}`,
-                              borderRadius: '8px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '12px'
-                            }}>
-                              <input
-                                type="checkbox"
-                                checked={task.completed}
-                                onChange={() => handleTaskToggle(selectedDay, idx)}
-                                style={{ cursor: 'pointer', width: '18px', height: '18px' }}
-                              />
-                              <span style={{ flex: 1, color: task.completed ? '#166534' : '#374151' }}>
-                                {getLocalizedText(task.taskDescription) || task.taskDescription}
-                              </span>
-                              {task.completed && <span>✅</span>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Day 1 Complete Message (if test done, video watched, and no tasks OR tasks completed) */}
-                    {selectedDayData.burdenTestCompleted && selectedDayData.videoCompleted && 
-                     (!selectedDayData.taskResponses || selectedDayData.taskResponses.length === 0 || 
-                      selectedDayData.taskResponses.every(t => t.completed)) && (
-                      <div style={{
-                        padding: '20px',
-                        backgroundColor: '#dcfce7',
-                        border: '2px solid #86efac',
-                        borderRadius: '12px',
-                        textAlign: 'center',
-                        marginTop: '24px'
-                      }}>
-                        <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '18px' }}>
-                          🎉 Day 1 Complete!
-                        </p>
-                        <p style={{ margin: '8px 0 0 0', color: '#166534', fontSize: '14px' }}>
-                          Great job! Day 2 will unlock in 24 hours.
-                        </p>
-                      </div>
-                    )}
-                  </>
+                {/* Phase 1: Burden Test - INLINE (always show if test completed but no video available) */}
+                {(!selectedDayData.videoCompleted && (!getLocalizedText(selectedDayData.videoUrl) || !selectedDayData.burdenTestCompleted)) && (
+                  <InlineBurdenAssessment 
+                    caregiverId={caregiverId}
+                    existingAnswers={(() => {
+                      // Get existing answers - handle both old and new format
+                      if (!selectedDayData.burdenTestCompleted) return null;
+                      
+                      const assessment = programData?.zaritBurdenAssessment;
+                      if (!assessment) return null;
+                      
+                      // New format: answers array
+                      if (assessment.answers && Array.isArray(assessment.answers)) {
+                        return assessment.answers;
+                      }
+                      
+                      // Old format: question1-7 properties
+                      const answers = [];
+                      for (let i = 1; i <= 7; i++) {
+                        const questionKey = `question${i}`;
+                        if (assessment[questionKey] !== undefined) {
+                          answers.push(assessment[questionKey]);
+                        }
+                      }
+                      
+                      return answers.length === 7 ? answers : null;
+                    })()}
+                    existingScore={selectedDayData.burdenScore}
+                    existingLevel={selectedDayData.burdenLevel}
+                    onComplete={() => fetchProgramStatus()} // Refresh to show video
+                  />
                 )}
 
-                {/* Other Days: Normal Video → Tasks Flow */}
-                {selectedDay !== 1 && (
-                  <>
-                    {/* Video Section */}
-                    {getLocalizedText(selectedDayData.videoUrl) && (
-                      <div style={{ marginBottom: '24px' }}>
-                        <h4 style={styles.sectionTitle}>📹 Video Lesson</h4>
-                        
-                        <VideoPlayer
+                {/* Phase 2: Video (if test completed and video available but not watched) */}
+                {selectedDayData.burdenTestCompleted && !selectedDayData.videoCompleted && getLocalizedText(selectedDayData.videoUrl) && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: '#dcfce7',
+                      border: '2px solid #86efac',
+                      borderRadius: '12px',
+                      marginBottom: '16px'
+                    }}>
+                      <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '15px' }}>
+                        ✅ Assessment Complete! Your burden level: <strong style={{ textTransform: 'capitalize' }}>{selectedDayData.burdenLevel || 'Moderate'}</strong>
+                      </p>
+                      <p style={{ margin: '4px 0 0 0', color: '#166534', fontSize: '14px' }}>
+                        Watch the video below designed specifically for your situation.
+                      </p>
+                    </div>
+                    
+                    <h4 style={styles.sectionTitle}>📹 Personalized Video for You</h4>
+                    
+                    <VideoPlayer
                       videoUrl={getLocalizedText(selectedDayData.videoUrl)}
                       videoTitle={getLocalizedText(selectedDayData.videoTitle)}
                       initialProgress={selectedDayData.videoProgress || 0}
@@ -840,90 +766,264 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     {getLocalizedText(selectedDayData.audioUrl) && (
                       <div>
                         <AudioPlayer
-                          audioUrl={getLocalizedText(selectedDayData.audioUrl)}
-                          audioTitle={getLocalizedText(selectedDayData.audioTitle) || `Day ${selectedDay} Audio Content`}
-                          isVideoCompleted={selectedDayData.videoCompleted || false}
-                          caregiverId={caregiverId}
-                          day={selectedDay}
-                          onComplete={() => {
-                            console.log(`Audio completed for Day ${selectedDay}`);
-                            fetchProgramStatus();
-                          }}
-                          style={{ marginTop: '16px' }}
-                        />
+                        audioUrl={getLocalizedText(selectedDayData.audioUrl)}
+                        audioTitle={getLocalizedText(selectedDayData.audioTitle) || `Day ${selectedDay} Audio Content`}
+                        isVideoCompleted={selectedDayData.videoCompleted || false}
+                        caregiverId={caregiverId}
+                        day={selectedDay}
+                        onComplete={async () => {
+                          // Refresh program data to get updated progress
+                          fetchProgramStatus();
+                        }}
+                        style={{ marginTop: '16px' }}
+                      />
                       </div>
                     )}
                   </div>
                 )}
-                
-                {/* Tasks Section - Only unlocked after video is watched */}
-                <div>
-                  <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
-                  
-                  {/* Show lock message if video not watched */}
-                  {!selectedDayData.videoCompleted && getLocalizedText(selectedDayData.videoUrl) && (
-                    <div style={{ 
-                      padding: '16px', 
-                      backgroundColor: '#fef3c7', 
-                      border: '2px solid #fde68a',
-                      borderRadius: '8px',
-                      color: '#92400e',
-                      marginBottom: '16px'
-                    }}>
-                      <p style={{ margin: 0, fontWeight: '600', marginBottom: '4px' }}>
-                        🔒 Tasks Locked
-                      </p>
-                      <p style={{ margin: 0, fontSize: '14px' }}>
-                        Complete watching the video above to unlock daily tasks.
+
+                {/* Phase 3: Tasks (if video watched and tasks exist) */}
+                {selectedDayData.burdenTestCompleted && selectedDayData.videoCompleted && selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 && (
+                  <div>
+                    <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedDayData.taskResponses.map((task, idx) => (
+                        <div key={idx} style={{
+                          padding: '12px 16px',
+                          backgroundColor: task.completed ? '#f0fdf4' : '#fff',
+                          border: `2px solid ${task.completed ? '#86efac' : '#e5e7eb'}`,
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={task.completed}
+                            onChange={() => handleTaskToggle(selectedDay, idx)}
+                            style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                          />
+                          <span style={{ flex: 1, color: task.completed ? '#166534' : '#374151' }}>
+                            {getLocalizedText(task.taskDescription) || task.taskDescription}
+                          </span>
+                          {task.completed && <span>✅</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Day 1 Complete Message (if test done, video watched, and no tasks OR tasks completed) */}
+                {selectedDayData.burdenTestCompleted && selectedDayData.videoCompleted && 
+                 (!selectedDayData.taskResponses || selectedDayData.taskResponses.length === 0 || 
+                  selectedDayData.taskResponses.every(t => t.completed)) && (
+                  <div style={{
+                    padding: '20px',
+                    backgroundColor: '#dcfce7',
+                    border: '2px solid #86efac',
+                    borderRadius: '12px',
+                    textAlign: 'center',
+                    marginTop: '24px'
+                  }}>
+                    <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '18px' }}>
+                      🎉 Day 1 Complete!
+                    </p>
+                    <p style={{ margin: '8px 0 0 0', color: '#166534', fontSize: '14px' }}>
+                      Great job! Day 2 will unlock in 24 hours.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Other Days: Normal Video → Tasks Flow */}
+            {selectedDay !== 1 && (
+              <>
+                {/* Video Section */}
+                {getLocalizedText(selectedDayData.videoUrl) && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h4 style={styles.sectionTitle}>📹 Video Lesson</h4>
+                    
+                    <VideoPlayer
+                  videoUrl={getLocalizedText(selectedDayData.videoUrl)}
+                  videoTitle={getLocalizedText(selectedDayData.videoTitle)}
+                  initialProgress={selectedDayData.videoProgress || 0}
+                  isCompleted={selectedDayData.videoCompleted || false}
+                  caregiverId={caregiverId}
+                  day={selectedDay}
+                  onProgressUpdate={async (progressPercent) => {
+                    try {
+                      await fetch('/api/caregiver/update-progress', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          caregiverId,
+                          day: selectedDay,
+                          videoProgress: progressPercent
+                        })
+                      });
+                    } catch (err) {
+                      console.error('Failed to update video progress:', err);
+                    }
+                  }}
+                  onComplete={async () => {
+                    await handleVideoComplete(selectedDay);
+                  }}
+                />
+
+                {/* Audio Content (if available) */}
+                {getLocalizedText(selectedDayData.audioUrl) && (
+                  <div>
+                    <AudioPlayer
+                      audioUrl={getLocalizedText(selectedDayData.audioUrl)}
+                      audioTitle={getLocalizedText(selectedDayData.audioTitle) || `Day ${selectedDay} Audio Content`}
+                      isVideoCompleted={selectedDayData.videoCompleted || false}
+                      caregiverId={caregiverId}
+                      day={selectedDay}
+                      onComplete={() => {
+                        console.log(`Audio completed for Day ${selectedDay}`);
+                        fetchProgramStatus();
+                      }}
+                      style={{ marginTop: '16px' }}
+                    />
+                  </div>
+                )}
+
+                {/* Day 0 Quick Assessment - Show after video completion */}
+                {selectedDay === 0 && showAssessment && (
+                  <div style={{ marginTop: '24px', marginBottom: '24px' }}>
+                    <DailyAssessment
+                      day={selectedDay}
+                      caregiverId={caregiverId}
+                      onComplete={handleAssessmentComplete}
+                      onBack={() => setShowAssessment(false)}
+                    />
+                  </div>
+                )}
+
+                {/* Day 0 Assessment Completed Message */}
+                {selectedDay === 0 && selectedDayData.videoCompleted && selectedDayData.dailyAssessment && (
+                  <div style={{
+                    marginTop: '24px',
+                    marginBottom: '24px',
+                    padding: '20px',
+                    backgroundColor: '#dcfce7',
+                    border: '2px solid #86efac',
+                    borderRadius: '12px',
+                    textAlign: 'center'
+                  }}>
+                    <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '18px' }}>
+                      ✅ Quick Assessment Complete!
+                    </p>
+                    <p style={{ margin: '8px 0 16px 0', color: '#166534', fontSize: '14px' }}>
+                      Thank you for completing the Day 0 assessment. Your responses will help personalize your content.
+                    </p>
+                    
+                    {/* Mark Day 0 as Complete Button */}
+                    {!selectedDayData.completedAt && (
+                      <button
+                        onClick={() => handleDayComplete(selectedDay)}
+                        style={{
+                          padding: '12px 24px',
+                          backgroundColor: '#059669',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#047857'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#059669'}
+                      >
+                        🎉 Mark Day 0 as Complete & Start Day 1
+                      </button>
+                    )}
+                    
+                    {/* Day 0 Already Completed Message */}
+                    {selectedDayData.completedAt && (
+                      <div style={{
+                        padding: '12px',
+                        backgroundColor: '#f3f4f6',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        color: '#374151'
+                      }}>
+                        ✅ Day 0 completed on {new Date(selectedDayData.completedAt).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Tasks Section - Only unlocked after video is watched */}
+            <div>
+              <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
+              
+              {/* Show lock message if video not watched */}
+              {!selectedDayData.videoCompleted && getLocalizedText(selectedDayData.videoUrl) && (
+                <div style={{ 
+                  padding: '16px', 
+                  backgroundColor: '#fef3c7', 
+                  border: '2px solid #fde68a',
+                  borderRadius: '8px',
+                  color: '#92400e',
+                  marginBottom: '16px'
+                }}>
+                  <p style={{ margin: 0, fontWeight: '600', marginBottom: '4px' }}>
+                    🔒 Tasks Locked
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px' }}>
+                    Complete watching the video above to unlock daily tasks.
+                  </p>
+                </div>
+              )}
+              
+              {/* Tasks content - only shown if video is watched OR no video exists */}
+              {(selectedDayData.videoCompleted || !getLocalizedText(selectedDayData.videoUrl)) && (
+                <>
+                  {selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedDayData.taskResponses.map((task, index) => (
+                        <div key={index} style={{ backgroundColor: '#f9fafb', borderRadius: '8px', padding: '12px', border: '1px solid #e5e7eb' }}>
+                          <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>
+                            {task.taskDescription?.[getLanguageKey()] || task.taskDescription}
+                          </p>
+                          {task.completedAt && (
+                            <p style={{ fontSize: '12px', color: '#16a34a', margin: '4px 0 0 0' }}>
+                              ✅ Completed {new Date(task.completedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '16px' }}>
+                      <p style={{ fontSize: '14px', color: '#1e40af', margin: 0 }}>
+                        Complete the tasks for this day to unlock the next module.
                       </p>
                     </div>
                   )}
                   
-                  {/* Tasks content - only shown if video is watched OR no video exists */}
-                  {(selectedDayData.videoCompleted || !getLocalizedText(selectedDayData.videoUrl)) && (
-                    <>
-                      {selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {selectedDayData.taskResponses.map((task, index) => (
-                            <div key={index} style={{ backgroundColor: '#f9fafb', borderRadius: '8px', padding: '12px', border: '1px solid #e5e7eb' }}>
-                              <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>
-                                {task.taskDescription?.[getLanguageKey()] || task.taskDescription}
-                              </p>
-                              {task.completedAt && (
-                                <p style={{ fontSize: '12px', color: '#16a34a', margin: '4px 0 0 0' }}>
-                                  ✅ Completed {new Date(task.completedAt).toLocaleDateString()}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '16px' }}>
-                          <p style={{ fontSize: '14px', color: '#1e40af', margin: 0 }}>
-                            Complete the tasks for this day to unlock the next module.
-                          </p>
-                        </div>
-                      )}
-                      
-                      {!selectedDayData.tasksCompleted && (
-                        <button
-                          onClick={() => handleTasksComplete(selectedDay)}
-                          style={{
-                            ...styles.button,
-                            backgroundColor: tasksButtonHovered ? '#1d4ed8' : '#2563eb',
-                            color: 'white'
-                          }}
-                          onMouseEnter={() => setTasksButtonHovered(true)}
-                          onMouseLeave={() => setTasksButtonHovered(false)}
-                        >
-                          Mark Tasks as Complete
-                        </button>
-                      )}
-                    </>
+                  {!selectedDayData.tasksCompleted && (
+                    <button
+                      onClick={() => handleTasksComplete(selectedDay)}
+                      style={{
+                        ...styles.button,
+                        backgroundColor: tasksButtonHovered ? '#1d4ed8' : '#2563eb',
+                        color: 'white'
+                      }}
+                      onMouseEnter={() => setTasksButtonHovered(true)}
+                      onMouseLeave={() => setTasksButtonHovered(false)}
+                    >
+                      Mark Tasks as Complete
+                    </button>
                   )}
-                </div>
-                  </>
-                )}
+                </>
+              )}
+            </div>
               </>
             )}
           </div>
