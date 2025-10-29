@@ -1,7 +1,7 @@
-// Simple test to verify our API configuration
+// Simple API test to verify burden assessment
 const fetch = require('node-fetch');
 
-async function testAPI() {
+async function testBurdenAPI() {
   try {
     console.log('🧪 Testing burden assessment API...');
     
@@ -9,25 +9,28 @@ async function testAPI() {
     
     if (!response.ok) {
       console.error('❌ API Error:', response.status, response.statusText);
+      const text = await response.text();
+      console.error('Response body:', text);
       return;
     }
     
     const data = await response.json();
     console.log('✅ API Response received');
     console.log('📊 Questions count:', data.config?.questions?.length || 0);
+    console.log('📊 First question:', data.config?.questions?.[0]?.questionText?.english || 'N/A');
     console.log('📊 Score ranges defined:', !!data.config?.scoreRanges);
     
     if (data.config?.questions?.length > 0) {
-      console.log('📋 First question:', data.config.questions[0].questionText?.english);
+      console.log('📋 Sample questions:');
+      data.config.questions.slice(0, 3).forEach((q, i) => {
+        console.log(`  ${i+1}. ${q.questionText?.english}`);
+        console.log(`     Options: ${q.options?.length || 0}`);
+      });
     }
-    
-    // Pretty print the structure
-    console.log('\n📄 Full response structure:');
-    console.log(JSON.stringify(data, null, 2));
     
   } catch (error) {
     console.error('❌ Test failed:', error.message);
   }
 }
 
-testAPI();
+testBurdenAPI();

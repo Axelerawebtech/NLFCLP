@@ -35,6 +35,17 @@ export default async function handler(req, res) {
       caregiverProgram.currentDay = Math.min(day + 1, 7);
     }
 
+    // Progressive content reveal: unlock next day when current day is completed
+    const nextDay = day + 1;
+    if (nextDay <= 7) {
+      const nextDayModule = caregiverProgram.dayModules.find(module => module.day === nextDay);
+      if (nextDayModule && !nextDayModule.adminPermissionGranted) {
+        // Unlock the next day immediately for progressive reveal
+        caregiverProgram.unlockDay(nextDay, 'automatic-progressive');
+        console.log(`Progressive unlock: Day ${nextDay} unlocked after Day ${day} completion`);
+      }
+    }
+
     await caregiverProgram.save();
 
     res.status(200).json({

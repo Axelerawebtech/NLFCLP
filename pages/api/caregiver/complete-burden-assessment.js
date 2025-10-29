@@ -42,15 +42,14 @@ export default async function handler(req, res) {
         await program.assignDynamicContent(config);
       }
       
-      // Schedule Day 1 unlock based on wait time
-      const waitTimeHours = program.customWaitTimes?.day0ToDay1 || config?.waitTimes?.day0ToDay1 || 24;
+      // For progressive content reveal: only unlock Day 1 immediately
+      // Other days will be unlocked when previous day is completed
+      const waitTimeHours = program.customWaitTimes?.day0ToDay1 || config?.waitTimes?.day0ToDay1 || 0; // Immediate unlock for Day 1
       program.scheduleDayUnlock(1, waitTimeHours);
       
-      // Schedule remaining days (2-9) based on between-days wait time
-      const betweenDaysWaitTime = program.customWaitTimes?.betweenDays || config?.waitTimes?.betweenDays || 24;
-      for (let day = 2; day <= 7; day++) {
-        program.scheduleDayUnlock(day, betweenDaysWaitTime);
-      }
+      // Days 2-7 will be unlocked progressively as previous days are completed
+      // (This will be handled in the complete-day-module API)
+      console.log('Progressive content reveal: Only Day 1 scheduled for immediate unlock');
       
       await program.save();
       

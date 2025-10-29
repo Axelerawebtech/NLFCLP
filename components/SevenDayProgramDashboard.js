@@ -230,24 +230,23 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 language: langKey
               });
               
-              // Add burden level for days that need it
-              if (dayModule.day >= 1 && programData?.burdenLevel) {
-                // Map database burden levels to API expected values
-                const burdenLevelMap = {
-                  'mild': 'low',
-                  'moderate': 'moderate', 
-                  'severe': 'high'
-                };
-                const mappedBurdenLevel = burdenLevelMap[programData.burdenLevel] || 'moderate';
-                queryParams.append('burdenLevel', mappedBurdenLevel);
+              // Add burden level for days that need it (use enhancedData instead of programData)
+              if (dayModule.day >= 1 && enhancedData?.burdenLevel) {
+                // Use exact burden level from database (mild, moderate, severe)
+                queryParams.append('burdenLevel', enhancedData.burdenLevel);
+                console.log(`🔍 Day ${dayModule.day} fetching video for burden level: ${enhancedData.burdenLevel}`);
               } else if (dayModule.day >= 1) {
                 queryParams.append('burdenLevel', 'moderate'); // Default fallback
+                console.log(`🔍 Day ${dayModule.day} using default burden level: moderate`);
               }
               
+              console.log(`🎥 Fetching video: ${queryParams.toString()}`);
               const videoResponse = await fetch(`/api/caregiver/get-video-content?${queryParams}`);
               
               if (videoResponse.ok) {
                 const videoData = await videoResponse.json();
+                
+                console.log(`🔍 Day ${dayModule.day} video response:`, videoData);
                 
                 // Merge video content into day module
                 const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
@@ -259,8 +258,14 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   videoDescription: videoData.videoContent?.description || '',
                   audioUrl: videoData.videoContent?.audioUrl || '',
                   audioTitle: videoData.videoContent?.audioTitle || '',
-                  tasks: videoData.videoContent?.tasks || dayModule.tasks || []
+                  tasks: videoData.videoContent?.tasks || dayModule.tasks || [],
+                  // Preserve burden assessment data from original day module
+                  burdenTestCompleted: baseModule.burdenTestCompleted || false,
+                  burdenLevel: baseModule.burdenLevel || enhancedData.burdenLevel,
+                  burdenScore: baseModule.burdenScore
                 };
+                
+                console.log(`🔍 Day ${dayModule.day} merged module videoUrl:`, mergedModule.videoUrl);
                 
                 return mergedModule;
               } else {
@@ -272,7 +277,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   videoTitle: '',
                   videoDescription: '',
                   audioUrl: '',
-                  audioTitle: ''
+                  audioTitle: '',
+                  // Preserve burden assessment data even when no video
+                  burdenTestCompleted: baseModule.burdenTestCompleted || false,
+                  burdenLevel: baseModule.burdenLevel || enhancedData.burdenLevel,
+                  burdenScore: baseModule.burdenScore
                 };
                 
                 return mergedModule;
@@ -287,7 +296,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 videoTitle: '',
                 videoDescription: '',
                 audioUrl: '',
-                audioTitle: ''
+                audioTitle: '',
+                // Preserve burden assessment data even on error
+                burdenTestCompleted: baseModule.burdenTestCompleted || false,
+                burdenLevel: baseModule.burdenLevel || enhancedData.burdenLevel,
+                burdenScore: baseModule.burdenScore
               };
               
               return mergedModule;
@@ -296,6 +309,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           
           const enhancedDayModules = await Promise.all(videoPromises);
           enhancedData.dayModules = enhancedDayModules;
+          
+          // Debug burden data mapping
+          console.log('🔍 Enhanced data burden info:', {
+            overallBurdenLevel: enhancedData.burdenLevel,
+            burdenTestCompleted: enhancedData.burdenTestCompleted,
+            day1Module: enhancedDayModules.find(m => m.day === 1)
+          });
         }
         
         setProgramData(enhancedData);
@@ -555,9 +575,31 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         </div>
       )}
 
+      {/* Progressive Content Info */}
+      {programData.burdenTestCompleted && (
+        <div style={{
+          backgroundColor: '#f0f9ff',
+          border: '1px solid #0ea5e9',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ fontSize: '20px' }}>📚</span>
+          <p style={{ fontSize: '14px', margin: 0, color: '#0c4a6e' }}>
+            <strong>Progressive Learning:</strong> Days unlock one at a time as you complete each module. 
+            Complete today's content to access tomorrow's materials.
+          </p>
+        </div>
+      )}
+
       {/* Day Grid */}
       <div style={styles.dayGrid}>
-        {programData.dayModules?.map((dayModule) => {
+        {programData.dayModules
+          ?.sort((a, b) => a.day - b.day)  // Sort by day number to ensure proper order
+          ?.map((dayModule) => {
           const isUnlocked = dayModule.adminPermissionGranted;
           const isCompleted = dayModule.progressPercentage === 100;
           const isCurrent = dayModule.day === programData.currentDay;
@@ -683,7 +725,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             {selectedDay === 1 && (
               <>
                 {/* Phase 1: Burden Test - INLINE (always show if test completed but no video available) */}
-                {(!selectedDayData.videoCompleted && (!getLocalizedText(selectedDayData.videoUrl) || !selectedDayData.burdenTestCompleted)) && (
+                {(!selectedDayData.videoCompleted && (!getLocalizedText(selectedDayData.videoUrl) || !(selectedDayData.burdenTestCompleted || programData.burdenTestCompleted))) && (
                   <InlineBurdenAssessment 
                     caregiverId={caregiverId}
                     existingAnswers={(() => {
@@ -716,7 +758,26 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 )}
 
                 {/* Phase 2: Video (if test completed and video available but not watched) */}
-                {selectedDayData.burdenTestCompleted && !selectedDayData.videoCompleted && getLocalizedText(selectedDayData.videoUrl) && (
+                {(() => {
+                  // Check burden test completion from multiple sources
+                  const burdenTestCompleted = selectedDayData.burdenTestCompleted || programData.burdenTestCompleted;
+                  const videoCompleted = selectedDayData.videoCompleted;
+                  const videoUrl = getLocalizedText(selectedDayData.videoUrl);
+                  const burdenLevel = selectedDayData.burdenLevel || programData.burdenLevel;
+                  
+                  console.log('🔍 Day 1 Video Display Check:', {
+                    burdenTestCompleted,
+                    videoCompleted,
+                    videoUrl: videoUrl || 'NO VIDEO URL',
+                    videoUrlObject: selectedDayData.videoUrl,
+                    burdenLevel,
+                    programDataBurdenLevel: programData.burdenLevel,
+                    selectedDayBurdenLevel: selectedDayData.burdenLevel,
+                    shouldShowVideo: burdenTestCompleted && !videoCompleted && videoUrl
+                  });
+                  
+                  return burdenTestCompleted && !videoCompleted && videoUrl;
+                })() && (
                   <div style={{ marginBottom: '24px' }}>
                     <div style={{
                       padding: '16px',
@@ -726,7 +787,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       marginBottom: '16px'
                     }}>
                       <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '15px' }}>
-                        ✅ Assessment Complete! Your burden level: <strong style={{ textTransform: 'capitalize' }}>{selectedDayData.burdenLevel || 'Moderate'}</strong>
+                        ✅ Assessment Complete! Your burden level: <strong style={{ textTransform: 'capitalize' }}>{selectedDayData.burdenLevel || programData.burdenLevel || 'Moderate'}</strong>
                       </p>
                       <p style={{ margin: '4px 0 0 0', color: '#166534', fontSize: '14px' }}>
                         Watch the video below designed specifically for your situation.
@@ -783,7 +844,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 )}
 
                 {/* Phase 3: Tasks (if video watched and tasks exist) */}
-                {selectedDayData.burdenTestCompleted && selectedDayData.videoCompleted && selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 && (
+                {(selectedDayData.burdenTestCompleted || programData.burdenTestCompleted) && selectedDayData.videoCompleted && selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 && (
                   <div>
                     <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -814,7 +875,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 )}
 
                 {/* Day 1 Complete Message (if test done, video watched, and no tasks OR tasks completed) */}
-                {selectedDayData.burdenTestCompleted && selectedDayData.videoCompleted && 
+                {(selectedDayData.burdenTestCompleted || programData.burdenTestCompleted) && selectedDayData.videoCompleted && 
                  (!selectedDayData.taskResponses || selectedDayData.taskResponses.length === 0 || 
                   selectedDayData.taskResponses.every(t => t.completed)) && (
                   <div style={{

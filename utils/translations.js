@@ -100,6 +100,25 @@ export const translations = {
     takeYourTime: "Take your time and come back when you're ready.",
     returnToHome: "Return to Home",
     
+    // Zarit Burden Assessment
+    zaritBurdenAssessment: "Caregiver Burden Assessment",
+    zaritAssessmentInstructions: "Please answer the following questions honestly. This will help us provide you with the most appropriate support.",
+    never: "NEVER",
+    rarely: "RARELY", 
+    sometimes: "SOMETIMES",
+    quiteFrequently: "QUITE FREQUENTLY",
+    nearlyAlways: "NEARLY ALWAYS",
+    question: "Question",
+    of: "of",
+    submitting: "Submitting...",
+    zaritQuestion1: "Do you feel that your relative asks for more help than he or she needs?",
+    zaritQuestion2: "Do you feel that your relative currently affects your relationship with other family members?",
+    zaritQuestion3: "Do you feel that your relative is dependent upon you?",
+    zaritQuestion4: "Do you feel that you don't have as much privacy as you would like, because of your relative?",
+    zaritQuestion5: "Do you feel that your social life has suffered because you are caring for your relative?",
+    zaritQuestion6: "Do you feel that your relative seems to expect you to take care of him or her, as if you were the only one he or she could depend on?",
+    zaritQuestion7: "Do you wish that you could just leave the care of your relative to someone else?",
+    
     // Questions
     fullName: "What is your full name?",
     phoneNumber: "What is your phone number?",

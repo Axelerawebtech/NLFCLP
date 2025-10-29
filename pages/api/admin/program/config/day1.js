@@ -74,7 +74,11 @@ export default async function handler(req, res) {
       config.day1 = {
         burdenTestQuestions: questionsToSave.map(q => ({
           id: q.id,
-          text: q.text,
+          questionText: q.questionText || {
+            english: q.text || '',
+            kannada: '',
+            hindi: ''
+          },
           enabled: q.enabled !== undefined ? q.enabled : true
         })),
         videos: {
@@ -158,37 +162,65 @@ function getDefaultBurdenQuestions() {
   return [
     {
       id: 1,
-      text: 'Do you feel that your relative asks for more help than he/she needs?',
+      questionText: {
+        english: 'Do you feel that your relative asks for more help than he/she needs?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರು ಅಗತ್ಯಕ್ಕಿಂತ ಹೆಚ್ಚು ಸಹಾಯ ಕೇಳುತ್ತಾರೆಯೇ ಎಂದು ನೀವು ಭಾವಿಸುತ್ತೀರಾ?',
+        hindi: 'क्या आपको लगता है कि आपका रिश्तेदार जरूरत से ज्यादा मदद मांगता है?'
+      },
       enabled: true
     },
     {
       id: 2,
-      text: 'Do you feel that because of the time you spend with your relative you don\'t have enough time for yourself?',
+      questionText: {
+        english: 'Do you feel that because of the time you spend with your relative you don\'t have enough time for yourself?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರೊಂದಿಗೆ ನೀವು ಕಳೆಯುವ ಸಮಯದಿಂದಾಗಿ ನಿಮಗಾಗಿ ಸಾಕಷ್ಟು ಸಮಯವಿಲ್ಲ ಎಂದು ನೀವು ಭಾವಿಸುತ್ತೀರಾ?',
+        hindi: 'क्या आपको लगता है कि आपके रिश्तेदार के साथ बिताए समय के कारण आपके पास अपने लिए पर्याप्त समय नहीं है?'
+      },
       enabled: true
     },
     {
       id: 3,
-      text: 'Do you feel stressed between caring for your relative and trying to meet other responsibilities (work/family)?',
+      questionText: {
+        english: 'Do you feel stressed between caring for your relative and trying to meet other responsibilities (work/family)?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರ ಆರೈಕೆ ಮತ್ತು ಇತರ ಜವಾಬ್ದಾರಿಗಳನ್ನು ಪೂರೈಸಲು ಪ್ರಯತ್ನಿಸುವ ನಡುವೆ ನೀವು ಒತ್ತಡ ಅನುಭವಿಸುತ್ತೀರಾ?',
+        hindi: 'क्या आप अपने रिश्तेदार की देखभाल और अन्य जिम्मेदारियों को पूरा करने के बीच तनावग्रस्त महसूस करते हैं?'
+      },
       enabled: true
     },
     {
       id: 4,
-      text: 'Do you feel embarrassed over your relative\'s behavior?',
+      questionText: {
+        english: 'Do you feel embarrassed over your relative\'s behavior?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರ ನಡವಳಿಕೆಯಿಂದಾಗಿ ನೀವು ಮುಜುಗರ ಅನುಭವಿಸುತ್ತೀರಾ?',
+        hindi: 'क्या आप अपने रिश्तेदार के व्यवहार से शर्मिंदा महसूस करते हैं?'
+      },
       enabled: true
     },
     {
       id: 5,
-      text: 'Do you feel angry when you are around your relative?',
+      questionText: {
+        english: 'Do you feel angry when you are around your relative?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರ ಸುತ್ತಲೂ ಇರುವಾಗ ನೀವು ಕೋಪ ಅನುಭವಿಸುತ್ತೀರಾ?',
+        hindi: 'क्या आप अपने रिश्तेदार के आसपास होने पर गुस्सा महसूस करते हैं?'
+      },
       enabled: true
     },
     {
       id: 6,
-      text: 'Do you feel that your social life has suffered because you are caring for your relative?',
+      questionText: {
+        english: 'Do you feel that your social life has suffered because you are caring for your relative?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರ ಆರೈಕೆಯಿಂದಾಗಿ ನಿಮ್ಮ ಸಾಮಾಜಿಕ ಜೀವನ ಬಾಧಿತವಾಗಿದೆ ಎಂದು ನೀವು ಭಾವಿಸುತ್ತೀರಾ?',
+        hindi: 'क्या आपको लगता है कि आपके रिश्तेदार की देखभाल के कारण आपकी सामाजिक जिंदगी प्रभावित हुई है?'
+      },
       enabled: true
     },
     {
       id: 7,
-      text: 'Overall, how burdened do you feel in caring for your relative?',
+      questionText: {
+        english: 'Overall, how burdened do you feel in caring for your relative?',
+        kannada: 'ಒಟ್ಟಾರೆಯಾಗಿ, ನಿಮ್ಮ ಸಂಬಂಧಿಕರ ಆರೈಕೆಯಲ್ಲಿ ನೀವು ಎಷ್ಟು ಹೊರೆ ಅನುಭವಿಸುತ್ತೀರಿ?',
+        hindi: 'कुल मिलाकर, आप अपने रिश्तेदार की देखभाल में कितना बोझ महसूस करते हैं?'
+      },
       enabled: true
     }
   ];

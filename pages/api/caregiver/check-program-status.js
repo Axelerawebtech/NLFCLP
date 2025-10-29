@@ -58,6 +58,19 @@ export default async function handler(req, res) {
         ? program.dayModules.filter(m => m.adminPermissionGranted).map(m => m.day)
         : [];
       
+      // Debug burden status using enhanced model structure
+      const day1Module = program.dayModules?.find(m => m.day === 1);
+      const burdenAssessment = program.oneTimeAssessments?.find(
+        assessment => assessment.type === 'zarit_burden'
+      );
+      console.log('🔍 Check Program Status - Burden Debug:', {
+        programBurdenLevel: program.burdenLevel,
+        day1DailyAssessment: !!day1Module?.dailyAssessment,
+        day1AssessmentType: day1Module?.dailyAssessment?.assessmentType,
+        burdenAssessmentExists: !!burdenAssessment,
+        burdenAssessmentScore: burdenAssessment?.totalScore
+      });
+      
       return res.status(200).json({
         success: true,
         data: {
@@ -66,9 +79,9 @@ export default async function handler(req, res) {
           unlockedDays,
           dayModules: program.dayModules,
           burdenLevel: program.burdenLevel,
-          burdenTestCompleted: !!program.burdenTestCompletedAt,
+          burdenTestCompleted: !!burdenAssessment, // Check oneTimeAssessments
           overallProgress: program.overallProgress,
-          zaritBurdenAssessment: program.zaritBurdenAssessment // Add burden assessment data
+          oneTimeAssessments: program.oneTimeAssessments // Include assessment data
         }
       });
     } catch (error) {

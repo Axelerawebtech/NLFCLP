@@ -1,5 +1,5 @@
 import dbConnect from '../../../lib/mongodb';
-import CaregiverProgram from '../../../models/CaregiverProgram';
+import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
 import ProgramConfig from '../../../models/ProgramConfig';
 
 /**
@@ -7,7 +7,7 @@ import ProgramConfig from '../../../models/ProgramConfig';
  * Method: POST
  * 
  * Purpose: Handle burden test submission for Day 1
- * - Save burden test score and level
+ * - Save burden test score and level (using admin-defined scoring)
  * - Fetch appropriate video from ProgramConfig based on burden level
  * - Update Day 1 module with video
  * - Mark burden test as completed
@@ -21,7 +21,23 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { caregiverId, answers, totalScore, burdenLevel } = req.body;
+    const { 
+      caregiverId, 
+      answers, 
+      answerDetails, 
+      totalScore, 
+      burdenLevel,
+      maxPossibleScore,
+      questionsCompleted
+    } = req.body;
+
+    console.log('📊 Burden test submission:', {
+      caregiverId,
+      totalScore,
+      burdenLevel,
+      questionsCompleted,
+      maxPossibleScore
+    });
 
     if (!caregiverId || !answers || totalScore === undefined || !burdenLevel) {
       return res.status(400).json({ 
@@ -29,12 +45,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // Validate burden level
-    if (!['mild', 'moderate', 'severe'].includes(burdenLevel)) {
+    // Validate burden level - support both legacy and new format
+    const validBurdenLevels = ['mild', 'moderate', 'severe', 'low', 'high'];
+    if (!validBurdenLevels.includes(burdenLevel)) {
       return res.status(400).json({ 
-        error: 'Invalid burden level. Must be mild, moderate, or severe' 
+        error: 'Invalid burden level. Must be mild, moderate, severe, low, or high' 
       });
     }
+
+    // For the enhanced model, we'll store the original burden level directly
+    // The frontend and video system expect mild/moderate/severe format
 
     // Get caregiver program
     const program = await CaregiverProgram.findOne({ caregiverId });
@@ -50,8 +70,12 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Day 1 module not found' });
     }
 
-    // Check if test already completed
-    if (day1Module.burdenTestCompleted) {
+    // Check if test already completed by looking at oneTimeAssessments
+    const existingBurdenAssessment = program.oneTimeAssessments?.find(
+      assessment => assessment.type === 'zarit_burden'
+    );
+    
+    if (existingBurdenAssessment) {
       return res.status(400).json({ 
         error: 'Burden test already completed',
         message: 'You have already taken the burden assessment.'
@@ -74,47 +98,78 @@ export default async function handler(req, res) {
       }
     }
 
-    // Update Day 1 module
-    day1Module.burdenTestCompleted = true;
-    day1Module.burdenLevel = burdenLevel;
-    day1Module.burdenScore = totalScore;
+    // Update Day 1 module - use enhanced model structure
+    day1Module.dailyAssessment = {
+      day: 1,
+      assessmentType: 'zarit_burden',
+      responses: new Map(Object.entries(answerDetails || {})),
+      totalScore,
+      scoreLevel: burdenLevel, // Use original burden level (mild/moderate/severe)
+      completedAt: new Date()
+    };
     
     // Only set video fields if video is available
     if (videoAvailable) {
-      day1Module.videoTitle = videoConfig.videoTitle;
-      day1Module.videoUrl = videoConfig.videoUrl;
-      day1Module.content = videoConfig.description;
+      // Video content will be fetched dynamically by the frontend
       day1Module.progressPercentage = 50; // Test completed, video pending
     } else {
       // Video not available - set progress to 50% (test done)
       day1Module.progressPercentage = 50;
     }
 
-    // Update program-level burden info
-    program.burdenLevel = burdenLevel;
-    program.burdenTestScore = totalScore;
-    program.burdenTestCompletedAt = new Date();
+    // Update program-level burden info - keep original burden level for frontend
+    program.burdenLevel = burdenLevel; // Keep original (mild/moderate/severe) for video fetching
 
-    // Save burden test answers
-    if (!program.zaritBurdenAssessment) {
-      program.zaritBurdenAssessment = {};
+    // Store burden assessment in oneTimeAssessments
+    if (!program.oneTimeAssessments) {
+      program.oneTimeAssessments = [];
     }
-    program.zaritBurdenAssessment.answers = answers;
-    program.zaritBurdenAssessment.totalScore = totalScore;
-    program.zaritBurdenAssessment.burdenLevel = burdenLevel;
-    program.zaritBurdenAssessment.completedAt = new Date();
 
-    // Mark as modified
+    // Convert answers object to responses array format
+    const responses = Object.keys(answers).map((questionKey, index) => ({
+      questionId: questionKey,
+      questionText: answerDetails?.[index]?.question?.question || `Question ${index + 1}`,
+      responseValue: answers[questionKey],
+      answeredAt: new Date()
+    }));
+
+    program.oneTimeAssessments.push({
+      type: 'zarit_burden',
+      responses,
+      totalScore,
+      scoreLevel: burdenLevel, // Use original burden level (mild/moderate/severe)
+      completedAt: new Date(),
+      language: 'english'
+    });
+
+    // Explicitly mark nested objects as modified to ensure Mongoose saves them
     program.markModified('dayModules');
-    program.markModified('zaritBurdenAssessment');
+    program.markModified('oneTimeAssessments');
+    program.markModified('burdenLevel');
 
-    // Save without validation to avoid burdenLevel enum error
-    await program.save({ validateBeforeSave: false });
+    // Save the program
+    await program.save();
+
+    // Double-check: Verify the data was actually saved
+    const updatedProgram = await CaregiverProgram.findOne({ caregiverId });
+    const updatedDay1Module = updatedProgram.dayModules.find(m => m.day === 1);
+    const savedBurdenAssessment = updatedProgram.oneTimeAssessments?.find(
+      assessment => assessment.type === 'zarit_burden'
+    );
+    
+    console.log('🔍 Verification after save:');
+    console.log('  Day 1 dailyAssessment exists:', !!updatedDay1Module.dailyAssessment);
+    console.log('  Day 1 dailyAssessment type:', updatedDay1Module.dailyAssessment?.assessmentType);
+    console.log('  Program burdenLevel:', updatedProgram.burdenLevel);
+    console.log('  OneTime burden assessment exists:', !!savedBurdenAssessment);
+    console.log('  OneTime assessment totalScore:', savedBurdenAssessment?.totalScore);
 
     console.log('✅ Burden test submitted:', {
       caregiverId,
       burdenLevel,
       totalScore,
+      maxPossibleScore,
+      questionsCompleted,
       videoAvailable
     });
 
@@ -122,6 +177,8 @@ export default async function handler(req, res) {
     const responseData = {
       burdenLevel,
       totalScore,
+      maxPossibleScore,
+      questionsCompleted,
       videoAvailable
     };
 

@@ -40,13 +40,69 @@ export default function ProgramConfigManager() {
   });
   const [day1SelectedBurden, setDay1SelectedBurden] = useState('mild');
   const [burdenTestQuestions, setBurdenTestQuestions] = useState([
-    { id: 1, text: 'Does your relative ask for more help than needed?', enabled: true },
-    { id: 2, text: 'Does caregiving affect your relationship with family/friends?', enabled: true },
-    { id: 3, text: 'Do you feel your relative is dependent on you?', enabled: true },
-    { id: 4, text: 'Do you feel strained when around your relative?', enabled: true },
-    { id: 5, text: 'Has your social life suffered?', enabled: true },
-    { id: 6, text: 'Does your relative expect you to be the only caregiver?', enabled: true },
-    { id: 7, text: 'Do you wish you could leave care to someone else?', enabled: true }
+    { 
+      id: 1, 
+      questionText: {
+        english: 'Does your relative ask for more help than needed?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರು ಅಗತ್ಯಕ್ಕಿಂತ ಹೆಚ್ಚು ಸಹಾಯ ಕೇಳುತ್ತಾರೆಯೇ?',
+        hindi: 'क्या आपका रिश्तेदार जरूरत से ज्यादा मदद मांगता है?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 2, 
+      questionText: {
+        english: 'Does caregiving affect your relationship with family/friends?',
+        kannada: 'ಆರೈಕೆ ನೀಡುವುದು ಕುಟುಂಬ/ಸ್ನೇಹಿತರೊಂದಿಗಿನ ನಿಮ್ಮ ಸಂಬಂಧವನ್ನು ಪ್ರಭಾವಿಸುತ್ತದೆಯೇ?',
+        hindi: 'क्या देखभाल करना आपके परिवार/दोस्तों के साथ रिश्ते को प्रभावित करता है?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 3, 
+      questionText: {
+        english: 'Do you feel your relative is dependent on you?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರು ನಿಮ್ಮ ಮೇಲೆ ಅವಲಂಬಿತರಾಗಿದ್ದಾರೆ ಎಂದು ನೀವು ಭಾವಿಸುತ್ತೀರಾ?',
+        hindi: 'क्या आपको लगता है कि आपका रिश्तेदार आप पर निर्भर है?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 4, 
+      questionText: {
+        english: 'Do you feel strained when around your relative?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರ ಸುತ್ತಲೂ ಇರುವಾಗ ನೀವು ಒತ್ತಡ ಅನುಭವಿಸುತ್ತೀರಾ?',
+        hindi: 'क्या आप अपने रिश्तेदार के आसपास तनावग्रस्त महसूस करते हैं?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 5, 
+      questionText: {
+        english: 'Has your social life suffered?',
+        kannada: 'ನಿಮ್ಮ ಸಾಮಾಜಿಕ ಜೀವನ ಬಾಧಿತವಾಗಿದೆಯೇ?',
+        hindi: 'क्या आपकी सामाजिक जिंदगी प्रभावित हुई है?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 6, 
+      questionText: {
+        english: 'Does your relative expect you to be the only caregiver?',
+        kannada: 'ನಿಮ್ಮ ಸಂಬಂಧಿಕರು ನೀವು ಮಾತ್ರ ಆರೈಕೆದಾರರಾಗಬೇಕು ಎಂದು ನಿರೀಕ್ಷಿಸುತ್ತಾರೆಯೇ?',
+        hindi: 'क्या आपका रिश्तेदार अपेक्षा करता है कि आप ही एकमात्र देखभालकर्ता हों?'
+      },
+      enabled: true 
+    },
+    { 
+      id: 7, 
+      questionText: {
+        english: 'Do you wish you could leave care to someone else?',
+        kannada: 'ನೀವು ಆರೈಕೆಯನ್ನು ಬೇರೆಯವರಿಗೆ ಬಿಡಬಹುದೆಂದು ಬಯಸುತ್ತೀರಾ?',
+        hindi: 'क्या आप चाहते हैं कि आप देखभाल किसी और को छोड़ सकें?'
+      },
+      enabled: true 
+    }
   ]);
 
   // Quick Assessment Questions (Yes/No type)
@@ -109,6 +165,13 @@ export default function ProgramConfigManager() {
   });
   const [uploadingDayVideo, setUploadingDayVideo] = useState(false);
   
+  // Enhanced loading states for Days 2-7 (per day, burden level, and language)
+  const [uploadingDays2to7, setUploadingDays2to7] = useState({
+    2: { low: { english: false, kannada: false, hindi: false }, moderate: { english: false, kannada: false, hindi: false }, high: { english: false, kannada: false, hindi: false } },
+    3: { physical: { english: false, kannada: false, hindi: false }, psychological: { english: false, kannada: false, hindi: false }, social: { english: false, kannada: false, hindi: false }, environment: { english: false, kannada: false, hindi: false } },
+    4: { 'wound-care': { english: false, kannada: false, hindi: false }, 'drain-care': { english: false, kannada: false, hindi: false }, 'stoma-care': { english: false, kannada: false, hindi: false }, 'feeding-tube': { english: false, kannada: false, hindi: false }, 'urinary-catheter': { english: false, kannada: false, hindi: false }, 'oral-anticancer': { english: false, kannada: false, hindi: false }, 'bedbound-patient': { english: false, kannada: false, hindi: false } }
+  });
+  
   // Task management
   const [newTask, setNewTask] = useState({
     taskDescription: { english: '', kannada: '', hindi: '' },
@@ -126,6 +189,7 @@ export default function ProgramConfigManager() {
   // Content Management States for Days 0-7
   const [selectedContentDay, setSelectedContentDay] = useState(0);
   const [contentType, setContentType] = useState('motivation');
+  const [selectedContentBurdenLevel, setSelectedContentBurdenLevel] = useState('mild'); // New burden level state
   const [contentData, setContentData] = useState({
     motivation: { english: '', kannada: '', hindi: '' },
     healthcareTips: { english: '', kannada: '', hindi: '' },
@@ -133,6 +197,11 @@ export default function ProgramConfigManager() {
     dailyTasks: { english: '', kannada: '', hindi: '' },
     audioContent: { english: '', kannada: '', hindi: '' },
     quickAssessment: { english: '', kannada: '', hindi: '' }
+  });
+  const [reminderFrequency, setReminderFrequency] = useState({
+    english: 'daily',
+    kannada: 'daily', 
+    hindi: 'daily'
   });
   const [uploadingContent, setUploadingContent] = useState({
     motivation: { english: false, kannada: false, hindi: false },
@@ -153,7 +222,7 @@ export default function ProgramConfigManager() {
 
   useEffect(() => {
     loadDayContent();
-  }, [selectedDay, selectedBurdenLevel]);
+  }, [selectedDay, selectedBurdenLevel, selectedLanguage]);
 
   // Reset selectedBurdenLevel to first option when day changes
   useEffect(() => {
@@ -173,10 +242,28 @@ export default function ProgramConfigManager() {
     }
   }, [selectedDay]);
 
-  // Load content data when selected day or content type changes
+  // Reset selectedContentBurdenLevel to first option when content day changes
+  useEffect(() => {
+    const getFirstOptionForContentDay = (day) => {
+      switch (day) {
+        case 1: return 'mild';
+        case 2: return 'low';
+        case 3: return 'physical';
+        case 4: return 'wound-care';
+        default: return 'mild';
+      }
+    };
+    
+    const firstOption = getFirstOptionForContentDay(selectedContentDay);
+    if (selectedContentBurdenLevel !== firstOption) {
+      setSelectedContentBurdenLevel(firstOption);
+    }
+  }, [selectedContentDay]);
+
+  // Load content data when selected day, content type, or burden level changes
   useEffect(() => {
     loadContentData();
-  }, [selectedContentDay, contentType]);
+  }, [selectedContentDay, contentType, selectedContentBurdenLevel]);
 
   // Load quick assessment questions on component mount
   useEffect(() => {
@@ -214,11 +301,64 @@ export default function ProgramConfigManager() {
 
   const loadDayContent = async () => {
     try {
-      const response = await fetch(`/api/admin/program/config?day=${selectedDay}&burdenLevel=${selectedBurdenLevel}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.dayContent) {
-          setDayContent(data.dayContent);
+      // Use video management API for better data retrieval
+      const params = new URLSearchParams({
+        day: selectedDay.toString(),
+        language: selectedLanguage
+      });
+
+      if (selectedDay === 1) {
+        params.append('burdenLevel', selectedBurdenLevel);
+      }
+
+      console.log('🔍 ProgramConfigManager: Loading day content:', {
+        day: selectedDay,
+        burdenLevel: selectedBurdenLevel,
+        language: selectedLanguage,
+        url: `/api/admin/video-management?${params}`
+      });
+
+      const response = await fetch(`/api/admin/video-management?${params}`);
+      const data = await response.json();
+
+      console.log('🔍 ProgramConfigManager: API response:', data);
+
+      if (data.success && data.videos) {
+        // Ensure proper structure with default values
+        const safeVideoData = {
+          videoTitle: data.videos.videoTitle || { english: '', kannada: '', hindi: '' },
+          videoUrl: data.videos.videoUrl || { english: '', kannada: '', hindi: '' },
+          content: data.videos.description || data.videos.content || { english: '', kannada: '', hindi: '' },
+          tasks: data.videos.tasks || []
+        };
+        
+        console.log('🔍 ProgramConfigManager: Setting dayContent to:', safeVideoData);
+        console.log('🔍 ProgramConfigManager: Video URL for', selectedLanguage, ':', safeVideoData.videoUrl[selectedLanguage]);
+        
+        setDayContent(safeVideoData);
+      } else {
+        // Fallback to program config API for other content
+        const configResponse = await fetch(`/api/admin/program/config?day=${selectedDay}&burdenLevel=${selectedBurdenLevel}`);
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          if (configData.dayContent) {
+            // Ensure proper structure with default values
+            const safeConfigData = {
+              videoTitle: configData.dayContent.videoTitle || { english: '', kannada: '', hindi: '' },
+              videoUrl: configData.dayContent.videoUrl || { english: '', kannada: '', hindi: '' },
+              content: configData.dayContent.content || { english: '', kannada: '', hindi: '' },
+              tasks: configData.dayContent.tasks || []
+            };
+            setDayContent(safeConfigData);
+          } else {
+            // Reset to empty if no content
+            setDayContent({
+              videoTitle: { english: '', kannada: '', hindi: '' },
+              videoUrl: { english: '', kannada: '', hindi: '' },
+              content: { english: '', kannada: '', hindi: '' },
+              tasks: []
+            });
+          }
         } else {
           // Reset to empty if no content
           setDayContent({
@@ -231,12 +371,66 @@ export default function ProgramConfigManager() {
       }
     } catch (error) {
       console.error('Error loading day content:', error);
+      // Reset to empty on error
+      setDayContent({
+        videoTitle: { english: '', kannada: '', hindi: '' },
+        videoUrl: { english: '', kannada: '', hindi: '' },
+        content: { english: '', kannada: '', hindi: '' },
+        tasks: []
+      });
+    }
+  };
+
+  // Helper function to get current uploading state for any day/burden/language combination
+  const isUploading = (day, burdenLevel, language) => {
+    if (day === 0) {
+      return uploadingDayVideo;
+    } else if (day === 1) {
+      return uploadingDay1[burdenLevel]?.[language] || false;
+    } else if (day >= 2 && day <= 4) {
+      return uploadingDays2to7[day]?.[burdenLevel]?.[language] || false;
+    } else {
+      return uploadingDayVideo;
+    }
+  };
+
+  // Helper function to set uploading state for any day/burden/language combination
+  const setUploadingState = (day, burdenLevel, language, isUploadingState) => {
+    if (day === 0) {
+      setUploadingDayVideo(isUploadingState);
+    } else if (day === 1) {
+      setUploadingDay1(prev => ({
+        ...prev,
+        [burdenLevel]: {
+          ...prev[burdenLevel],
+          [language]: isUploadingState
+        }
+      }));
+    } else if (day >= 2 && day <= 4) {
+      setUploadingDays2to7(prev => ({
+        ...prev,
+        [day]: {
+          ...prev[day],
+          [burdenLevel]: {
+            ...prev[day][burdenLevel],
+            [language]: isUploadingState
+          }
+        }
+      }));
+    } else {
+      setUploadingDayVideo(isUploadingState);
     }
   };
 
   const handleVideoUpload = async (file, targetLanguage, isDay0 = false, burdenLevel = null) => {
     const formData = new FormData();
     formData.append('video', file);
+    formData.append('language', targetLanguage);
+    formData.append('day', isDay0 ? '0' : selectedDay.toString());
+    
+    if (burdenLevel) {
+      formData.append('burdenLevel', burdenLevel);
+    }
 
     // Validate file size before upload
     const fileSizeInMB = file.size / (1024 * 1024);
@@ -245,21 +439,10 @@ export default function ProgramConfigManager() {
       return;
     }
 
-    // Set uploading state based on context
-    if (isDay0) {
-      setUploadingDayVideo(true);
-    } else if (burdenLevel) {
-      // Day 1 upload
-      setUploadingDay1({
-        ...uploadingDay1,
-        [burdenLevel]: {
-          ...uploadingDay1[burdenLevel],
-          [targetLanguage]: true
-        }
-      });
-    } else {
-      setUploadingDayVideo(true);
-    }
+    // Set uploading state using enhanced state management
+    const dayToUpload = isDay0 ? 0 : selectedDay;
+    const burdenToUpload = burdenLevel || selectedBurdenLevel;
+    setUploadingState(dayToUpload, burdenToUpload, targetLanguage, true);
 
     try {
       // Create timeout controller with longer timeout for large files
@@ -438,20 +621,8 @@ export default function ProgramConfigManager() {
         alert(`❌ Upload failed: ${error.message || 'Unknown error'}. Please try again.`);
       }
     } finally {
-      if (isDay0) {
-        setUploadingDayVideo(false);
-      } else if (burdenLevel) {
-        // Day 1 upload finished
-        setUploadingDay1({
-          ...uploadingDay1,
-          [burdenLevel]: {
-            ...uploadingDay1[burdenLevel],
-            [targetLanguage]: false
-          }
-        });
-      } else {
-        setUploadingDayVideo(false);
-      }
+      // Clear uploading state using enhanced state management
+      setUploadingState(dayToUpload, burdenToUpload, targetLanguage, false);
     }
   };
 
@@ -631,7 +802,13 @@ export default function ProgramConfigManager() {
 
   const updateQuestionText = (questionId, newText) => {
     setBurdenTestQuestions(burdenTestQuestions.map(q => 
-      q.id === questionId ? { ...q, text: newText } : q
+      q.id === questionId ? { 
+        ...q, 
+        questionText: {
+          ...q.questionText,
+          english: newText
+        }
+      } : q
     ));
   };
 
@@ -677,7 +854,11 @@ export default function ProgramConfigManager() {
 
   // Content Management Functions
   const handleContentDelete = async (language, type, day) => {
-    if (!confirm(`Are you sure you want to delete the ${type} for Day ${day} in ${language}?`)) {
+    const burdenText = ['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(type) 
+      ? ` (${selectedContentBurdenLevel} burden)` 
+      : '';
+      
+    if (!confirm(`Are you sure you want to delete the ${type} for Day ${day}${burdenText} in ${language}?`)) {
       return;
     }
 
@@ -688,15 +869,21 @@ export default function ProgramConfigManager() {
         return;
       }
 
-      const response = await fetch('/api/admin/delete-content', {
+      const requestBody = {
+        language,
+        contentType: type,
+        day
+      };
+
+      // Add burden level for supported content types
+      if (['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(type)) {
+        requestBody.burdenLevel = selectedContentBurdenLevel;
+      }
+
+      const response = await fetch('/api/admin/content-management-enhanced', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          language,
-          contentType: type,
-          day,
-          contentUrl
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
@@ -708,9 +895,9 @@ export default function ProgramConfigManager() {
             [language]: ''
           }
         }));
-        alert(`✅ ${type} deleted successfully for Day ${day} in ${language}!`);
+        alert(`✅ ${type} deleted successfully for Day ${day}${burdenText} in ${language}!`);
         
-        // Content is already deleted from database by delete-content API
+        // Content is already deleted from database by delete API
         // No need to call saveContentData again
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Delete failed' }));
@@ -735,6 +922,11 @@ export default function ProgramConfigManager() {
       formData.append('contentType', type);
       formData.append('day', day.toString());
 
+      // Add burden level for supported content types
+      if (['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(type)) {
+        formData.append('burdenLevel', selectedContentBurdenLevel);
+      }
+
       const response = await fetch('/api/admin/upload-content', {
         method: 'POST',
         body: formData,
@@ -746,7 +938,12 @@ export default function ProgramConfigManager() {
           ...prev,
           [type]: { ...prev[type], [language]: data.url }
         }));
-        alert(`✅ ${type} uploaded successfully for Day ${day} in ${language}!`);
+        
+        const burdenText = ['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(type) 
+          ? ` (${selectedContentBurdenLevel} burden)` 
+          : '';
+        
+        alert(`✅ ${type} uploaded successfully for Day ${day}${burdenText} in ${language}!`);
         
         // Content is already saved to database by upload-content API
         // No need to call saveContentData again
@@ -772,19 +969,33 @@ export default function ProgramConfigManager() {
       const languages = ['english', 'kannada', 'hindi'];
       let savePromises = [];
       
+      // Determine if content type supports burden levels
+      const supportsBurdenLevels = ['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(contentType);
+      
       for (const language of languages) {
         const content = contentData[contentType][language];
         if (content && content.trim() !== '') {
+          const requestBody = {
+            day: selectedContentDay,
+            contentType: contentType,
+            language: language,
+            content: content
+          };
+
+          if (supportsBurdenLevels) {
+            requestBody.burdenLevel = selectedContentBurdenLevel;
+          }
+
+          // Add reminder frequency for reminder content
+          if (contentType === 'reminder' && reminderFrequency[language]) {
+            requestBody.reminderFrequency = reminderFrequency[language];
+          }
+
           savePromises.push(
-            fetch('/api/admin/program/content-management', {
+            fetch('/api/admin/content-management-enhanced', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                day: selectedContentDay,
-                contentType: contentType,
-                language: language,
-                url: content
-              }),
+              body: JSON.stringify(requestBody),
             })
           );
         }
@@ -800,7 +1011,8 @@ export default function ProgramConfigManager() {
       const allSuccess = responses.every(response => response.ok);
       
       if (allSuccess) {
-        alert(`✅ Day ${selectedContentDay} ${contentType} content saved successfully!`);
+        const burdenText = supportsBurdenLevels ? ` (${selectedContentBurdenLevel} burden)` : '';
+        alert(`✅ Day ${selectedContentDay} ${contentType} content${burdenText} saved successfully!`);
       } else {
         throw new Error('Some saves failed');
       }
@@ -813,7 +1025,20 @@ export default function ProgramConfigManager() {
 
   const loadContentData = async () => {
     try {
-      const response = await fetch(`/api/admin/program/content-management?day=${selectedContentDay}&contentType=${contentType}`);
+      // Determine if content type supports burden levels
+      const supportsBurdenLevels = ['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(contentType);
+      
+      const params = new URLSearchParams({
+        day: selectedContentDay.toString(),
+        contentType: contentType
+      });
+
+      if (supportsBurdenLevels) {
+        params.append('burdenLevel', selectedContentBurdenLevel);
+      }
+
+      const response = await fetch(`/api/admin/content-management-enhanced?${params}`);
+      
       if (response.ok) {
         const data = await response.json();
         if (data.content) {
@@ -821,6 +1046,11 @@ export default function ProgramConfigManager() {
             ...prev,
             [contentType]: data.content
           }));
+        }
+        
+        // Load reminder frequency if this is reminder content
+        if (contentType === 'reminder' && data.reminderFrequency) {
+          setReminderFrequency(data.reminderFrequency);
         }
       }
     } catch (error) {
@@ -1164,7 +1394,7 @@ export default function ProgramConfigManager() {
 
       {/* Days 0-7: Dynamic Content */}
       <div style={styles.card}>
-                <h2 style={styles.cardTitle}>🎯 Days 0-7: Video Content Management</h2>
+        <h2 style={styles.cardTitle}>🎯 Days 0-7: Video Content Management</h2>
         
         <div style={styles.grid}>
           <div>
@@ -1379,10 +1609,10 @@ export default function ProgramConfigManager() {
           <input
             type="text"
             style={styles.input}
-            value={dayContent.videoTitle[selectedLanguage] || ''}
+            value={dayContent?.videoTitle?.[selectedLanguage] || ''}
             onChange={(e) => setDayContent({
               ...dayContent,
-              videoTitle: { ...dayContent.videoTitle, [selectedLanguage]: e.target.value }
+              videoTitle: { ...dayContent?.videoTitle, [selectedLanguage]: e.target.value }
             })}
             placeholder={`Enter video title in ${selectedLanguage}`}
           />
@@ -1393,13 +1623,13 @@ export default function ProgramConfigManager() {
           <input
             type="text"
             style={styles.input}
-            value={dayContent.videoUrl[selectedLanguage] || ''}
+            value={dayContent?.videoUrl?.[selectedLanguage] || ''}
             readOnly
             placeholder="Upload video to get URL"
           />
           
           {/* Show video preview if URL exists */}
-          {dayContent.videoUrl[selectedLanguage] && (
+          {dayContent?.videoUrl?.[selectedLanguage] && (
             <div style={{
               marginTop: '12px',
               padding: '12px',
@@ -1411,66 +1641,130 @@ export default function ProgramConfigManager() {
                 ✅ Video uploaded successfully
               </p>
               <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                URL: {dayContent.videoUrl[selectedLanguage].substring(0, 60)}...
+                URL: {dayContent?.videoUrl?.[selectedLanguage]?.substring(0, 60)}...
               </p>
             </div>
           )}
           
           <div style={styles.uploadSection}>
             <p style={{ margin: '0 0 16px 0', color: '#6b7280' }}>
-              📤 {dayContent.videoUrl[selectedLanguage] ? 'Replace' : 'Upload'} video for Day {selectedDay} {selectedDay === 0 ? '(Core Module)' : `(${selectedBurdenLevel})`} in {selectedLanguage}
+              📤 {dayContent?.videoUrl?.[selectedLanguage] ? 'Replace' : 'Upload'} video for Day {selectedDay} {selectedDay === 0 ? '(Core Module)' : `(${selectedBurdenLevel})`} in {selectedLanguage}
             </p>
             
-            {/* Upload/Replace Button */}
-            <input
-              type="file"
-              id={`day-${selectedDay}-upload-${selectedLanguage}`}
-              style={styles.fileInput}
-              accept="video/*"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  if (selectedDay === 0) {
-                    handleVideoUpload(file, selectedLanguage, true); // Day 0
-                  } else if (selectedDay === 1) {
-                    handleVideoUpload(file, selectedLanguage, false, selectedBurdenLevel); // Day 1 with burden level
-                  } else {
-                    handleVideoUpload(file, selectedLanguage, false, null); // Days 2-7
-                  }
-                }
-              }}
-            />
-            <label 
-              htmlFor={`day-${selectedDay}-upload-${selectedLanguage}`} 
-              style={{
-                ...styles.uploadButton,
-                backgroundColor: uploadingDayVideo ? '#9ca3af' : styles.uploadButton.backgroundColor,
-                cursor: uploadingDayVideo ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {uploadingDayVideo ? 'Uploading...' : dayContent.videoUrl[selectedLanguage] ? '🔄 Replace Video' : '📤 Upload Video'}
-            </label>
+            {/* Show current video status */}
+            {dayContent?.videoUrl?.[selectedLanguage] && (
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px',
+                backgroundColor: '#f0f9ff',
+                borderRadius: '8px',
+                border: '1px solid #0ea5e9'
+              }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0369a1', fontWeight: '500' }}>
+                  ✅ Video already uploaded
+                </p>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  URL: {dayContent?.videoUrl?.[selectedLanguage]?.substring(0, 60)}...
+                </p>
+              </div>
+            )}
             
-            {/* Delete Button - Only show if video exists */}
-            {dayContent.videoUrl[selectedLanguage] && !uploadingDayVideo && (
-              <button
-                onClick={() => {
-                  if (selectedDay === 0) {
-                    handleVideoDelete(selectedLanguage, true); // Day 0
-                  } else if (selectedDay === 1) {
-                    handleVideoDelete(selectedLanguage, false, selectedBurdenLevel); // Day 1 with burden level
-                  } else {
-                    handleVideoDelete(selectedLanguage, false, null); // Days 2-7
-                  }
-                }}
-                style={{
-                  ...styles.uploadButton,
-                  backgroundColor: '#ef4444',
-                  marginLeft: '12px'
-                }}
-              >
-                🗑️ Delete Video
-              </button>
+            {/* Upload Button - Only show if no video exists */}
+            {!dayContent?.videoUrl?.[selectedLanguage] && (
+              <>
+                <input
+                  type="file"
+                  id={`day-${selectedDay}-upload-${selectedLanguage}`}
+                  style={styles.fileInput}
+                  accept="video/*"
+                  disabled={isUploading(selectedDay, selectedBurdenLevel, selectedLanguage)}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file && !isUploading(selectedDay, selectedBurdenLevel, selectedLanguage)) {
+                      if (selectedDay === 0) {
+                        handleVideoUpload(file, selectedLanguage, true); // Day 0
+                      } else if (selectedDay === 1) {
+                        handleVideoUpload(file, selectedLanguage, false, selectedBurdenLevel); // Day 1 with burden level
+                      } else {
+                        handleVideoUpload(file, selectedLanguage, false, selectedBurdenLevel); // Days 2-7 with burden level
+                      }
+                    }
+                  }}
+                />
+                <label 
+                  htmlFor={`day-${selectedDay}-upload-${selectedLanguage}`} 
+                  style={{
+                    ...styles.uploadButton,
+                    backgroundColor: isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? '#9ca3af' : '#10b981',
+                    cursor: isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? '📤 Uploading Video...' : '📤 Upload Video'}
+                </label>
+              </>
+            )}
+            
+            {/* Replace and Delete Buttons - Only show if video exists */}
+            {dayContent?.videoUrl?.[selectedLanguage] && !isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) && (
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <div>
+                  <input
+                    type="file"
+                    id={`day-${selectedDay}-replace-${selectedLanguage}`}
+                    style={styles.fileInput}
+                    accept="video/*"
+                    disabled={isUploading(selectedDay, selectedBurdenLevel, selectedLanguage)}
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file && !isUploading(selectedDay, selectedBurdenLevel, selectedLanguage)) {
+                        if (confirm('Are you sure you want to replace this video? This action cannot be undone.')) {
+                          if (selectedDay === 0) {
+                            handleVideoUpload(file, selectedLanguage, true); // Day 0
+                          } else if (selectedDay === 1) {
+                            handleVideoUpload(file, selectedLanguage, false, selectedBurdenLevel); // Day 1 with burden level
+                          } else {
+                            handleVideoUpload(file, selectedLanguage, false, selectedBurdenLevel); // Days 2-7 with burden level
+                          }
+                        }
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor={`day-${selectedDay}-replace-${selectedLanguage}`}
+                    style={{
+                      ...styles.uploadButton,
+                      backgroundColor: isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? '#9ca3af' : '#f59e0b',
+                      cursor: isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? 'not-allowed' : 'pointer',
+                      opacity: isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? 0.7 : 1
+                    }}
+                  >
+                    {isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? '📤 Uploading Video...' : '🔄 Replace Video'}
+                  </label>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    if (!isUploading(selectedDay, selectedBurdenLevel, selectedLanguage)) {
+                      if (selectedDay === 0) {
+                        handleVideoDelete(selectedLanguage, true); // Day 0
+                      } else if (selectedDay === 1) {
+                        handleVideoDelete(selectedLanguage, false, selectedBurdenLevel); // Day 1 with burden level
+                      } else {
+                        handleVideoDelete(selectedLanguage, false, selectedBurdenLevel); // Days 2-7 with burden level
+                      }
+                    }
+                  }}
+                  disabled={isUploading(selectedDay, selectedBurdenLevel, selectedLanguage)}
+                  style={{
+                    ...styles.uploadButton,
+                    backgroundColor: isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? '#9ca3af' : '#ef4444',
+                    cursor: isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? 'not-allowed' : 'pointer',
+                    opacity: isUploading(selectedDay, selectedBurdenLevel, selectedLanguage) ? 0.7 : 1
+                  }}
+                >
+                  🗑️ Delete Video
+                </button>
+              </div>
             )}
             
             <p style={{ marginTop: '12px', fontSize: '12px', color: '#6b7280' }}>
@@ -1483,10 +1777,10 @@ export default function ProgramConfigManager() {
           <label style={styles.label}>Additional Content ({selectedLanguage})</label>
           <textarea
             style={styles.textarea}
-            value={dayContent.content[selectedLanguage] || ''}
+            value={dayContent?.content?.[selectedLanguage] || ''}
             onChange={(e) => setDayContent({
               ...dayContent,
-              content: { ...dayContent.content, [selectedLanguage]: e.target.value }
+              content: { ...dayContent?.content, [selectedLanguage]: e.target.value }
             })}
             placeholder={`Enter additional text content/instructions in ${selectedLanguage}`}
           />
@@ -1524,6 +1818,8 @@ export default function ProgramConfigManager() {
         <h2 style={styles.cardTitle}>📝 Content Management - Days 0-7</h2>
         <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '24px' }}>
           Upload and manage various types of content for caregivers including motivation messages, healthcare tips, reminders, daily tasks, and audio content.
+          <br />
+          <strong>✨ Now with burden level support!</strong> Content will be delivered based on caregiver's assessment results.
         </p>
 
         <div style={styles.grid}>
@@ -1538,6 +1834,187 @@ export default function ProgramConfigManager() {
                 <option key={day} value={day}>Day {day}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            {selectedContentDay === 0 && (
+              <div style={{ 
+                padding: '16px', 
+                backgroundColor: '#f0f9ff', 
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#1e40af'
+              }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                  📝 Day 0 - Core Module Content
+                </p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
+                  Same content for all caregivers - foundational material
+                </p>
+              </div>
+            )}
+
+            {selectedContentDay === 1 && (
+              <>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#334155',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: '8px'
+                  }}>
+                    📋 Module Assignment
+                  </h4>
+                  <div>
+                    <label style={styles.label}>Select Burden Level</label>
+                    <select
+                      style={styles.input}
+                      value={selectedContentBurdenLevel}
+                      onChange={(e) => setSelectedContentBurdenLevel(e.target.value)}
+                    >
+                      <option value="mild">😊 Mild Burden</option>
+                      <option value="moderate">😐 Moderate Burden</option>
+                      <option value="severe">😟 Severe Burden</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {selectedContentDay === 2 && (
+              <>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#334155',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: '8px'
+                  }}>
+                    📊 Module Assignment
+                  </h4>
+                  <div>
+                    <label style={styles.label}>Select Stress Level</label>
+                    <select
+                      style={styles.input}
+                      value={selectedContentBurdenLevel}
+                      onChange={(e) => setSelectedContentBurdenLevel(e.target.value)}
+                    >
+                      <option value="low">😌 Low Stress</option>
+                      <option value="moderate">😐 Moderate Stress</option>
+                      <option value="high">😰 High Stress</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {selectedContentDay === 3 && (
+              <>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#334155',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: '8px'
+                  }}>
+                    🧠 Module Assignment
+                  </h4>
+                  <div>
+                    <label style={styles.label}>WHOQOL-BREF Questions Interpretations</label>
+                    <select
+                      style={styles.input}
+                      value={selectedContentBurdenLevel}
+                      onChange={(e) => setSelectedContentBurdenLevel(e.target.value)}
+                    >
+                      <option value="physical">🏃‍♂️ Physical Health Domain</option>
+                      <option value="psychological">🧠 Psychological Domain</option>
+                      <option value="social">👥 Social Relationships Domain</option>
+                      <option value="environment">🌍 Environment Domain</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {selectedContentDay === 4 && (
+              <>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#334155',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: '8px'
+                  }}>
+                    🏥 Module Assignment
+                  </h4>
+                  <div>
+                    <label style={styles.label}>Care Type Options</label>
+                    <select
+                      style={styles.input}
+                      value={selectedContentBurdenLevel}
+                      onChange={(e) => setSelectedContentBurdenLevel(e.target.value)}
+                    >
+                      <option value="wound-care">🩹 Wound Care</option>
+                      <option value="drain-care">🔧 Drain Care</option>
+                      <option value="stoma-care">🎯 Stoma Care</option>
+                      <option value="feeding-tube">🍽️ Feeding Tube (NG/PEG)</option>
+                      <option value="urinary-catheter">💧 Urinary Catheter</option>
+                      <option value="oral-anticancer">💊 Oral Anticancer Medication</option>
+                      <option value="bedbound-patient">🛏️ Bedbound Patient</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {selectedContentDay >= 5 && selectedContentDay <= 7 && (
+              <div style={{ 
+                padding: '16px', 
+                backgroundColor: '#f3f4f6', 
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#6b7280'
+              }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                  📝 Content available for Day {selectedContentDay}
+                </p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
+                  Various content types and assessments
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -1582,6 +2059,14 @@ export default function ProgramConfigManager() {
              contentType === 'dailyTasks' ? '📋 Daily Tasks Configuration' :
              contentType === 'quickAssessment' ? '❓ Quick Assessment Configuration' :
              '🎵 Audio Content Configuration'} - Day {selectedContentDay}
+            {['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(contentType) && 
+             ` (${selectedContentBurdenLevel}${
+               selectedContentDay === 1 ? ' burden' :
+               selectedContentDay === 2 ? ' stress' :
+               selectedContentDay === 3 ? ' domain' :
+               selectedContentDay === 4 ? ' care type' :
+               ' level'
+             })`}
           </h3>
 
           {contentType === 'audioContent' ? (
@@ -1617,11 +2102,19 @@ export default function ProgramConfigManager() {
 
               <div style={styles.uploadSection}>
                 <p style={{ margin: '0 0 16px 0', color: '#6b7280' }}>
-                  🎵 {contentData[contentType][selectedLanguage] ? 'Replace' : 'Upload'} audio for Day {selectedContentDay} in {selectedLanguage}
+                  🎵 {contentData[contentType][selectedLanguage] ? 'Replace' : 'Upload'} audio for Day {selectedContentDay}
+                  {['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(contentType) && 
+                   ` (${selectedContentBurdenLevel}${
+                     selectedContentDay === 1 ? ' burden' :
+                     selectedContentDay === 2 ? ' stress' :
+                     selectedContentDay === 3 ? ' domain' :
+                     selectedContentDay === 4 ? ' care type' :
+                     ' level'
+                   })`} in {selectedLanguage}
                 </p>
                 <input
                   type="file"
-                  id={`content-audio-${selectedContentDay}-${selectedLanguage}`}
+                  id={`content-audio-${selectedContentDay}-${selectedLanguage}-${selectedContentBurdenLevel || 'default'}`}
                   style={styles.fileInput}
                   accept="audio/*"
                   onChange={(e) => {
@@ -1630,7 +2123,7 @@ export default function ProgramConfigManager() {
                   }}
                 />
                 <label 
-                  htmlFor={`content-audio-${selectedContentDay}-${selectedLanguage}`} 
+                  htmlFor={`content-audio-${selectedContentDay}-${selectedLanguage}-${selectedContentBurdenLevel || 'default'}`} 
                   style={{
                     ...styles.uploadButton,
                     backgroundColor: uploadingContent[contentType][selectedLanguage] ? '#9ca3af' : '#10b981',
@@ -1792,6 +2285,27 @@ export default function ProgramConfigManager() {
                   contentType === 'reminder' ? 'reminder text' :
                   'daily tasks'} in ${selectedLanguage}`}
               />
+              
+              {/* Reminder Frequency Option */}
+              {contentType === 'reminder' && (
+                <div style={{ marginTop: '16px' }}>
+                  <label style={styles.label}>Reminder Frequency ({selectedLanguage})</label>
+                  <select
+                    style={styles.input}
+                    value={reminderFrequency[selectedLanguage]}
+                    onChange={(e) => setReminderFrequency({
+                      ...reminderFrequency,
+                      [selectedLanguage]: e.target.value
+                    })}
+                  >
+                    <option value="daily">📅 Daily</option>
+                    <option value="weekly">📆 Weekly</option>
+                  </select>
+                  <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                    Choose how often this reminder should appear to the caregiver
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1801,11 +2315,22 @@ export default function ProgramConfigManager() {
           onClick={saveContentData}
           disabled={saving}
         >
-          {saving ? 'Saving...' : `Save Day ${selectedContentDay} ${contentType} Content`}
+          {saving ? 'Saving...' : 
+           `Save Day ${selectedContentDay} ${contentType} Content${
+             ['motivation', 'healthcareTips', 'reminder', 'audioContent'].includes(contentType) 
+               ? ` (${selectedContentBurdenLevel}${
+                   selectedContentDay === 1 ? ' burden' :
+                   selectedContentDay === 2 ? ' stress' :
+                   selectedContentDay === 3 ? ' domain' :
+                   selectedContentDay === 4 ? ' care type' :
+                   ' level'
+                 })`
+               : ''
+           }`}
         </button>
 
         <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' }}>
-          💡 Configure content for all days (0-7) and all content types in multiple languages
+          💡 Configure content for all days (0-7), all content types, and all burden levels in multiple languages
         </p>
       </div>
 

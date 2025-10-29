@@ -269,6 +269,30 @@ export default function CaregiverDashboard() {
     });
   };
 
+  // Helper function to check if all content has been viewed
+  const hasViewedAllContent = () => {
+    if (!programData || !programData.dayModules) return false;
+    
+    // Check if all available days have been completed
+    const availableDays = programData.dayModules.filter(module => module.adminPermissionGranted);
+    const completedDays = programData.dayModules.filter(module => module.progressPercentage === 100);
+    
+    // All available content must be completed
+    return availableDays.length > 0 && completedDays.length === availableDays.length;
+  };
+
+  // Helper function to check if assessment can be retaken
+  const canRetakeAssessment = () => {
+    if (!programData || !programData.zaritBurdenAssessment) return true; // First time taking
+    
+    const lastAssessmentDate = new Date(programData.zaritBurdenAssessment.completedAt);
+    const now = new Date();
+    const daysSinceLastAssessment = (now - lastAssessmentDate) / (1000 * 60 * 60 * 24);
+    
+    // Allow retaking if all content has been viewed AND it's been at least 7 days
+    return hasViewedAllContent() && daysSinceLastAssessment >= 7;
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -397,8 +421,13 @@ export default function CaregiverDashboard() {
             <Button
               variant={currentView === 'assessment' ? 'contained' : 'outlined'}
               onClick={() => setCurrentView('assessment')}
-              disabled={programData && programData.zaritBurdenAssessment}
+              disabled={!canRetakeAssessment()}
               startIcon={<FaUserCircle />}
+              title={
+                programData && programData.zaritBurdenAssessment && !canRetakeAssessment()
+                  ? 'Complete all program content before retaking the assessment'
+                  : ''
+              }
             >
               Assessment
             </Button>
@@ -422,10 +451,40 @@ export default function CaregiverDashboard() {
         )}
 
         {currentView === 'assessment' && (
-          <ZaritBurdenAssessment
-            caregiverId={caregiverData?._id}
-            onComplete={handleAssessmentComplete}
-          />
+          <>
+            {canRetakeAssessment() ? (
+              <ZaritBurdenAssessment
+                caregiverId={caregiverData?._id}
+                onComplete={handleAssessmentComplete}
+              />
+            ) : (
+              <Card sx={{ p: 3, textAlign: 'center', maxWidth: 600, mx: 'auto', mt: 4 }}>
+                <Typography variant="h5" gutterBottom color="primary">
+                  🔒 Assessment Locked
+                </Typography>
+                <Typography variant="body1" paragraph>
+                  You have already completed the Zarit Burden Assessment. To maintain the 
+                  integrity of your care program, you can only retake this assessment after:
+                </Typography>
+                <Box sx={{ textAlign: 'left', mx: 'auto', maxWidth: 400 }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    ✅ Viewing all available program content
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    ⏰ Waiting at least 7 days since your last assessment
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mt: 2, fontStyle: 'italic' }}>
+                  Current status: {hasViewedAllContent() ? '✅ All content viewed' : '❌ Complete remaining program content'}
+                </Typography>
+                {programData?.zaritBurdenAssessment?.completedAt && (
+                  <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                    Last assessment: {formatDate(programData.zaritBurdenAssessment.completedAt)}
+                  </Typography>
+                )}
+              </Card>
+            )}
+          </>
         )}
 
         {/* Day 1 Pre-Test Assessment */}
@@ -545,7 +604,10 @@ export default function CaregiverDashboard() {
                     </Grid>
 
                     {/* Regular Day 1-7 Cards - Filter out Day 0 to prevent duplication */}
-                    {programData.dayModules?.filter(dayModule => dayModule.day !== 0).map((dayModule) => (
+                    {programData.dayModules
+                      ?.filter(dayModule => dayModule.day !== 0)
+                      ?.sort((a, b) => a.day - b.day)  // Sort by day number to ensure proper order
+                      ?.map((dayModule) => (
                       <Grid item xs={12} sm={6} md={4} lg={3} key={dayModule.day}>
                         <Card 
                           variant="outlined"

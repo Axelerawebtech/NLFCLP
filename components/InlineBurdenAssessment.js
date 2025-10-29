@@ -20,6 +20,7 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
   const [error, setError] = useState('');
   const [showResults, setShowResults] = useState(existingAnswers ? true : false);
   const [questions, setQuestions] = useState([]);
+  const [scoreRanges, setScoreRanges] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Get language key (en -> english, kn -> kannada, hi -> hindi)
@@ -33,23 +34,110 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
     fetchQuestions();
   }, []);
 
+  // Keyboard navigation support
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      // Only handle keyboard events if we're not showing results
+      if (showResults) return;
+      
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        
+        const hasAnswer = answers[currentQuestion] !== null && answers[currentQuestion] !== undefined;
+        const allAnswered = answers.every(a => a !== null && a !== undefined);
+        
+        if (currentQuestion < questions.length - 1 && hasAnswer) {
+          // Go to next question if current question is answered
+          handleNext();
+        } else if (currentQuestion === questions.length - 1 && allAnswered && !isSubmitting) {
+          // Submit if on last question and all questions answered
+          handleSubmit();
+        }
+      }
+      
+      // Arrow key navigation
+      if (event.key === 'ArrowLeft' && currentQuestion > 0) {
+        event.preventDefault();
+        handlePrevious();
+      }
+      
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        const hasAnswer = answers[currentQuestion] !== null && answers[currentQuestion] !== undefined;
+        if (currentQuestion < questions.length - 1 && hasAnswer) {
+          handleNext();
+        }
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyPress);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [currentQuestion, answers, questions.length, showResults, isSubmitting]);
+
   const fetchQuestions = async () => {
     try {
-      const response = await fetch('/api/admin/burden-assessment/config');
+      // Add cache-busting timestamp to prevent 304 responses
+      const cacheBuster = `?_t=${Date.now()}`;
+      const response = await fetch(`/api/admin/burden-assessment/config${cacheBuster}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
       const data = await response.json();
       
+      console.log('🔍 DEBUG: API Response:', {
+        success: data.success,
+        questionsCount: data.config?.questions?.length,
+        firstQuestion: data.config?.questions?.[0],
+        firstQuestionOptions: data.config?.questions?.[0]?.options,
+        scoreRanges: data.config?.scoreRanges
+      });
+      
       if (data.success && data.config.questions) {
+        // Validate that we have a complete question set
+        if (data.config.questions.length < 22) {
+          console.warn(`⚠️ Warning: Only ${data.config.questions.length} questions loaded, expected 22`);
+          setError(`Incomplete assessment configuration (${data.config.questions.length}/22 questions). Please contact support.`);
+          return;
+        }
+        
+        // Debug each question's options
+        data.config.questions.forEach((q, idx) => {
+          console.log(`🔍 Question ${idx + 1}:`, {
+            questionText: q.questionText,
+            optionsCount: q.options?.length,
+            options: q.options
+          });
+        });
+        
         setQuestions(data.config.questions);
+        setScoreRanges(data.config.scoreRanges);
+        
+        console.log('📋 Loaded burden assessment config for inline:', {
+          questionsCount: data.config.questions.length,
+          scoreRanges: data.config.scoreRanges,
+          autoInitialized: data.message ? true : false
+        });
+        
         // Initialize answers array if needed
         if (!existingAnswers) {
           setAnswers(Array(data.config.questions.length).fill(null));
         }
       } else {
-        setError('Failed to load assessment questions');
+        console.error('❌ Failed to load assessment questions:', data);
+        setError('Failed to load assessment questions. Please refresh the page and try again.');
       }
     } catch (err) {
-      console.error('Error loading questions:', err);
-      setError('Failed to load assessment questions');
+      console.error('❌ Error loading questions:', err);
+      setError('Network error loading assessment questions. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -75,6 +163,26 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
     }
   };
 
+  // Calculate burden level based on admin-defined score ranges
+  const calculateBurdenLevel = (totalScore) => {
+    if (!scoreRanges) {
+      // Fallback calculation for older configurations
+      if (totalScore <= 20) return 'mild';
+      if (totalScore <= 40) return 'moderate';
+      return 'severe';
+    }
+
+    // Use admin-defined score ranges
+    for (const [rangeName, range] of Object.entries(scoreRanges)) {
+      if (totalScore >= range.min && totalScore <= range.max) {
+        return range.burdenLevel || 'mild';
+      }
+    }
+    
+    // Default fallback
+    return 'moderate';
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError('');
@@ -83,17 +191,23 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
       // Calculate total score
       const totalScore = answers.reduce((sum, score) => sum + score, 0);
       
-      // Determine burden level (will be calculated properly in API based on score ranges)
-      let burdenLevel;
-      if (totalScore <= 10) {
-        burdenLevel = 'mild';
-      } else if (totalScore <= 20) {
-        burdenLevel = 'moderate';
-      } else {
-        burdenLevel = 'severe';
-      }
+      // Determine burden level using admin-defined score ranges
+      const burdenLevel = calculateBurdenLevel(totalScore);
 
-      console.log('Submitting inline burden test:', { totalScore, burdenLevel });
+      console.log('📊 Submitting inline burden test:', { 
+        totalScore, 
+        burdenLevel,
+        questionsAnswered: answers.filter(a => a !== null).length,
+        totalQuestions: questions.length
+      });
+
+      // Create detailed answer breakdown
+      const answerDetails = answers.map((score, index) => ({
+        questionIndex: index + 1,
+        questionId: questions[index]?.id || index + 1,
+        selectedScore: score,
+        question: questions[index]
+      }));
 
       // Submit to API
       const response = await fetch('/api/caregiver/submit-burden-test', {
@@ -101,9 +215,15 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           caregiverId,
-          answers,
+          answers: answers.reduce((acc, score, index) => {
+            acc[`question${index + 1}`] = score;
+            return acc;
+          }, {}), // Convert to object format for compatibility
+          answerDetails,
           totalScore,
-          burdenLevel
+          burdenLevel,
+          maxPossibleScore: questions.length * 4, // Assuming max score per question is 4
+          questionsCompleted: questions.length
         }),
       });
 
@@ -139,18 +259,56 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
   if (questions.length === 0) {
     return (
       <div style={{ padding: '24px', backgroundColor: '#fee2e2', borderRadius: '8px', marginBottom: '24px' }}>
-        <p style={{ margin: 0, color: '#991b1b' }}>
-          ⚠️ No assessment questions configured. Please contact administrator.
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+          <span style={{ fontSize: '24px', marginRight: '12px' }}>⚠️</span>
+          <h4 style={{ margin: 0, color: '#991b1b', fontSize: '16px' }}>Assessment Configuration Issue</h4>
+        </div>
+        <p style={{ margin: '0 0 12px 0', color: '#991b1b', fontSize: '14px' }}>
+          {error || 'No assessment questions configured. The system requires 22 questions for the Zarit Burden Interview.'}
         </p>
+        <p style={{ margin: 0, color: '#7f1d1d', fontSize: '13px' }}>
+          <strong>Solution:</strong> Please refresh the page. If the problem persists, contact the administrator.
+        </p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            setError('');
+            fetchQuestions();
+          }}
+          style={{
+            marginTop: '12px',
+            padding: '8px 16px',
+            backgroundColor: '#dc2626',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}
+        >
+          🔄 Retry Loading Questions
+        </button>
       </div>
     );
   }
 
   const progress = ((currentQuestion + 1) / questions.length) * 100;
   const currentQuestionData = questions[currentQuestion];
-  const currentQuestionText = currentQuestionData.questionText[getLanguageKey()];
+  const currentQuestionText = currentQuestionData?.questionText?.[getLanguageKey()];
   const hasAnswer = answers[currentQuestion] !== null && answers[currentQuestion] !== undefined;
   const allAnswered = answers.every(a => a !== null && a !== undefined);
+
+  // Debug current question data
+  console.log('🔍 RENDER DEBUG:', {
+    currentQuestion,
+    questionsLength: questions.length,
+    currentQuestionData,
+    currentQuestionText,
+    hasOptions: !!currentQuestionData?.options,
+    optionsLength: currentQuestionData?.options?.length,
+    languageKey: getLanguageKey(),
+    currentLanguage
+  });
 
   // If showing results (test already completed)
   if (showResults) {
@@ -285,51 +443,80 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
 
         {/* Answer Options */}
         <div style={{ marginBottom: '24px' }}>
-          {currentQuestionData.options.map((option, optIndex) => {
-            const isSelected = answers[currentQuestion] === option.score;
-            
-            return (
-              <label
-                key={optIndex}
-                style={{
-                  display: 'block',
-                  padding: '12px 16px',
-                  marginBottom: '8px',
-                  backgroundColor: isSelected ? '#dbeafe' : '#f9fafb',
-                  border: `2px solid ${isSelected ? '#2563eb' : '#e5e7eb'}`,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontSize: '15px',
-                  color: '#374151',
-                  fontWeight: isSelected ? '600' : '400'
-                }}
-                onMouseOver={(e) => {
-                  if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = '#f3f4f6';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = '#f9fafb';
-                  }
-                }}
-              >
-                <input
-                  type="radio"
-                  name={`question-${currentQuestion}`}
-                  value={optIndex}
-                  checked={isSelected}
-                  onChange={() => handleAnswer(optIndex)}
-                  style={{ marginRight: '12px', cursor: 'pointer' }}
-                />
-                {option.optionText[getLanguageKey()]}
-                {/* <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
-                  ({option.score} pts)
-                </span> */}
-              </label>
-            );
-          })}
+          {currentQuestionData?.options && currentQuestionData.options.length > 0 ? (
+            currentQuestionData.options.map((option, optIndex) => {
+              const isSelected = answers[currentQuestion] === option.score;
+              
+              console.log(`🔍 Option ${optIndex}:`, {
+                option,
+                optionText: option.optionText,
+                languageKey: getLanguageKey(),
+                localizedText: option.optionText?.[getLanguageKey()],
+                score: option.score,
+                isSelected
+              });
+              
+              return (
+                <label
+                  key={optIndex}
+                  style={{
+                    display: 'block',
+                    padding: '12px 16px',
+                    marginBottom: '8px',
+                    backgroundColor: isSelected ? '#dbeafe' : '#f9fafb',
+                    border: `2px solid ${isSelected ? '#2563eb' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    fontSize: '15px',
+                    color: '#374151',
+                    fontWeight: isSelected ? '600' : '400'
+                  }}
+                  onMouseOver={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.backgroundColor = '#f9fafb';
+                    }
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name={`question-${currentQuestion}`}
+                    value={optIndex}
+                    checked={isSelected}
+                    onChange={() => handleAnswer(optIndex)}
+                    style={{ marginRight: '12px', cursor: 'pointer' }}
+                  />
+                  {option.optionText?.[getLanguageKey()] || option.optionText?.english || `Option ${optIndex + 1}`}
+                  {/* <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
+                    ({option.score} pts)
+                  </span> */}
+                </label>
+              );
+            })
+          ) : (
+            <div style={{ 
+              padding: '16px', 
+              backgroundColor: '#fee2e2', 
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              color: '#991b1b'
+            }}>
+              <p style={{ margin: 0, fontWeight: '600' }}>⚠️ No answer options available</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>
+                Debug info: {JSON.stringify({
+                  hasCurrentQuestion: !!currentQuestionData,
+                  hasOptions: !!currentQuestionData?.options,
+                  optionsLength: currentQuestionData?.options?.length,
+                  optionsData: currentQuestionData?.options
+                })}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Error Message */}
@@ -422,11 +609,37 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
         </div>
 
         {/* Helper Text */}
-        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '12px', textAlign: 'center' }}>
-          {!allAnswered 
-            ? 'Please answer all questions to submit'
-            : 'All questions answered! Click Submit to see your personalized video.'}
-        </p>
+        <div style={{ marginTop: '12px' }}>
+          <p style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center', margin: 0 }}>
+            {!allAnswered 
+              ? 'Please answer all questions to submit'
+              : 'All questions answered! Click Submit to see your personalized video.'}
+          </p>
+          <p style={{ fontSize: '11px', color: '#9ca3af', textAlign: 'center', marginTop: '4px', margin: '4px 0 0 0' }}>
+            💡 <strong>Tip:</strong> Press <kbd style={{ 
+              backgroundColor: '#f3f4f6', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '3px', 
+              padding: '1px 4px', 
+              fontSize: '10px',
+              fontFamily: 'monospace'
+            }}>Enter</kbd> to go to next question • Use <kbd style={{ 
+              backgroundColor: '#f3f4f6', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '3px', 
+              padding: '1px 4px', 
+              fontSize: '10px',
+              fontFamily: 'monospace'
+            }}>←</kbd> <kbd style={{ 
+              backgroundColor: '#f3f4f6', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '3px', 
+              padding: '1px 4px', 
+              fontSize: '10px',
+              fontFamily: 'monospace'
+            }}>→</kbd> arrow keys to navigate
+          </p>
+        </div>
       </div>
     </div>
   );

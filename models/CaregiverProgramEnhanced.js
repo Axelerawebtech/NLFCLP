@@ -31,7 +31,7 @@ const DailyAssessmentSchema = new mongoose.Schema({
   },
   scoreLevel: {
     type: String,
-    enum: ['low', 'moderate', 'high'],
+    enum: ['low', 'moderate', 'high', 'mild', 'severe'], // Support both legacy and new formats
     required: true
   },
   completedAt: {
@@ -109,20 +109,20 @@ const DayModuleSchema = new mongoose.Schema({
   }
 });
 
-// Legacy Zarit Burden Schema (for Day 1)
+// Legacy Zarit Burden Schema (for Day 1) - made optional for backwards compatibility
 const ZaritBurdenSchema = new mongoose.Schema({
-  question1: { type: Number, min: 0, max: 4, required: true },
-  question2: { type: Number, min: 0, max: 4, required: true },
-  question3: { type: Number, min: 0, max: 4, required: true },
-  question4: { type: Number, min: 0, max: 4, required: true },
-  question5: { type: Number, min: 0, max: 4, required: true },
-  question6: { type: Number, min: 0, max: 4, required: true },
-  question7: { type: Number, min: 0, max: 4, required: true },
-  totalScore: { type: Number, required: true },
+  question1: { type: Number, min: 0, max: 4, required: false },
+  question2: { type: Number, min: 0, max: 4, required: false },
+  question3: { type: Number, min: 0, max: 4, required: false },
+  question4: { type: Number, min: 0, max: 4, required: false },
+  question5: { type: Number, min: 0, max: 4, required: false },
+  question6: { type: Number, min: 0, max: 4, required: false },
+  question7: { type: Number, min: 0, max: 4, required: false },
+  totalScore: { type: Number, required: false },
   burdenLevel: { 
     type: String, 
-    enum: ['mild', 'moderate', 'severe'], 
-    required: true 
+    enum: ['mild', 'moderate', 'severe', 'low', 'high'], // Support both legacy and new
+    required: false 
   },
   completedAt: { type: Date, default: Date.now }
 });
@@ -143,16 +143,29 @@ const CaregiverProgramSchema = new mongoose.Schema({
     required: true,
     unique: true 
   },
-  // Legacy Zarit assessment (kept for compatibility, not required)
+  // Legacy Zarit assessment (kept for compatibility, completely optional)
   zaritBurdenAssessment: {
     type: ZaritBurdenSchema,
-    required: false
+    required: false,
+    default: undefined // Don't create this field unless explicitly set
   },
   // New enhanced day modules with daily assessments
   dayModules: [DayModuleSchema],
   dailyTasks: [DailyTaskSchema],
   currentDay: { type: Number, default: 0 },
   overallProgress: { type: Number, default: 0 },
+  // Flow responses for burden-specific content interactions
+  flowResponses: {
+    type: Map,
+    of: {
+      burdenLevel: { type: String, enum: ['mild', 'moderate', 'severe'] },
+      flowType: { type: String },
+      responses: { type: Map, of: mongoose.Schema.Types.Mixed },
+      submittedAt: { type: Date },
+      consecutiveNoCount: { type: Number, default: 0 },
+      adminAlerted: { type: Boolean, default: false }
+    }
+  },
   // Quick assessments for Day 0 (daily pre-module assessments)
   quickAssessments: [{
     day: { type: Number, required: true },
@@ -184,11 +197,18 @@ const CaregiverProgramSchema = new mongoose.Schema({
     totalScore: { type: Number },
     scoreLevel: { 
       type: String, 
-      enum: ['low', 'moderate', 'high']
+      enum: ['low', 'moderate', 'high', 'mild', 'severe'] // Support both legacy and new formats
     },
     language: { type: String, default: 'english' },
     totalQuestions: { type: Number, default: 0 },
-    completedAt: { type: Date, default: Date.now }
+    completedAt: { type: Date, default: Date.now },
+    // Assessment locking mechanism
+    locked: { type: Boolean, default: false },
+    canRetakeAssessment: { type: Boolean, default: true },
+    lockedAt: { type: Date },
+    lockedBy: { type: String, default: 'system' }, // 'system' or 'admin'
+    retakeCount: { type: Number, default: 0 },
+    maxRetakes: { type: Number, default: 1 } // Admin can configure this
   }],
   // Overall burden level (from Day 1 Zarit assessment)
   burdenLevel: { 
@@ -205,7 +225,22 @@ const CaregiverProgramSchema = new mongoose.Schema({
     read: { type: Boolean, default: false }
   }],
   supportTriggered: { type: Boolean, default: false },
-  consecutiveNoCount: { type: Number, default: 0 }
+  consecutiveNoCount: { type: Number, default: 0 },
+  // Admin actions log
+  adminActions: [{
+    action: { 
+      type: String, 
+      enum: ['assessment_retake_allowed', 'day_unlocked', 'progress_reset', 'content_override'],
+      required: true 
+    },
+    assessmentType: { type: String }, // For assessment-related actions
+    day: { type: Number }, // For day-related actions
+    performedBy: { type: String, required: true }, // Admin ID or username
+    performedAt: { type: Date, default: Date.now },
+    details: { type: String },
+    oldValue: { type: mongoose.Schema.Types.Mixed },
+    newValue: { type: mongoose.Schema.Types.Mixed }
+  }]
 }, {
   timestamps: true
 });
@@ -266,6 +301,80 @@ CaregiverProgramSchema.methods.calculateBurdenLevel = function(responses) {
   
   this.burdenLevel = burdenLevel;
   return { totalScore, burdenLevel };
+};
+
+// Lock assessment after completion
+CaregiverProgramSchema.methods.lockAssessment = function(assessmentType, lockedBy = 'system') {
+  const assessment = this.oneTimeAssessments.find(a => a.type === assessmentType);
+  if (assessment && !assessment.locked) {
+    assessment.locked = true;
+    assessment.lockedAt = new Date();
+    assessment.lockedBy = lockedBy;
+    assessment.canRetakeAssessment = false;
+    return true;
+  }
+  return false;
+};
+
+// Allow assessment retake (admin function)
+CaregiverProgramSchema.methods.allowAssessmentRetake = function(assessmentType, adminId = null) {
+  const assessment = this.oneTimeAssessments.find(a => a.type === assessmentType);
+  if (assessment) {
+    assessment.canRetakeAssessment = true;
+    assessment.locked = false;
+    assessment.lockedAt = null;
+    assessment.lockedBy = null;
+    assessment.retakeCount = (assessment.retakeCount || 0) + 1;
+    
+    // Log admin action
+    if (adminId) {
+      if (!this.adminActions) this.adminActions = [];
+      this.adminActions.push({
+        action: 'assessment_retake_allowed',
+        assessmentType: assessmentType,
+        performedBy: adminId,
+        performedAt: new Date(),
+        details: `Allowed retake of ${assessmentType} assessment (attempt #${assessment.retakeCount})`
+      });
+    }
+    
+    return true;
+  }
+  return false;
+};
+
+// Check if assessment can be taken/retaken
+CaregiverProgramSchema.methods.canTakeAssessment = function(assessmentType) {
+  const assessment = this.oneTimeAssessments.find(a => a.type === assessmentType);
+  
+  if (!assessment) {
+    // No previous assessment, can take
+    return { canTake: true, reason: 'first_time' };
+  }
+  
+  if (assessment.locked && !assessment.canRetakeAssessment) {
+    return { 
+      canTake: false, 
+      reason: 'locked',
+      lockedAt: assessment.lockedAt,
+      lockedBy: assessment.lockedBy 
+    };
+  }
+  
+  if (assessment.retakeCount >= assessment.maxRetakes && !assessment.canRetakeAssessment) {
+    return { 
+      canTake: false, 
+      reason: 'max_retakes_reached',
+      retakeCount: assessment.retakeCount,
+      maxRetakes: assessment.maxRetakes 
+    };
+  }
+  
+  return { 
+    canTake: true, 
+    reason: assessment.canRetakeAssessment ? 'retake_allowed' : 'within_limits',
+    retakeCount: assessment.retakeCount || 0 
+  };
 };
 
 // Calculate overall progress
