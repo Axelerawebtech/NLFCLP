@@ -19,17 +19,19 @@ export default async function handler(req, res) {
         });
       }
       
-      // Check if caregiver exists
-      const caregiver = await Caregiver.findById(caregiverId);
-      if (!caregiver) {
-        return res.status(404).json({
-          success: false,
-          message: 'Caregiver not found'
-        });
-      }
-      
-      // Check if program already exists
-      let program = await CaregiverProgram.findOne({ caregiverId });
+    // Check if caregiver exists and find program
+    // First, find the caregiver by caregiverId string
+    const caregiver = await Caregiver.findOne({ caregiverId });
+    
+    if (!caregiver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Caregiver not found'
+      });
+    }
+
+    // Then find the program using the caregiver's ObjectId
+    let program = await CaregiverProgram.findOne({ caregiverId: caregiver._id });
       
       if (program) {
         return res.status(200).json({

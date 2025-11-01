@@ -16,13 +16,70 @@ export default async function handler(req, res) {
         });
       }
       
-      const program = await CaregiverProgram.findOne({ caregiverId });
+      // Enhanced caregiver lookup - try both string caregiverId and ObjectId
+    const Caregiver = require('../../../models/Caregiver').default;
+    let caregiver;
+    
+    // First try to find by caregiverId string
+    caregiver = await Caregiver.findOne({ caregiverId });
+    
+    // If not found and the caregiverId looks like an ObjectId, try finding by _id
+    if (!caregiver && /^[0-9a-fA-F]{24}$/.test(caregiverId)) {
+      console.log('🔍 Tried finding caregiver by string, now trying ObjectId...');
+      caregiver = await Caregiver.findById(caregiverId);
+      if (caregiver) {
+        console.log(`✅ Found caregiver by ObjectId: ${caregiver.name} (${caregiver.caregiverId})`);
+      }
+    }
+    
+    if (!caregiver) {
+      return res.status(404).json({ 
+        error: 'Caregiver not found',
+        searchedFor: caregiverId,
+        searchMethods: ['caregiverId string', 'MongoDB ObjectId']
+      });
+    }
+
+    // Then find the program using the caregiver's ObjectId
+    let program = await CaregiverProgram.findOne({ caregiverId: caregiver._id });
       
       if (!program) {
-        return res.status(404).json({
-          success: false,
-          message: 'Program not found'
+        console.log(`⚠️ No program found for caregiver ${caregiver.caregiverId}, creating new program...`);
+        
+        // Auto-create program for existing caregiver
+        program = new CaregiverProgram({
+          caregiverId: caregiver._id,
+          currentDay: 0,
+          overallProgress: 0,
+          dayModules: [],
+          dailyTasks: [],
+          programStartedAt: new Date(),
+          lastActiveAt: new Date(),
+          quickAssessments: [],
+          oneTimeAssessments: [],
+          adminActions: []
         });
+        
+        // Initialize day modules (0-7)
+        if (typeof program.initializeDayModules === 'function') {
+          program.initializeDayModules();
+        } else {
+          // Manual initialization if method doesn't exist
+          for (let day = 0; day <= 7; day++) {
+            program.dayModules.push({
+              day,
+              videoCompleted: false,
+              videoProgress: 0,
+              audioCompleted: false,
+              tasksCompleted: false,
+              progressPercentage: 0,
+              adminPermissionGranted: day === 0 // Only Day 0 unlocked by default
+            });
+          }
+        }
+        
+        await program.save();
+        console.log(`✅ Created new program for caregiver ${caregiver.caregiverId}`);
       }
       
       // Check for days that should be auto-unlocked

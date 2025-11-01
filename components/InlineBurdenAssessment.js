@@ -124,7 +124,9 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
         console.log('📋 Loaded burden assessment config for inline:', {
           questionsCount: data.config.questions.length,
           scoreRanges: data.config.scoreRanges,
-          autoInitialized: data.message ? true : false
+          autoInitialized: data.message ? true : false,
+          firstQuestionStructure: data.config.questions[0],
+          firstQuestionText: data.config.questions[0]?.questionText?.english
         });
         
         // Initialize answers array if needed
@@ -166,9 +168,9 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
   // Calculate burden level based on admin-defined score ranges
   const calculateBurdenLevel = (totalScore) => {
     if (!scoreRanges) {
-      // Fallback calculation for older configurations
-      if (totalScore <= 20) return 'mild';
-      if (totalScore <= 40) return 'moderate';
+      // Fallback calculation with correct score ranges
+      if (totalScore <= 40) return 'mild';
+      if (totalScore <= 60) return 'moderate';
       return 'severe';
     }
 
@@ -202,12 +204,22 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
       });
 
       // Create detailed answer breakdown
-      const answerDetails = answers.map((score, index) => ({
-        questionIndex: index + 1,
-        questionId: questions[index]?.id || index + 1,
-        selectedScore: score,
-        question: questions[index]
-      }));
+      const answerDetails = answers.map((score, index) => {
+        const question = questions[index];
+        console.log(`Creating answerDetail for Q${index + 1}:`, {
+          hasQuestion: !!question,
+          questionKeys: question ? Object.keys(question) : 'none',
+          questionText: question?.questionText,
+          optionsCount: question?.options?.length
+        });
+        
+        return {
+          questionIndex: index + 1,
+          questionId: question?.id || index + 1,
+          selectedScore: score,
+          question: question
+        };
+      });
 
       // Submit to API
       const response = await fetch('/api/caregiver/submit-burden-test', {
@@ -313,7 +325,7 @@ export default function InlineBurdenAssessment({ caregiverId, existingAnswers, e
   // If showing results (test already completed)
   if (showResults) {
     const totalScore = existingScore || answers.reduce((sum, score) => sum + score, 0);
-    const burdenLevel = existingLevel || (totalScore <= 10 ? 'mild' : totalScore <= 20 ? 'moderate' : 'severe');
+    const burdenLevel = existingLevel || calculateBurdenLevel(totalScore);
     
     const levelColors = {
       mild: { bg: '#dcfce7', border: '#86efac', text: '#166534' },

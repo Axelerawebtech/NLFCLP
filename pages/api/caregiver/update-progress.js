@@ -16,7 +16,32 @@ export default async function handler(req, res) {
         });
       }
       
-      const program = await CaregiverProgram.findOne({ caregiverId });
+      // Enhanced caregiver lookup - try both string caregiverId and ObjectId
+    const Caregiver = require('../../../models/Caregiver').default;
+    let caregiver;
+    
+    // First try to find by caregiverId string
+    caregiver = await Caregiver.findOne({ caregiverId });
+    
+    // If not found and the caregiverId looks like an ObjectId, try finding by _id
+    if (!caregiver && /^[0-9a-fA-F]{24}$/.test(caregiverId)) {
+      console.log('🔍 Video progress - Tried finding caregiver by string, now trying ObjectId...');
+      caregiver = await Caregiver.findById(caregiverId);
+      if (caregiver) {
+        console.log(`✅ Video progress - Found caregiver by ObjectId: ${caregiver.name} (${caregiver.caregiverId})`);
+      }
+    }
+    
+    if (!caregiver) {
+      return res.status(404).json({ 
+        error: 'Caregiver not found',
+        searchedFor: caregiverId,
+        searchMethods: ['caregiverId string', 'MongoDB ObjectId']
+      });
+    }
+
+    // Then find the program using the caregiver's ObjectId
+    let program = await CaregiverProgram.findOne({ caregiverId: caregiver._id });
       
       if (!program) {
         return res.status(404).json({

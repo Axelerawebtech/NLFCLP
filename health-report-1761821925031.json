@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-10-30T10:58:45.028Z",
+  "systemHealth": "healthy",
+  "checks": [
+    {
+      "status": "healthy",
+      "message": "Database is responsive",
+      "name": "Database Connectivity"
+    },
+    {
+      "status": "healthy",
+      "message": "Configuration is valid",
+      "name": "Configuration Integrity"
+    },
+    {
+      "status": "healthy",
+      "message": "Checked 12 programs, all consistent",
+      "name": "Data Consistency"
+    }
+  ],
+  "recommendations": [
+    "System is healthy - no actions required"
+  ],
+  "metrics": {
+    "dbConnectivity": "healthy",
+    "configIntegrity": "healthy",
+    "dataConsistency": "healthy",
+    "lastChecked": "2025-10-30T10:58:44.152Z",
+    "issues": []
+  }
+}

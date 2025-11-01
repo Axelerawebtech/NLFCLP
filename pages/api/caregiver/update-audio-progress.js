@@ -25,7 +25,16 @@ export default async function handler(req, res) {
     }
 
     // Find caregiver program
-    const program = await CaregiverProgram.findOne({ caregiverId });
+    // First, find the caregiver by caregiverId string
+    const Caregiver = require('../../../models/Caregiver').default;
+    const caregiver = await Caregiver.findOne({ caregiverId });
+    
+    if (!caregiver) {
+      return res.status(404).json({ error: 'Caregiver not found' });
+    }
+
+    // Then find the program using the caregiver's ObjectId
+    let program = await CaregiverProgram.findOne({ caregiverId: caregiver._id });
     
     if (!program) {
       return res.status(404).json({ error: 'Caregiver program not found' });

@@ -76,20 +76,69 @@ export default async function handler(req, res) {
             }));
         }
 
-        // Organize one-time assessments
+        // Organize one-time assessments with enhanced validation and logging
+        console.log('🔍 DEBUG: One-time assessments check:');
+        console.log('  Program has oneTimeAssessments:', !!program.oneTimeAssessments);
+        console.log('  OneTimeAssessments length:', program.oneTimeAssessments ? program.oneTimeAssessments.length : 0);
+        
         if (program.oneTimeAssessments && program.oneTimeAssessments.length > 0) {
-          assessmentData.oneTimeAssessments = program.oneTimeAssessments
+          console.log('  🎯 Found one-time assessments:', program.oneTimeAssessments.length);
+          console.log('  Assessment types:', program.oneTimeAssessments.map(a => a.type));
+          
+          // VALIDATION: Ensure all assessments have required fields
+          const validAssessments = program.oneTimeAssessments.filter(ota => {
+            const isValid = ota.type && ota.completedAt && ota.totalScore !== undefined;
+            if (!isValid) {
+              console.warn('⚠️ Invalid assessment found:', {
+                hasType: !!ota.type,
+                hasCompletedAt: !!ota.completedAt,
+                hasTotalScore: ota.totalScore !== undefined,
+                assessmentId: ota._id
+              });
+            }
+            return isValid;
+          });
+          
+          console.log('  📊 Valid assessments after filtering:', validAssessments.length);
+          
+          assessmentData.oneTimeAssessments = validAssessments
             .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-            .map(ota => ({
-              type: ota.type,
-              responses: ota.responses || [],
-              totalScore: ota.totalScore,
-              scoreLevel: ota.scoreLevel,
-              language: ota.language || 'english',
-              totalQuestions: ota.totalQuestions || 0,
-              completedAt: ota.completedAt,
-              responseCount: ota.responses ? ota.responses.length : 0
-            }));
+            .map(ota => {
+              // Ensure consistent data structure for frontend
+              const mappedAssessment = {
+                type: ota.type,
+                responses: ota.responses || [],
+                totalScore: Number(ota.totalScore) || 0,
+                scoreLevel: ota.scoreLevel || 'unknown',
+                language: ota.language || 'english',
+                totalQuestions: ota.totalQuestions || 0,
+                completedAt: ota.completedAt,
+                responseCount: ota.responses ? ota.responses.length : 0,
+                // Additional metadata for better tracking
+                retakeCount: ota.retakeCount || 0,
+                assessmentDetails: ota.assessmentDetails || {}
+              };
+              
+              // Validate essential fields
+              if (!mappedAssessment.type || mappedAssessment.totalScore === undefined) {
+                console.error('❌ Critical assessment data missing:', mappedAssessment);
+              }
+              
+              return mappedAssessment;
+            });
+          
+          console.log('  📊 Processed assessments:', assessmentData.oneTimeAssessments.length);
+          console.log('  📋 Assessment details:', assessmentData.oneTimeAssessments.map(a => ({
+            type: a.type,
+            score: a.totalScore,
+            level: a.scoreLevel,
+            date: a.completedAt
+          })));
+          
+        } else {
+          console.log('  ❌ No one-time assessments found in program');
+          // Ensure empty array instead of undefined
+          assessmentData.oneTimeAssessments = [];
         }
 
         // Extract daily module assessments (from dayModules)

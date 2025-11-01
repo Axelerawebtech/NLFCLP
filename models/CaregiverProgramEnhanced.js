@@ -289,8 +289,9 @@ CaregiverProgramSchema.methods.calculateBurdenLevel = function(responses) {
   const totalScore = Object.values(responses).reduce((sum, score) => sum + score, 0);
   
   let burdenLevel;
-  if (totalScore <= 10) burdenLevel = 'mild';
-  else if (totalScore <= 20) burdenLevel = 'moderate';
+  // Correct score ranges: 0-40 mild, 41-60 moderate, 61-88 severe
+  if (totalScore <= 40) burdenLevel = 'mild';
+  else if (totalScore <= 60) burdenLevel = 'moderate';
   else burdenLevel = 'severe';
   
   this.zaritBurdenAssessment = {

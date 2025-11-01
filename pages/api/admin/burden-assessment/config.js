@@ -487,33 +487,23 @@ function getDefaultQuestions() {
  */
 function getDefaultScoreRanges() {
   return {
-    littleOrNoBurden: {
+    mild: {
       min: 0,
-      max: 20,
-      label: {
-        english: 'Little or no burden',
-        kannada: 'ಕಡಿಮೆ ಅಥವಾ ಯಾವುದೇ ಹೊರೆ ಇಲ್ಲ',
-        hindi: 'कम या कोई बोझ नहीं'
-      },
-      burdenLevel: 'mild'
-    },
-    mildToModerate: {
-      min: 21,
       max: 40,
       label: {
-        english: 'Mild to moderate burden',
-        kannada: 'ಸೌಮ್ಯದಿಂದ ಮಧ್ಯಮ ಹೊರೆ',
-        hindi: 'हल्के से मध्यम बोझ'
+        english: 'Mild burden',
+        kannada: 'ಕಡಿಮೆ ಹೊರೆ',
+        hindi: 'हल्का बोझ'
       },
       burdenLevel: 'mild'
     },
-    moderateToSevere: {
+    moderate: {
       min: 41,
       max: 60,
       label: {
-        english: 'Moderate to severe burden',
-        kannada: 'ಮಧ್ಯಮದಿಂದ ತೀವ್ರ ಹೊರೆ',
-        hindi: 'मध्यम से गंभीर बोझ'
+        english: 'Moderate burden',
+        kannada: 'ಮಧ್ಯಮ ಹೊರೆ',
+        hindi: 'मध्यम बोझ'
       },
       burdenLevel: 'moderate'
     },

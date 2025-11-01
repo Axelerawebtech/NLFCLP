@@ -100,9 +100,8 @@ const ZaritBurdenAssessment = ({ onComplete, caregiverId }) => {
 
   // Fallback score ranges
   const getFallbackScoreRanges = () => ({
-    littleOrNoBurden: { min: 0, max: 20, burdenLevel: 'mild' },
-    mildToModerate: { min: 21, max: 40, burdenLevel: 'mild' },
-    moderateToSevere: { min: 41, max: 60, burdenLevel: 'moderate' },
+    mild: { min: 0, max: 40, burdenLevel: 'mild' },
+    moderate: { min: 41, max: 60, burdenLevel: 'moderate' },
     severe: { min: 61, max: 88, burdenLevel: 'severe' }
   });
 
@@ -135,9 +134,9 @@ const ZaritBurdenAssessment = ({ onComplete, caregiverId }) => {
   // Calculate burden level based on admin-defined score ranges
   const calculateBurdenLevel = (totalScore) => {
     if (!scoreRanges) {
-      // Fallback calculation
-      if (totalScore <= 20) return 'mild';
-      if (totalScore <= 40) return 'moderate';
+      // Fallback calculation with correct score ranges
+      if (totalScore <= 40) return 'mild';
+      if (totalScore <= 60) return 'moderate';
       return 'severe';
     }
 

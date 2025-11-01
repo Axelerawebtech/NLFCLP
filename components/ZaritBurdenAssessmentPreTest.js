@@ -263,9 +263,8 @@ const zaritQuestions = [
 ];
 
 const getBurdenLevel = (score) => {
-  if (score >= 0 && score <= 20) return 'mild';
-  if (score >= 21 && score <= 40) return 'mild-moderate';
-  if (score >= 41 && score <= 60) return 'moderate-severe';
+  if (score >= 0 && score <= 40) return 'mild';
+  if (score >= 41 && score <= 60) return 'moderate';  
   if (score >= 61 && score <= 88) return 'severe';
   return 'mild';
 };
@@ -273,8 +272,7 @@ const getBurdenLevel = (score) => {
 const getBurdenLevelText = (level) => {
   switch (level) {
     case 'mild': return 'Mild Burden';
-    case 'mild-moderate': return 'Mild to Moderate Burden';
-    case 'moderate-severe': return 'Moderate to Severe Burden';
+    case 'moderate': return 'Moderate Burden';
     case 'severe': return 'Severe Burden';
     default: return 'Mild Burden';
   }
@@ -283,8 +281,7 @@ const getBurdenLevelText = (level) => {
 const getBurdenLevelColor = (level) => {
   switch (level) {
     case 'mild': return 'success';
-    case 'mild-moderate': return 'warning';
-    case 'moderate-severe': return 'warning';
+    case 'moderate': return 'warning';
     case 'severe': return 'error';
     default: return 'success';
   }

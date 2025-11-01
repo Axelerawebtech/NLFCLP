@@ -316,20 +316,51 @@ export default function CaregiverProfile() {
   const fetchProfileData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/caregiver/profile?caregiverId=${id}`);
+      // Add cache-busting parameter to ensure fresh data for assessment display
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/admin/caregiver/profile?caregiverId=${id}&_t=${timestamp}`, {
+        // Ensure no caching of assessment data
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       const data = await response.json();
       
       if (data.success) {
+        console.log('📊 Profile data fetched:', {
+          caregiverName: data.data.caregiver?.name,
+          oneTimeAssessments: data.data.assessments?.oneTimeAssessments?.length || 0,
+          quickAssessments: data.data.assessments?.quickAssessments?.length || 0,
+          burdenLevel: data.data.program?.burdenLevel
+        });
+        
         setProfileData(data.data);
         if (data.data.program?.customWaitTimes) {
           setCustomWaitTime(data.data.program.customWaitTimes);
         }
+        
+        // Validate that one-time assessments are properly loaded
+        if (data.data.assessments?.oneTimeAssessments) {
+          console.log('✅ One-time assessments loaded successfully:', 
+            data.data.assessments.oneTimeAssessments.map(a => ({
+              type: a.type,
+              score: a.totalScore,
+              level: a.scoreLevel
+            }))
+          );
+        } else {
+          console.log('⚠️ No one-time assessments found in response');
+        }
       } else {
         setError(data.message);
+        console.error('❌ Failed to fetch profile data:', data.message);
       }
     } catch (err) {
       setError('Failed to fetch caregiver profile');
-      console.error(err);
+      console.error('❌ Error fetching profile:', err);
     } finally {
       setLoading(false);
     }
@@ -1080,55 +1111,133 @@ export default function CaregiverProfile() {
                               <div style={{ marginTop: '0.75rem' }}>
                                 <details style={{ cursor: 'pointer' }}>
                                   <summary style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
-                                    View Responses ({assessment.responseCount})
+                                    View Assessment Details ({assessment.responses?.length || assessment.responseCount || 'N/A'} responses)
                                   </summary>
                                   <div style={{ marginTop: '0.75rem', paddingLeft: '1rem' }}>
-                                    {assessment.responses && Array.isArray(assessment.responses) ? (
-                                      assessment.responses.map((response, idx) => (
-                                        <div key={idx} style={{ 
-                                          padding: '0.75rem', 
-                                          backgroundColor: 'white',
-                                          border: '1px solid #e5e7eb',
-                                          borderRadius: '0.5rem',
-                                          marginBottom: '0.75rem'
-                                        }}>
-                                          <div style={{ marginBottom: '0.5rem' }}>
-                                            <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, fontWeight: '500' }}>
-                                              Q: {response.questionText}
-                                            </p>
+                                    
+                                    {/* Enhanced Assessment Statistics for Burden Assessment */}
+                                    {assessment.type === 'zarit_burden' && assessment.assessmentDetails && (
+                                      <div style={{ 
+                                        backgroundColor: '#fef3c7', 
+                                        border: '1px solid #fbbf24',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.75rem',
+                                        marginBottom: '1rem'
+                                      }}>
+                                        <h5 style={{ margin: '0 0 0.5rem 0', color: '#92400e', fontSize: '0.875rem', fontWeight: '600' }}>
+                                          📊 Assessment Statistics
+                                        </h5>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                          <div>
+                                            <span style={{ color: '#6b7280' }}>Average Score:</span>{' '}
+                                            <span style={{ fontWeight: '600', color: '#92400e' }}>{assessment.assessmentDetails.averageScore?.toFixed(2)}</span>
                                           </div>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <p style={{ fontSize: '0.875rem', color: '#16a34a', margin: 0, fontWeight: '600' }}>
-                                              A: {response.responseValue}
-                                            </p>
-                                            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
-                                              {new Date(response.answeredAt).toLocaleTimeString()}
-                                            </p>
+                                          <div>
+                                            <span style={{ color: '#6b7280' }}>Completion:</span>{' '}
+                                            <span style={{ fontWeight: '600', color: '#92400e' }}>{assessment.assessmentDetails.completionPercentage}%</span>
+                                          </div>
+                                          <div>
+                                            <span style={{ color: '#6b7280' }}>Max Possible:</span>{' '}
+                                            <span style={{ fontWeight: '600', color: '#92400e' }}>{assessment.assessmentDetails.maxPossibleScore}</span>
+                                          </div>
+                                          <div>
+                                            <span style={{ color: '#6b7280' }}>Questions:</span>{' '}
+                                            <span style={{ fontWeight: '600', color: '#92400e' }}>{assessment.assessmentDetails.questionsAnswered}</span>
                                           </div>
                                         </div>
-                                      ))
+                                      </div>
+                                    )}
+
+                                    {/* Response Details */}
+                                    {assessment.responses && Array.isArray(assessment.responses) ? (
+                                      <div>
+                                        <h5 style={{ margin: '0 0 0.75rem 0', color: '#374151', fontSize: '0.875rem', fontWeight: '600' }}>
+                                          📝 Individual Responses
+                                        </h5>
+                                        {assessment.responses.map((response, idx) => (
+                                          <div key={idx} style={{ 
+                                            padding: '0.75rem', 
+                                            backgroundColor: 'white',
+                                            border: '1px solid #e5e7eb',
+                                            borderRadius: '0.5rem',
+                                            marginBottom: '0.75rem'
+                                          }}>
+                                            <div style={{ marginBottom: '0.5rem' }}>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+                                                <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '500' }}>
+                                                  Q{response.questionNumber || idx + 1}
+                                                </span>
+                                                <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                                  Score: {response.responseValue}
+                                                </span>
+                                              </div>
+                                              <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.5rem 0', fontWeight: '500' }}>
+                                                {response.questionText}
+                                              </p>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                              <div>
+                                                <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Selected: </span>
+                                                <span style={{ fontSize: '0.875rem', color: '#16a34a', fontWeight: '600' }}>
+                                                  {response.responseText || `Option ${response.responseValue}`}
+                                                </span>
+                                              </div>
+                                              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                                                {new Date(response.answeredAt).toLocaleTimeString()}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
                                     ) : assessment.responses && typeof assessment.responses === 'object' ? (
                                       // Fallback for old format
-                                      Object.entries(assessment.responses).map(([questionId, response], idx) => (
-                                        <div key={idx} style={{ 
-                                          padding: '0.5rem', 
-                                          backgroundColor: 'white',
-                                          border: '1px solid #e5e7eb',
-                                          borderRadius: '0.25rem',
-                                          marginBottom: '0.5rem'
-                                        }}>
-                                          <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
-                                            Question ID: {questionId}
-                                          </p>
-                                          <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, fontWeight: '500' }}>
-                                            Response: {typeof response === 'object' ? JSON.stringify(response) : response}
-                                          </p>
-                                        </div>
-                                      ))
+                                      <div>
+                                        <h5 style={{ margin: '0 0 0.75rem 0', color: '#374151', fontSize: '0.875rem', fontWeight: '600' }}>
+                                          📝 Responses (Legacy Format)
+                                        </h5>
+                                        {Object.entries(assessment.responses).map(([questionId, response], idx) => (
+                                          <div key={idx} style={{ 
+                                            padding: '0.5rem', 
+                                            backgroundColor: 'white',
+                                            border: '1px solid #e5e7eb',
+                                            borderRadius: '0.25rem',
+                                            marginBottom: '0.5rem'
+                                          }}>
+                                            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+                                              Question ID: {questionId}
+                                            </p>
+                                            <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, fontWeight: '500' }}>
+                                              Response: {typeof response === 'object' ? JSON.stringify(response) : response}
+                                            </p>
+                                          </div>
+                                        ))}
+                                      </div>
                                     ) : (
                                       <p style={{ fontSize: '0.875rem', color: '#6b7280', fontStyle: 'italic' }}>
                                         No detailed responses available
                                       </p>
+                                    )}
+
+                                    {/* Metadata Information */}
+                                    {assessment.metadata && (
+                                      <div style={{ 
+                                        backgroundColor: '#f3f4f6', 
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.75rem',
+                                        marginTop: '1rem'
+                                      }}>
+                                        <h5 style={{ margin: '0 0 0.5rem 0', color: '#374151', fontSize: '0.75rem', fontWeight: '600' }}>
+                                          🔍 Assessment Metadata
+                                        </h5>
+                                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                          <div>Method: {assessment.metadata.submissionMethod}</div>
+                                          <div>Source: {assessment.metadata.submittedFrom}</div>
+                                          {assessment.metadata.retakeNumber && (
+                                            <div>Retake #: {assessment.metadata.retakeNumber}</div>
+                                          )}
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
                                 </details>

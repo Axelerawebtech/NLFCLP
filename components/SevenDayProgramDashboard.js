@@ -345,14 +345,28 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const handleDayClick = (day, isUnlocked) => {
     if (isUnlocked) {
       setSelectedDay(day);
-      setShowAssessment(false); // Reset assessment state when changing days
       
       // Check if Day 0 should show assessment (video completed but assessment not done)
       if (day === 0 && programData) {
         const dayData = programData.dayModules?.find(d => d.day === day);
+        console.log('🔍 Day click - Day 0 assessment check:', {
+          day,
+          dayData: dayData ? 'found' : 'not found',
+          videoCompleted: dayData?.videoCompleted,
+          dailyAssessment: dayData?.dailyAssessment,
+          shouldShowAssessment: dayData && dayData.videoCompleted && !dayData.dailyAssessment
+        });
+        
         if (dayData && dayData.videoCompleted && !dayData.dailyAssessment) {
+          console.log('✅ Day click - Setting showAssessment to true for Day 0');
           setShowAssessment(true);
+        } else {
+          console.log('❌ Day click - Not showing assessment for Day 0');
+          setShowAssessment(false);
         }
+      } else {
+        // Reset assessment state for other days
+        setShowAssessment(false);
       }
     }
   };
@@ -371,16 +385,36 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       });
       
       if (response.ok) {
+        console.log(`🎥 Video completed for Day ${day}`);
+        
         // Show quick assessment for Day 0 after video completion (if not already completed)
         if (day === 0) {
           const dayData = programData?.dayModules?.find(d => d.day === day);
+          console.log('🔍 Day 0 video complete - Assessment check:', {
+            dayData: dayData ? 'found' : 'not found',
+            dailyAssessment: dayData?.dailyAssessment,
+            hasAssessment: !!dayData?.dailyAssessment,
+            willShowAssessment: !dayData?.dailyAssessment
+          });
+          
           if (!dayData?.dailyAssessment) {
+            console.log('✅ Setting showAssessment to true for Day 0');
             setShowAssessment(true);
+            
+            // Delay the program status fetch slightly to ensure showAssessment state is set first
+            setTimeout(() => {
+              console.log('📡 Fetching program status after assessment state set');
+              fetchProgramStatus();
+            }, 100);
+          } else {
+            console.log('❌ Day 0 assessment already completed, not showing');
+            // Still fetch program status for other days
+            fetchProgramStatus();
           }
+        } else {
+          // For other days, fetch immediately
+          fetchProgramStatus();
         }
-        
-        // Refresh program status after setting assessment state
-        fetchProgramStatus();
       } else {
         console.error('Failed to update video progress:', response.status);
       }
@@ -951,7 +985,18 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 )}
 
                 {/* Day 0 Quick Assessment - Show after video completion */}
-                {selectedDay === 0 && showAssessment && (
+                {(() => {
+                  const shouldShow = selectedDay === 0 && showAssessment;
+                  console.log('🔍 Day 0 Assessment Display Check:', {
+                    selectedDay,
+                    showAssessment,
+                    shouldShow,
+                    selectedDayData: selectedDayData ? 'found' : 'not found',
+                    videoCompleted: selectedDayData?.videoCompleted,
+                    dailyAssessment: selectedDayData?.dailyAssessment
+                  });
+                  return shouldShow;
+                })() && (
                   <div style={{ marginTop: '24px', marginBottom: '24px' }}>
                     <DailyAssessment
                       day={selectedDay}

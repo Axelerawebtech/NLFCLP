@@ -31,11 +31,43 @@ export default async function handler(req, res) {
   try {
     await dbConnect();
 
-    // Find or create caregiver program
-    let program = await CaregiverProgram.findOne({ caregiverId });
+    // Enhanced caregiver program lookup - handle both string caregiverId and ObjectId
+    let program;
+    
+    // First try direct lookup by ObjectId (if caregiverId is actually an ObjectId)
+    if (/^[0-9a-fA-F]{24}$/.test(caregiverId)) {
+      program = await CaregiverProgram.findOne({ caregiverId });
+    }
+    
+    // If not found and caregiverId doesn't look like ObjectId, do two-step lookup
+    if (!program) {
+      const Caregiver = require('../../../models/Caregiver').default;
+      let caregiver;
+      
+      // Try to find caregiver by string caregiverId
+      caregiver = await Caregiver.findOne({ caregiverId });
+      
+      // If not found and caregiverId looks like ObjectId, try by _id  
+      if (!caregiver && /^[0-9a-fA-F]{24}$/.test(caregiverId)) {
+        console.log('🔍 Daily assessment - Tried finding caregiver by string, now trying ObjectId...');
+        caregiver = await Caregiver.findById(caregiverId);
+        if (caregiver) {
+          console.log(`✅ Daily assessment - Found caregiver by ObjectId: ${caregiver.name} (${caregiver.caregiverId})`);
+        }
+      }
+      
+      if (caregiver) {
+        // Find program using caregiver's ObjectId
+        program = await CaregiverProgram.findOne({ caregiverId: caregiver._id });
+      }
+    }
 
     if (!program) {
-      return res.status(404).json({ error: 'Caregiver program not found' });
+      return res.status(404).json({ 
+        error: 'Caregiver program not found',
+        searchedFor: caregiverId,
+        searchMethods: ['Direct ObjectId lookup', 'caregiverId string lookup', 'MongoDB ObjectId lookup']
+      });
     }
 
     // Handle Quick Assessment (daily, no scoring)
@@ -81,9 +113,9 @@ export default async function handler(req, res) {
         completedAt: new Date()
       };
 
-      // Use updateOne to store quick assessment
+      // Use updateOne to store quick assessment - use the program's caregiverId (ObjectId)
       const updateResult = await CaregiverProgram.updateOne(
-        { caregiverId },
+        { caregiverId: program.caregiverId },
         {
           $push: {
             quickAssessments: quickAssessmentData
@@ -94,6 +126,13 @@ export default async function handler(req, res) {
         },
         { runValidators: false }
       );
+
+      console.log('📝 Quick assessment saved:', {
+        caregiverId: program.caregiverId,
+        day: parseInt(day),
+        responsesCount: formattedResponses.length,
+        updateResult: updateResult.modifiedCount > 0 ? 'success' : 'failed'
+      });
 
       return res.status(200).json({
         success: true,
