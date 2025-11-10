@@ -24,6 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { getTranslation } from '../utils/translations';
 import LanguageSelector from '../components/LanguageSelector';
 import { useRouter } from 'next/router';
+import Image from 'next/image';
 
 export default function Home() {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -61,6 +62,33 @@ export default function Home() {
         background: 'linear-gradient(135deg, #cabe38ff 0%, #9a9e53ff 100%)',
         position: 'relative'
       }}>
+      {/* Corner Logos */}
+      <Box sx={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
+        <Image
+          src="/images/logo-1-nlfcp.png"
+          alt="Logo 1"
+          width={120}
+          height={100}
+          style={{
+            borderRadius: 0,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          }}
+        />
+      </Box>
+      <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
+        <Image
+          src="/images/logo-2-nlfcp.png"
+          alt="Logo 2"
+          width={200}
+          height={100}
+          style={{
+            borderRadius: 0,
+           
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          }}
+        />
+      </Box>
+
       {/* Header with Controls */}
       <Box sx={{
         padding: '20px',
@@ -239,7 +267,7 @@ export default function Home() {
         )}
 
         {/* Feature Tags - Top Row */}
-        <Grid container spacing={2} sx={{ mb: 4, px: 2 }}>
+        <Grid container spacing={2} sx={{ mb: 0, px: 2 }}>
           <Grid item xs={6} md={4}>
             <motion.div
               whileHover={{ scale: 1.03 }}
@@ -353,6 +381,26 @@ export default function Home() {
             </motion.div>
           </Grid>
         </Grid>
+
+        {/* BG image between Learning Modules and Progress cards */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 2, width: '100%' }}>
+          <Box sx={{ width: { xs: '90%', sm: 400, md: 500 }, maxWidth: '100%' }}>
+            <Image
+              src="/images/bg.png"
+              alt="Background"
+              width={500}
+              height={100}
+              style={{
+                width: '100%',
+                height: 'auto',
+                borderRadius: 16,
+                objectFit: 'cover',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+              }}
+              priority
+            />
+          </Box>
+        </Box>
 
         {/* Feature Tags - Bottom Row */}
         <Box sx={{ mb: 8 }}>
