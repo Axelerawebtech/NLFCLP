@@ -3,11 +3,12 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import ProgramConfigManager from '../../components/ProgramConfigManager';
 import BurdenAssessmentConfig from '../../components/BurdenAssessmentConfig';
+import DynamicDayManager from '../../components/DynamicDayManager';
 
 export default function ProgramConfigPage() {
   const router = useRouter();
   const [isBackHovered, setIsBackHovered] = useState(false);
-  const [activeTab, setActiveTab] = useState('program'); // 'program' or 'burden'
+  const [activeTab, setActiveTab] = useState('dynamic'); // 'dynamic', 'program', or 'burden'
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -208,22 +209,29 @@ export default function ProgramConfigPage() {
         <div style={styles.tabsContainer}>
           <div style={styles.tabs}>
             <button
+              style={styles.tab(activeTab === 'dynamic')}
+              onClick={() => setActiveTab('dynamic')}
+            >
+              🗓️ Dynamic Day Content
+            </button>
+            <button
               style={styles.tab(activeTab === 'program')}
               onClick={() => setActiveTab('program')}
             >
-              📅 Program Content
+              📅 Legacy Program Content
             </button>
             <button
               style={styles.tab(activeTab === 'burden')}
               onClick={() => setActiveTab('burden')}
             >
-              📋 Burden Assessment
+              📋 Burden Assessment (Day 1)
             </button>
           </div>
         </div>
 
         {/* Main Content */}
         <div style={styles.mainContent}>
+          {activeTab === 'dynamic' && <DynamicDayManager />}
           {activeTab === 'program' && <ProgramConfigManager />}
           {activeTab === 'burden' && <BurdenAssessmentConfig />}
         </div>

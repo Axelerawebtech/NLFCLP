@@ -13,6 +13,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showAssessment, setShowAssessment] = useState(false);
+  const [testAnswers, setTestAnswers] = useState({}); // Store test answers { questionIndex: score }
+  const [submittingTest, setSubmittingTest] = useState(false);
 
   // Map language codes: en -> english, kn -> kannada, hi -> hindi
   const getLanguageKey = () => {
@@ -34,6 +36,170 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     }
     
     return defaultText;
+  };
+
+  // Helper to get task icon
+  const getTaskIcon = (taskType) => {
+    const icons = {
+      'video': '🎥',
+      'motivation-message': '💪',
+      'quick-assessment': '📊',
+      'reminder': '⏰',
+      'interactive-field': '✍️',
+      'greeting-message': '👋',
+      'activity-selector': '🎯',
+      'calming-video': '🧘',
+      'reflection-prompt': '💭',
+      'feeling-check': '😊',
+      'audio-message': '🔊',
+      'healthcare-tip': '🏥',
+      'task-checklist': '✅'
+    };
+    return icons[taskType] || '📄';
+  };
+
+  // Render dynamic task based on type
+  const renderDynamicTask = (task, index) => {
+    const taskStyle = {
+      padding: '20px',
+      backgroundColor: '#f9fafb',
+      borderRadius: '12px',
+      border: '2px solid #e5e7eb',
+      marginBottom: '16px'
+    };
+
+    const taskHeader = (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+        <div>
+          <h5 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+            {getTaskIcon(task.taskType)} {task.title}
+          </h5>
+          {task.description && (
+            <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>{task.description}</p>
+          )}
+        </div>
+      </div>
+    );
+
+    switch (task.taskType) {
+      case 'video':
+      case 'calming-video':
+        return (
+          <div key={task.taskId || index} style={taskStyle}>
+            {taskHeader}
+            {task.content?.videoUrl && (
+              <VideoPlayer
+                videoUrl={task.content.videoUrl}
+                videoTitle={task.title}
+                caregiverId={caregiverId}
+                day={selectedDay}
+                onComplete={() => fetchProgramStatus()}
+              />
+            )}
+          </div>
+        );
+
+      case 'motivation-message':
+      case 'greeting-message':
+      case 'healthcare-tip':
+      case 'reflection-prompt':
+        return (
+          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef3c7', borderColor: '#fbbf24'}}>
+            {taskHeader}
+            {task.content?.textContent && (
+              <p style={{ margin: '12px 0 0 0', fontSize: '15px', lineHeight: '1.6', color: '#78350f' }}>
+                {task.content.textContent}
+              </p>
+            )}
+          </div>
+        );
+
+      case 'audio-message':
+        return (
+          <div key={task.taskId || index} style={taskStyle}>
+            {taskHeader}
+            {task.content?.audioUrl && (
+              <AudioPlayer
+                audioUrl={task.content.audioUrl}
+                audioTitle={task.title}
+                caregiverId={caregiverId}
+                day={selectedDay}
+                onComplete={() => fetchProgramStatus()}
+              />
+            )}
+          </div>
+        );
+
+      case 'interactive-field':
+        return (
+          <div key={task.taskId || index} style={taskStyle}>
+            {taskHeader}
+            <textarea
+              placeholder={task.content?.placeholder || 'Write your thoughts...'}
+              style={{
+                width: '100%',
+                minHeight: '100px',
+                padding: '12px',
+                fontSize: '14px',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontFamily: 'inherit'
+              }}
+            />
+          </div>
+        );
+
+      case 'task-checklist':
+        return (
+          <div key={task.taskId || index} style={taskStyle}>
+            {taskHeader}
+            {task.content?.checklistItems && task.content.checklistItems.length > 0 && (
+              <div style={{ marginTop: '12px' }}>
+                {task.content.checklistItems.map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <input type="checkbox" style={{ width: '18px', height: '18px' }} />
+                    <span style={{ fontSize: '14px', color: '#374151' }}>{item.itemText}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'feeling-check':
+        return (
+          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef2f2', borderColor: '#fca5a5'}}>
+            {taskHeader}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '12px', justifyContent: 'center' }}>
+              {['😊', '🙂', '😐', '😔', '😢'].map((emoji, idx) => (
+                <button
+                  key={idx}
+                  style={{
+                    fontSize: '32px',
+                    padding: '12px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '12px',
+                    backgroundColor: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div key={task.taskId || index} style={taskStyle}>
+            {taskHeader}
+            <p style={{ margin: '12px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
+              Task type: {task.taskType}
+            </p>
+          </div>
+        );
+    }
   };
 
   // Hover states
@@ -214,100 +380,83 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       const data = await response.json();
       
       if (data.success) {
-        // Enhanced program data with video content
+        // Enhanced program data with dynamic content
         const enhancedData = { ...data.data };
         
-        // Fetch video content for each available day
+        // Fetch dynamic day content for each available day
         if (enhancedData.dayModules && enhancedData.dayModules.length > 0) {
-          const videoPromises = enhancedData.dayModules.map(async (dayModule) => {
+          const contentPromises = enhancedData.dayModules.map(async (dayModule) => {
             try {
               // Get language key for API
               const langKey = getLanguageKey();
               
-              // Build query parameters
+              // Fetch dynamic day content using NEW API
               const queryParams = new URLSearchParams({
+                caregiverId: caregiverId,
                 day: dayModule.day.toString(),
                 language: langKey
               });
               
-              // Add burden level for days that need it (use enhancedData instead of programData)
-              if (dayModule.day >= 1 && enhancedData?.burdenLevel) {
-                // Use exact burden level from database (mild, moderate, severe)
-                queryParams.append('burdenLevel', enhancedData.burdenLevel);
-                console.log(`🔍 Day ${dayModule.day} fetching video for burden level: ${enhancedData.burdenLevel}`);
-              } else if (dayModule.day >= 1) {
-                queryParams.append('burdenLevel', 'moderate'); // Default fallback
-                console.log(`🔍 Day ${dayModule.day} using default burden level: moderate`);
-              }
+              console.log(`🎯 Fetching dynamic content for Day ${dayModule.day} (${langKey})`);
+              const contentResponse = await fetch(`/api/caregiver/dynamic-day-content?${queryParams}`);
               
-              console.log(`🎥 Fetching video: ${queryParams.toString()}`);
-              const videoResponse = await fetch(`/api/caregiver/get-video-content?${queryParams}`);
-              
-              if (videoResponse.ok) {
-                const videoData = await videoResponse.json();
+              if (contentResponse.ok) {
+                const contentData = await contentResponse.json();
                 
-                console.log(`🔍 Day ${dayModule.day} video response:`, videoData);
+                console.log(`✅ Day ${dayModule.day} dynamic content:`, contentData);
                 
-                // Merge video content into day module
+                // Merge dynamic content into day module
                 const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
                 
                 const mergedModule = {
                   ...baseModule,
-                  videoUrl: videoData.videoContent?.videoUrl || '',
-                  videoTitle: videoData.videoContent?.title || '',
-                  videoDescription: videoData.videoContent?.description || '',
-                  audioUrl: videoData.videoContent?.audioUrl || '',
-                  audioTitle: videoData.videoContent?.audioTitle || '',
-                  tasks: videoData.videoContent?.tasks || dayModule.tasks || [],
+                  dayName: contentData.dayName || `Day ${dayModule.day}`,
+                  hasTest: contentData.hasTest || false,
+                  tasks: contentData.tasks || [],
+                  totalTasks: contentData.totalTasks || 0,
+                  levelLabel: contentData.levelLabel || '',
                   // Preserve burden assessment data from original day module
                   burdenTestCompleted: baseModule.burdenTestCompleted || false,
-                  burdenLevel: baseModule.burdenLevel || enhancedData.burdenLevel,
-                  burdenScore: baseModule.burdenScore
+                  burdenLevel: baseModule.burdenLevel || contentData.burdenLevel || enhancedData.burdenLevel,
+                  burdenScore: baseModule.burdenScore,
+                  // Add test if available
+                  test: contentData.test || null
                 };
                 
-                console.log(`🔍 Day ${dayModule.day} merged module videoUrl:`, mergedModule.videoUrl);
+                console.log(`✅ Day ${dayModule.day} merged module:`, mergedModule);
                 
                 return mergedModule;
               } else {
+                console.warn(`⚠️ Day ${dayModule.day} content not found`);
                 const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
                 
-                const mergedModule = {
+                return {
                   ...baseModule,
-                  videoUrl: '',
-                  videoTitle: '',
-                  videoDescription: '',
-                  audioUrl: '',
-                  audioTitle: '',
-                  // Preserve burden assessment data even when no video
+                  tasks: [],
+                  totalTasks: 0,
+                  // Preserve burden assessment data even when no content
                   burdenTestCompleted: baseModule.burdenTestCompleted || false,
                   burdenLevel: baseModule.burdenLevel || enhancedData.burdenLevel,
                   burdenScore: baseModule.burdenScore
                 };
-                
-                return mergedModule;
               }
-            } catch (videoError) {
-              console.error(`Error fetching video for Day ${dayModule.day}:`, videoError);
+            } catch (contentError) {
+              console.error(`❌ Error fetching content for Day ${dayModule.day}:`, contentError);
               const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
               
-              const mergedModule = {
+              return {
                 ...baseModule,
-                videoUrl: '',
-                videoTitle: '',
-                videoDescription: '',
-                audioUrl: '',
-                audioTitle: '',
+                tasks: [],
+                totalTasks: 0,
                 // Preserve burden assessment data even on error
                 burdenTestCompleted: baseModule.burdenTestCompleted || false,
                 burdenLevel: baseModule.burdenLevel || enhancedData.burdenLevel,
                 burdenScore: baseModule.burdenScore
               };
-              
-              return mergedModule;
             }
           });
           
-          const enhancedDayModules = await Promise.all(videoPromises);
+          const enhancedDayModules = await Promise.all(contentPromises);
           enhancedData.dayModules = enhancedDayModules;
           
           // Debug burden data mapping
@@ -447,6 +596,86 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const handleAssessmentComplete = (assessmentData) => {
     setShowAssessment(false);
     fetchProgramStatus(); // Refresh the program status
+  };
+
+  const handleTestSubmit = async () => {
+    try {
+      setSubmittingTest(true);
+      
+      // Get current day data
+      const selectedDayData = programData.days[selectedDay];
+      if (!selectedDayData?.test) {
+        alert('Test configuration not found');
+        return;
+      }
+      
+      const test = selectedDayData.test;
+      const questions = test.questions || [];
+      
+      // Validate all questions are answered
+      if (Object.keys(testAnswers).length !== questions.length) {
+        alert('Please answer all questions before submitting');
+        setSubmittingTest(false);
+        return;
+      }
+      
+      // Calculate total score
+      let totalScore = 0;
+      questions.forEach((question, qIdx) => {
+        const selectedScore = testAnswers[qIdx];
+        if (selectedScore !== undefined) {
+          totalScore += parseInt(selectedScore);
+        }
+      });
+      
+      // Determine burden level based on score ranges
+      let burdenLevel = 'mild'; // default
+      if (test.scoreRanges && test.scoreRanges.length > 0) {
+        for (const range of test.scoreRanges) {
+          if (totalScore >= range.minScore && totalScore <= range.maxScore) {
+            burdenLevel = range.levelKey;
+            break;
+          }
+        }
+      }
+      
+      // Submit test results to API
+      const response = await fetch('/api/caregiver/submit-dynamic-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caregiverId,
+          day: selectedDay,
+          language: getLanguageKey(),
+          testName: test.testName,
+          answers: Object.values(testAnswers),
+          totalScore,
+          burdenLevel
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit test');
+      }
+      
+      const result = await response.json();
+      console.log('Test submitted successfully:', result);
+      
+      // Clear test answers
+      setTestAnswers({});
+      
+      // Refresh program status to get updated content
+      await fetchProgramStatus();
+      
+      alert(`Assessment complete! Your burden level: ${burdenLevel.charAt(0).toUpperCase() + burdenLevel.slice(1)}`);
+      
+    } catch (error) {
+      console.error('Error submitting test:', error);
+      alert('Failed to submit test. Please try again.');
+    } finally {
+      setSubmittingTest(false);
+    }
   };
 
   const handleDayComplete = async (day) => {
@@ -931,10 +1160,192 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               </>
             )}
 
-            {/* Other Days: Normal Video → Tasks Flow */}
+            {/* Other Days: Normal Video → Tasks Flow (including Day 0 with dynamic content) */}
             {selectedDay !== 1 && (
               <>
-                {/* Video Section */}
+                {/* Dynamic Test (if available and not completed) */}
+                {selectedDayData.test && !selectedDayData.testCompleted && (
+                  <div style={{ marginBottom: '24px', padding: '20px', backgroundColor: '#fef3c7', borderRadius: '12px', border: '2px solid #fbbf24' }}>
+                    <h4 style={{ ...styles.sectionTitle, color: '#92400e' }}>
+                      📊 {selectedDayData.test.testName || 'Assessment'}
+                    </h4>
+                    <p style={{ fontSize: '14px', color: '#78350f', marginBottom: '16px' }}>
+                      Please complete this assessment to personalize your content.
+                    </p>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      {selectedDayData.test.questions?.map((question, qIdx) => (
+                        <div key={qIdx} style={{ padding: '16px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #fbbf24' }}>
+                          <p style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: '#111827' }}>
+                            {qIdx + 1}. {question.questionText}
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {question.options?.map((option, oIdx) => (
+                              <label 
+                                key={oIdx} 
+                                style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: '10px', 
+                                  cursor: 'pointer', 
+                                  padding: '10px', 
+                                  backgroundColor: testAnswers[qIdx] === option.score ? '#fef08a' : '#fefce8', 
+                                  borderRadius: '6px', 
+                                  border: testAnswers[qIdx] === option.score ? '2px solid #f59e0b' : '1px solid #fde047',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <input 
+                                  type="radio" 
+                                  name={`question_${qIdx}`}
+                                  value={option.score}
+                                  checked={testAnswers[qIdx] === option.score}
+                                  onChange={(e) => {
+                                    setTestAnswers(prev => ({
+                                      ...prev,
+                                      [qIdx]: parseInt(e.target.value)
+                                    }));
+                                  }}
+                                  style={{ width: '18px', height: '18px' }}
+                                />
+                                <span style={{ fontSize: '14px', color: '#374151' }}>{option.optionText}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <button
+                      onClick={handleTestSubmit}
+                      disabled={submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length}
+                      style={{
+                        marginTop: '20px',
+                        padding: '12px 24px',
+                        backgroundColor: submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length ? '#d1d5db' : '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length ? 'not-allowed' : 'pointer',
+                        width: '100%',
+                        opacity: submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length ? 0.6 : 1
+                      }}
+                    >
+                      {submittingTest ? 'Submitting...' : 'Submit Assessment'}
+                    </button>
+                    
+                    {Object.keys(testAnswers).length < selectedDayData.test.questions?.length && (
+                      <p style={{ fontSize: '13px', color: '#92400e', marginTop: '8px', textAlign: 'center' }}>
+                        Please answer all questions ({Object.keys(testAnswers).length}/{selectedDayData.test.questions?.length} completed)
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Dynamic Tasks */}
+                {selectedDayData.tasks && selectedDayData.tasks.length > 0 && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h4 style={styles.sectionTitle}>📝 Day {selectedDay} Content</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {selectedDayData.tasks.map((task, idx) => (
+                        <div key={task.taskId} style={{
+                          padding: '16px',
+                          backgroundColor: 'white',
+                          border: '2px solid #e5e7eb',
+                          borderRadius: '12px'
+                        }}>
+                          {/* Task Header */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '20px' }}>{getTaskIcon(task.taskType)}</span>
+                              <h5 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+                                {task.title}
+                              </h5>
+                            </div>
+                            {task.description && (
+                              <p style={{ margin: '4px 0 0 28px', fontSize: '14px', color: '#6b7280' }}>
+                                {task.description}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Task Content Based on Type */}
+                          {task.taskType === 'video' && task.content.videoUrl && (
+                            <div style={{ marginTop: '12px' }}>
+                              <video 
+                                controls 
+                                style={{ width: '100%', borderRadius: '8px' }}
+                                src={task.content.videoUrl}
+                              />
+                            </div>
+                          )}
+
+                          {(task.taskType === 'motivation-message' || task.taskType === 'greeting-message' || task.taskType === 'healthcare-tip' || task.taskType === 'reflection-prompt') && task.content.textContent && (
+                            <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+                              <p style={{ margin: 0, fontSize: '14px', color: '#374151', whiteSpace: 'pre-wrap' }}>
+                                {task.content.textContent}
+                              </p>
+                            </div>
+                          )}
+
+                          {task.taskType === 'audio-message' && task.content.audioUrl && (
+                            <div style={{ marginTop: '12px' }}>
+                              <audio controls style={{ width: '100%' }}>
+                                <source src={task.content.audioUrl} />
+                              </audio>
+                            </div>
+                          )}
+
+                          {task.taskType === 'task-checklist' && task.content.checklistItems && task.content.checklistItems.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                              {task.content.checklistItems.map((item, itemIdx) => (
+                                <label key={itemIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', cursor: 'pointer' }}>
+                                  <input type="checkbox" style={{ width: '18px', height: '18px' }} />
+                                  <span style={{ fontSize: '14px' }}>{item.itemText}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+
+                          {task.taskType === 'interactive-field' && (
+                            <div style={{ marginTop: '12px' }}>
+                              {task.content.fieldType === 'textarea' ? (
+                                <textarea
+                                  placeholder={task.content.placeholder || 'Enter your response...'}
+                                  style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    fontSize: '14px',
+                                    border: '1px solid #d1d5db',
+                                    borderRadius: '8px',
+                                    minHeight: '100px',
+                                    fontFamily: 'inherit'
+                                  }}
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  placeholder={task.content.placeholder || 'Enter your response...'}
+                                  style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    fontSize: '14px',
+                                    border: '1px solid #d1d5db',
+                                    borderRadius: '8px'
+                                  }}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Old Video Section (backward compatibility) */}
                 {getLocalizedText(selectedDayData.videoUrl) && (
                   <div style={{ marginBottom: '24px' }}>
                     <h4 style={styles.sectionTitle}>📹 Video Lesson</h4>

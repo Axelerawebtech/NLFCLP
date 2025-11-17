@@ -156,105 +156,129 @@ const ProgramConfigSchema = new mongoose.Schema({
     day0ToDay1: { type: Number, default: 24 }, // hours
     betweenDays: { type: Number, default: 24 }, // hours between subsequent days
   },
-  // Dynamic content rules based on burden test (Days 2-9)
-  contentRules: {
-    mild: {
-      days: {
-        type: Map,
-        of: new mongoose.Schema({
-          videoId: String,
-          videoTitle: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          videoUrl: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          content: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          tasks: [{
-            taskId: String,
-            taskDescription: {
-              english: String,
-              kannada: String,
-              hindi: String
-            },
-            taskType: { type: String, enum: ['checkbox', 'text', 'reflection', 'problem-solving'] }
-          }]
-        }, { _id: false })
-      }
+  
+  // NEW DYNAMIC DAY CONFIGURATION SYSTEM
+  // Supports flexible content structure with tests and ordered tasks
+  // Each day configuration is language-specific
+  dynamicDays: [{
+    dayNumber: { type: Number, required: true }, // 0, 1, 2, 3...
+    language: { 
+      type: String, 
+      required: true,
+      enum: ['english', 'kannada', 'hindi']
     },
-    moderate: {
-      days: {
-        type: Map,
-        of: new mongoose.Schema({
-          videoId: String,
-          videoTitle: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          videoUrl: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          content: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          tasks: [{
-            taskId: String,
-            taskDescription: {
-              english: String,
-              kannada: String,
-              hindi: String
-            },
-            taskType: { type: String, enum: ['checkbox', 'text', 'reflection', 'problem-solving'] }
-          }]
-        }, { _id: false })
-      }
+    dayName: { type: String, default: '' },
+    
+    // Test/Assessment Configuration (optional)
+    hasTest: { type: Boolean, default: false },
+    testConfig: {
+      type: {
+        testName: { type: String },
+        testType: { 
+          type: String, 
+          enum: ['burden-assessment', 'mood-check', 'stress-level', 'custom'],
+          default: 'custom'
+        },
+        questions: [{
+          id: { type: Number },
+          questionText: { type: String },
+          options: [{
+            optionText: { type: String },
+            score: { type: Number, default: 0 }
+          }],
+          enabled: { type: Boolean, default: true }
+        }],
+        scoreRanges: [{
+          rangeName: { type: String }, // 'mild', 'moderate', 'severe' or custom
+          label: { type: String },
+          minScore: { type: Number },
+          maxScore: { type: Number },
+          levelKey: { type: String } // Used to map to content levels
+        }]
+      },
+      default: null,
+      required: false
     },
-    severe: {
-      days: {
-        type: Map,
-        of: new mongoose.Schema({
-          videoId: String,
-          videoTitle: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          videoUrl: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          content: {
-            english: String,
-            kannada: String,
-            hindi: String
-          },
-          tasks: [{
-            taskId: String,
-            taskDescription: {
-              english: String,
-              kannada: String,
-              hindi: String
-            },
-            taskType: { type: String, enum: ['checkbox', 'text', 'reflection', 'problem-solving'] }
+    
+    // Content organized by level (if test exists) or general content (if no test)
+    // If hasTest=true: content separated by levels (mild, moderate, severe)
+    // If hasTest=false: only 'default' level exists
+    contentByLevel: [{
+      levelKey: { type: String, required: true }, // 'default', 'mild', 'moderate', 'severe', or custom
+      levelLabel: { type: String },
+      
+      // Ordered content tasks - displayed in sequence
+      tasks: [{
+        taskId: { type: String, required: true },
+        taskOrder: { type: Number, required: true }, // For sorting
+        taskType: { 
+          type: String, 
+          required: true,
+          enum: [
+            'video',
+            'motivation-message',
+            'quick-assessment',
+            'reminder',
+            'interactive-field',
+            'greeting-message',
+            'activity-selector',
+            'calming-video',
+            'reflection-prompt',
+            'feeling-check',
+            'audio-message',
+            'healthcare-tip',
+            'task-checklist'
+          ]
+        },
+        
+        // Common fields for all task types
+        title: { type: String },
+        description: { type: String },
+        
+        // Type-specific content (flexible schema)
+        content: {
+          // For video tasks
+          videoUrl: { type: String },
+          
+          // For audio tasks
+          audioUrl: { type: String },
+          
+          // For text-based content
+          textContent: { type: String },
+          
+          // For interactive fields
+          fieldType: { type: String, enum: ['text', 'textarea', 'rating', 'mood-selector'] },
+          placeholder: { type: String },
+          
+          // For quick assessment
+          questions: [{
+            questionText: { type: String },
+            questionType: { type: String, enum: ['rating', 'yes-no', 'multiple-choice'] },
+            options: [{
+              optionText: { type: String }
+            }]
+          }],
+          
+          // For activity selector
+          activities: [{
+            activityName: { type: String },
+            activityDescription: { type: String }
+          }],
+          
+          // For task checklist
+          checklistItems: [{
+            itemText: { type: String }
           }]
-        }, { _id: false })
-      }
-    }
-  },
+        },
+        
+        enabled: { type: Boolean, default: true },
+        createdAt: { type: Date, default: Date.now }
+      }]
+    }],
+    
+    enabled: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now }
+  }],
   
   // Content Management for Caregiver Dashboard
   contentManagement: {
