@@ -15,6 +15,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [showAssessment, setShowAssessment] = useState(false);
   const [testAnswers, setTestAnswers] = useState({}); // Store test answers { questionIndex: score }
   const [submittingTest, setSubmittingTest] = useState(false);
+  const [quickResponses, setQuickResponses] = useState({}); // { taskId: { qIdx: responseValue } }
+  const [submittingQuick, setSubmittingQuick] = useState({});
 
   // Map language codes: en -> english, kn -> kannada, hi -> hindi
   const getLanguageKey = () => {
@@ -186,6 +188,116 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   {emoji}
                 </button>
               ))}
+            </div>
+          </div>
+        );
+
+      case 'quick-assessment':
+        return (
+          <div key={task.taskId || index} style={taskStyle}>
+            {taskHeader}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+              {(task.content?.questions || []).map((q, qi) => {
+                const current = (quickResponses[task.taskId] && quickResponses[task.taskId][qi]) ?? null;
+                return (
+                  <div key={qi} style={{ padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                    <p style={{ margin: 0, fontWeight: '600', marginBottom: '8px' }}>{qi + 1}. {q.questionText}</p>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {q.questionType === 'yes-no' && (
+                        ['Yes', 'No'].map((label, li) => (
+                          <button
+                            key={li}
+                            onClick={() => setQuickResponses(prev => ({
+                              ...prev,
+                              [task.taskId]: { ...prev[task.taskId], [qi]: li === 0 ? 1 : 0 }
+                            }))}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: current !== null && ((current === 1 && label === 'Yes') || (current === 0 && label === 'No')) ? '2px solid #f59e0b' : '1px solid #e5e7eb',
+                              background: current !== null && ((current === 1 && label === 'Yes') || (current === 0 && label === 'No')) ? '#fff7ed' : 'white',
+                              cursor: 'pointer'
+                            }}
+                          >{label}</button>
+                        ))
+                      )}
+
+                      {q.questionType === 'multiple-choice' && (q.options || []).map((opt, oi) => (
+                        <button
+                          key={oi}
+                          onClick={() => setQuickResponses(prev => ({
+                            ...prev,
+                            [task.taskId]: { ...prev[task.taskId], [qi]: opt.optionText }
+                          }))}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: (quickResponses[task.taskId] && quickResponses[task.taskId][qi]) === opt.optionText ? '2px solid #f59e0b' : '1px solid #e5e7eb',
+                            background: (quickResponses[task.taskId] && quickResponses[task.taskId][qi]) === opt.optionText ? '#fff7ed' : 'white',
+                            cursor: 'pointer'
+                          }}
+                        >{opt.optionText}</button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={async () => {
+                    // Submit quick assessment for this task
+                    const responsesObj = {};
+                    const questionTexts = {};
+                    (task.content?.questions || []).forEach((q, qi) => {
+                      const resp = quickResponses[task.taskId] && quickResponses[task.taskId][qi];
+                      responsesObj[String(qi)] = resp;
+                      questionTexts[String(qi)] = q.questionText;
+                    });
+
+                    // Validation
+                    const unanswered = Object.entries(responsesObj).filter(([k, v]) => v === null || v === undefined);
+                    if (unanswered.length > 0) {
+                      alert('Please answer all questions before submitting');
+                      return;
+                    }
+
+                    try {
+                      setSubmittingQuick(prev => ({ ...prev, [task.taskId]: true }));
+                      const res = await fetch('/api/caregiver/daily-assessment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          caregiverId,
+                          day: selectedDay,
+                          assessmentType: 'quick_assessment',
+                          responses: responsesObj,
+                          language: getLanguageKey(),
+                          questionTexts
+                        })
+                      });
+
+                      const data = await res.json();
+                      if (res.ok && data.success) {
+                        alert('✅ Quick assessment saved');
+                        // Refresh program data
+                        await fetchProgramStatus();
+                      } else {
+                        console.error('Failed to save quick assessment', data);
+                        alert('Failed to save quick assessment');
+                      }
+                    } catch (err) {
+                      console.error('Error submitting quick assessment', err);
+                      alert('Error submitting quick assessment');
+                    } finally {
+                      setSubmittingQuick(prev => ({ ...prev, [task.taskId]: false }));
+                    }
+                  }}
+                  style={{ padding: '10px 18px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                >
+                  {submittingQuick[task.taskId] ? 'Submitting...' : 'Submit Answers'}
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -404,6 +516,12 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 const contentData = await contentResponse.json();
                 
                 console.log(`✅ Day ${dayModule.day} dynamic content:`, contentData);
+                // Helpful debug: log tasks and their questions to browser console
+                if (Array.isArray(contentData.tasks)) {
+                  contentData.tasks.forEach((t, ti) => {
+                    console.log(`  - task[${ti}]:`, { taskId: t.taskId, taskType: t.taskType, title: t.title, questions: t.content?.questions });
+                  });
+                }
                 
                 // Merge dynamic content into day module
                 const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
@@ -1337,6 +1455,130 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                                   }}
                                 />
                               )}
+                            </div>
+                          )}
+
+                          {task.taskType === 'quick-assessment' && (task.content?.questions || []).length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                              {(task.content.questions || []).map((q, qi) => {
+                                const current = (quickResponses[task.taskId] && quickResponses[task.taskId][qi]) ?? null;
+                                return (
+                                  <div key={qi} style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '10px' }}>
+                                    <p style={{ margin: 0, fontWeight: '600', marginBottom: '8px', color: '#111827' }}>
+                                      {qi + 1}. {q.questionText}
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                      {q.questionType === 'yes-no' && (
+                                        ['Yes', 'No'].map((label, li) => (
+                                          <button
+                                            key={li}
+                                            onClick={() => setQuickResponses(prev => ({
+                                              ...prev,
+                                              [task.taskId]: { ...prev[task.taskId], [qi]: li === 0 ? 1 : 0 }
+                                            }))}
+                                            style={{
+                                              padding: '10px 20px',
+                                              borderRadius: '8px',
+                                              border: current !== null && ((current === 1 && label === 'Yes') || (current === 0 && label === 'No')) ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+                                              background: current !== null && ((current === 1 && label === 'Yes') || (current === 0 && label === 'No')) ? '#dbeafe' : 'white',
+                                              cursor: 'pointer',
+                                              fontSize: '14px',
+                                              fontWeight: '500',
+                                              color: current !== null && ((current === 1 && label === 'Yes') || (current === 0 && label === 'No')) ? '#1e40af' : '#374151',
+                                              transition: 'all 0.2s'
+                                            }}
+                                          >{label}</button>
+                                        ))
+                                      )}
+
+                                      {q.questionType === 'multiple-choice' && (q.options || []).map((opt, oi) => (
+                                        <button
+                                          key={oi}
+                                          onClick={() => setQuickResponses(prev => ({
+                                            ...prev,
+                                            [task.taskId]: { ...prev[task.taskId], [qi]: opt.optionText }
+                                          }))}
+                                          style={{
+                                            padding: '10px 20px',
+                                            borderRadius: '8px',
+                                            border: (quickResponses[task.taskId] && quickResponses[task.taskId][qi]) === opt.optionText ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+                                            background: (quickResponses[task.taskId] && quickResponses[task.taskId][qi]) === opt.optionText ? '#dbeafe' : 'white',
+                                            cursor: 'pointer',
+                                            fontSize: '14px',
+                                            fontWeight: '500',
+                                            color: (quickResponses[task.taskId] && quickResponses[task.taskId][qi]) === opt.optionText ? '#1e40af' : '#374151',
+                                            transition: 'all 0.2s'
+                                          }}
+                                        >{opt.optionText}</button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                                <button
+                                  onClick={async () => {
+                                    const responsesObj = {};
+                                    const questionTexts = {};
+                                    (task.content?.questions || []).forEach((q, qi) => {
+                                      const resp = quickResponses[task.taskId] && quickResponses[task.taskId][qi];
+                                      responsesObj[String(qi)] = resp;
+                                      questionTexts[String(qi)] = q.questionText;
+                                    });
+
+                                    const unanswered = Object.entries(responsesObj).filter(([k, v]) => v === null || v === undefined);
+                                    if (unanswered.length > 0) {
+                                      alert('Please answer all questions before submitting');
+                                      return;
+                                    }
+
+                                    try {
+                                      setSubmittingQuick(prev => ({ ...prev, [task.taskId]: true }));
+                                      const res = await fetch('/api/caregiver/daily-assessment', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          caregiverId,
+                                          day: selectedDay,
+                                          assessmentType: 'quick_assessment',
+                                          responses: responsesObj,
+                                          language: getLanguageKey(),
+                                          questionTexts
+                                        })
+                                      });
+
+                                      const data = await res.json();
+                                      if (res.ok && data.success) {
+                                        alert('✅ Quick assessment saved');
+                                        await fetchProgramStatus();
+                                      } else {
+                                        console.error('Failed to save quick assessment', data);
+                                        alert('Failed to save quick assessment');
+                                      }
+                                    } catch (err) {
+                                      console.error('Error submitting quick assessment', err);
+                                      alert('Error submitting quick assessment');
+                                    } finally {
+                                      setSubmittingQuick(prev => ({ ...prev, [task.taskId]: false }));
+                                    }
+                                  }}
+                                  disabled={submittingQuick[task.taskId]}
+                                  style={{
+                                    padding: '12px 24px',
+                                    backgroundColor: submittingQuick[task.taskId] ? '#9ca3af' : '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    fontSize: '15px',
+                                    fontWeight: '600',
+                                    cursor: submittingQuick[task.taskId] ? 'not-allowed' : 'pointer',
+                                    opacity: submittingQuick[task.taskId] ? 0.6 : 1
+                                  }}
+                                >
+                                  {submittingQuick[task.taskId] ? '⏳ Submitting...' : '✅ Submit Answers'}
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>

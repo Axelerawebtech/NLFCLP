@@ -259,12 +259,15 @@ export default function DynamicDayManager() {
         await fetchDays(); // Refresh days list
         setShowAddTask(false);
         console.log('✅ Task added successfully');
+        return data;
       } else {
         alert(data.error);
+        return data;
       }
     } catch (err) {
       alert('Failed to add task');
       console.error(err);
+      return { success: false, error: err.message };
     }
   };
 
@@ -727,24 +730,33 @@ export default function DynamicDayManager() {
           <TaskEditorModal
             selectedLanguage={selectedLanguage}
             task={editingTask}
-            onSave={async (taskData) => {
-              const res = await fetch('/api/admin/dynamic-days/tasks', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  dayNumber: selectedDay,
-                  language: selectedLanguage,
-                  levelKey: selectedLevel,
-                  taskId: editingTask.taskId,
-                  updates: taskData
-                })
-              });
-              
-              if (res.ok) {
-                await loadDayConfig(selectedDay);
-                setEditingTask(null);
-              }
-            }}
+              onSave={async (taskData) => {
+                try {
+                  const res = await fetch('/api/admin/dynamic-days/tasks', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      dayNumber: selectedDay,
+                      language: selectedLanguage,
+                      levelKey: selectedLevel,
+                      taskId: editingTask.taskId,
+                      updates: taskData
+                    })
+                  });
+
+                  const data = await res.json();
+
+                  if (data.success) {
+                    await loadDayConfig(selectedDay);
+                    setEditingTask(null);
+                  }
+
+                  return data;
+                } catch (err) {
+                  console.error('Failed to update task:', err);
+                  return { success: false, error: err.message };
+                }
+              }}
             onClose={() => setEditingTask(null)}
           />
         )}
@@ -780,6 +792,8 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
   const [content, setContent] = useState(task?.content || {});
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [savingTask, setSavingTask] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   const taskTypes = [
     { value: 'video', label: '🎥 Video' },
@@ -874,7 +888,7 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async (closeAfter = true) => {
     if (!taskType || !title) {
       alert('⚠️ Please fill in required fields (Task Type and Title)');
       return;
@@ -888,7 +902,26 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
       enabled: true
     };
 
-    onSave(taskData);
+    try {
+      setSavingTask(true);
+      setSaveMessage('');
+
+      const result = await onSave(taskData);
+
+      if (result && result.success) {
+        setSaveMessage('✅ Saved successfully');
+        if (closeAfter) onClose();
+      } else {
+        const err = (result && result.error) || 'Failed to save task';
+        alert(err);
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Failed to save task');
+    } finally {
+      setSavingTask(false);
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
   };
 
   return (
@@ -1185,12 +1218,119 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '28px', paddingTop: '20px', borderTop: '2px solid #e5e7eb' }}>
+        {taskType === 'quick-assessment' && (
+          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e6eef8', borderRadius: '8px' }}>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+              📊 Quick Assessment Questions ({(content.questions || []).length})
+            </label>
+
+            {(content.questions || []).map((q, qi) => (
+              <div key={qi} style={{ marginBottom: '10px', padding: '10px', background: 'white', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ fontSize: '13px' }}>Question {qi + 1}</strong>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      value={q.questionType || 'yes-no'}
+                      onChange={(e) => {
+                        const updated = (content.questions || []).slice();
+                        updated[qi] = { ...updated[qi], questionType: e.target.value };
+                        // ensure options for yes-no
+                        if (e.target.value === 'yes-no') {
+                          updated[qi].options = [{ optionText: 'Yes' }, { optionText: 'No' }];
+                        }
+                        setContent(prev => ({ ...prev, questions: updated }));
+                      }}
+                      style={{ padding: '6px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                    >
+                      <option value="yes-no">Yes / No</option>
+                      <option value="multiple-choice">Multiple Choice</option>
+                      <option value="rating">Rating (1-5)</option>
+                    </select>
+                    <button
+                      onClick={() => {
+                        if (!confirm('⚠️ Delete this question?')) return;
+                        const updated = (content.questions || []).filter((_, i) => i !== qi);
+                        setContent(prev => ({ ...prev, questions: updated }));
+                      }}
+                      style={{ padding: '6px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+
+                <textarea
+                  value={q.questionText || ''}
+                  onChange={(e) => {
+                    const updated = (content.questions || []).slice();
+                    updated[qi] = { ...updated[qi], questionText: e.target.value };
+                    setContent(prev => ({ ...prev, questions: updated }));
+                  }}
+                  placeholder="Enter question text"
+                  rows={2}
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', marginBottom: '8px' }}
+                />
+
+                {q.questionType === 'multiple-choice' && (
+                  <div style={{ marginLeft: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <strong style={{ fontSize: '13px' }}>Options</strong>
+                      <button
+                        onClick={() => {
+                          const updated = (content.questions || []).slice();
+                          updated[qi] = { ...updated[qi], options: [...(updated[qi].options || []), { optionText: '' }] };
+                          setContent(prev => ({ ...prev, questions: updated }));
+                        }}
+                        style={{ padding: '6px 10px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                      >+ Add Option</button>
+                    </div>
+                    {(q.options || []).map((opt, oi) => (
+                      <div key={oi} style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+                        <input
+                          type="text"
+                          value={opt.optionText || ''}
+                          onChange={(e) => {
+                            const updated = (content.questions || []).slice();
+                            updated[qi].options = updated[qi].options.slice();
+                            updated[qi].options[oi] = { ...updated[qi].options[oi], optionText: e.target.value };
+                            setContent(prev => ({ ...prev, questions: updated }));
+                          }}
+                          placeholder={`Option ${oi + 1}`}
+                          style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                        />
+                        <button
+                          onClick={() => {
+                            const updated = (content.questions || []).slice();
+                            updated[qi].options = updated[qi].options.filter((_, i) => i !== oi);
+                            setContent(prev => ({ ...prev, questions: updated }));
+                          }}
+                          style={{ padding: '6px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <div style={{ marginTop: '8px' }}>
+              <button
+                onClick={() => {
+                  const q = { questionText: '', questionType: 'yes-no', options: [{ optionText: 'Yes' }, { optionText: 'No' }] };
+                  setContent(prev => ({ ...prev, questions: [...(prev.questions || []), q] }));
+                }}
+                style={{ padding: '10px 14px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+              >+ Add Yes/No Question</button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '28px', paddingTop: '20px', borderTop: '2px solid #e5e7eb', alignItems: 'center' }}>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={onClose}
-            disabled={uploading}
+            disabled={uploading || savingTask}
             style={{
               padding: '12px 24px',
               backgroundColor: '#f3f4f6',
@@ -1199,30 +1339,54 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
               borderRadius: '8px',
               fontSize: '15px',
               fontWeight: '600',
-              cursor: uploading ? 'not-allowed' : 'pointer',
-              opacity: uploading ? 0.5 : 1
+              cursor: uploading || savingTask ? 'not-allowed' : 'pointer',
+              opacity: uploading || savingTask ? 0.5 : 1
             }}
           >
             Cancel
           </motion.button>
+          {taskType === 'quick-assessment' && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleSave(false)}
+              disabled={uploading || savingTask}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: savingTask ? '#9ca3af' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: uploading || savingTask ? 'not-allowed' : 'pointer',
+                opacity: uploading || savingTask ? 0.6 : 1
+              }}
+            >
+              {savingTask ? '⏳ Saving...' : '💾 Save Questions'}
+            </motion.button>
+          )}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={handleSave}
-            disabled={uploading}
+            onClick={() => handleSave(true)}
+            disabled={uploading || savingTask}
             style={{
               padding: '12px 28px',
-              backgroundColor: uploading ? '#9ca3af' : '#10b981',
+              backgroundColor: uploading || savingTask ? '#9ca3af' : '#10b981',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               fontSize: '15px',
               fontWeight: '600',
-              cursor: uploading ? 'not-allowed' : 'pointer'
+              cursor: uploading || savingTask ? 'not-allowed' : 'pointer'
             }}
           >
             {task ? '💾 Update Task' : '➕ Add Task'}
           </motion.button>
+          {saveMessage && (
+            <div style={{ marginLeft: '12px', color: '#10b981', fontWeight: 600 }}>{saveMessage}</div>
+          )}
         </div>
       </motion.div>
     </motion.div>
@@ -1281,6 +1445,15 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
           <p style={{ fontSize: '14px', color: '#6b7280', margin: 0, lineHeight: '1.5' }}>
             {task.description || 'No description'}
           </p>
+
+          {task.taskType === 'quick-assessment' && task.content?.questions && (
+            <div style={{ marginTop: '10px', fontSize: '13px', color: '#374151' }}>
+              <strong>Questions:</strong> {(task.content.questions || []).length} question(s)
+              {(task.content.questions || []).slice(0, 2).map((q, i) => (
+                <div key={i} style={{ marginTop: '6px', color: '#6b7280' }}>{i + 1}. {typeof q.questionText === 'string' ? q.questionText : JSON.stringify(q.questionText)}</div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
