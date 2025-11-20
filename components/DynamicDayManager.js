@@ -808,10 +808,152 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
     { value: 'feeling-check', label: '😊 How Are You Feeling?' },
     { value: 'audio-message', label: '🔊 Audio Message' },
     { value: 'healthcare-tip', label: '🏥 Healthcare Tip' },
-    { value: 'task-checklist', label: '✅ Task Checklist' }
+    { value: 'task-checklist', label: '✅ Task Checklist' },
+    { value: 'visual-cue', label: '🖼️ Visual Cue with Image' }
   ];
 
-  // Handle video upload to Cloudinary
+  // Handle image upload to Cloudinary
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('❌ Please upload a valid image file (JPEG, PNG, GIF, WebP)');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('❌ File size exceeds 10MB limit');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          setUploadProgress(percentComplete);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          if (data.success) {
+            setContent(prev => ({ ...prev, imageUrl: data.url }));
+            alert('✅ Image uploaded successfully!');
+          } else {
+            alert('❌ Upload failed: ' + data.error);
+          }
+        } else {
+          alert('❌ Upload failed');
+        }
+        setUploading(false);
+        setUploadProgress(0);
+      };
+
+      xhr.onerror = () => {
+        alert('❌ Upload failed');
+        setUploading(false);
+        setUploadProgress(0);
+      };
+
+      xhr.open('POST', '/api/admin/upload-image');
+      xhr.send(formData);
+    } catch (err) {
+      alert('❌ Upload error: ' + err.message);
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Handle audio upload to Cloudinary
+  const handleAudioUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/m4a', 'audio/x-m4a'];
+    if (!validTypes.includes(file.type)) {
+      alert('❌ Please upload a valid audio file (MP3, WAV, OGG, AAC, M4A)');
+      return;
+    }
+
+    // Validate file size (max 100MB)
+    const maxSize = 100 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('❌ File size exceeds 100MB limit');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+
+      const formData = new FormData();
+      formData.append('audio', file);
+      formData.append('language', selectedLanguage);
+
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          setUploadProgress(Math.round(percentComplete));
+        }
+      });
+
+      // Handle completion
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          if (data.success && data.url) {
+            setContent(prev => ({
+              ...prev,
+              audioUrl: data.url
+            }));
+            alert('✅ Audio uploaded successfully!');
+          } else {
+            alert('❌ Upload failed: ' + (data.error || 'Unknown error'));
+          }
+        } else {
+          alert('❌ Upload failed with status: ' + xhr.status);
+        }
+        setUploading(false);
+        setUploadProgress(0);
+      });
+
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        alert('❌ Upload failed. Please try again.');
+        setUploading(false);
+        setUploadProgress(0);
+      });
+
+      // Send request
+      xhr.open('POST', '/api/admin/upload-audio');
+      xhr.send(formData);
+
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('❌ Failed to upload audio');
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   const handleVideoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -894,6 +1036,74 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
       return;
     }
 
+    // Validate content based on task type
+    if (taskType === 'video' || taskType === 'calming-video') {
+      if (!content.videoUrl) {
+        alert('⚠️ Please upload or enter a video URL before adding this task');
+        return;
+      }
+    }
+
+    if (taskType === 'audio-message') {
+      if (!content.audioUrl) {
+        alert('⚠️ Please upload or enter an audio URL before adding this task');
+        return;
+      }
+    }
+
+    if (taskType === 'motivation-message' || taskType === 'greeting-message' || taskType === 'healthcare-tip') {
+      if (!content.textContent) {
+        alert('⚠️ Please enter message content before adding this task');
+        return;
+      }
+    }
+
+    if (taskType === 'reflection-prompt') {
+      if (!content.reflectionQuestion) {
+        alert('⚠️ Please enter a reflection question before adding this task');
+        return;
+      }
+    }
+
+    if (taskType === 'feeling-check') {
+      if (!content.feelingQuestion) {
+        alert('⚠️ Please enter a feeling question before adding this task');
+        return;
+      }
+    }
+
+    if (taskType === 'reminder') {
+      if (!content.reminderMessage) {
+        alert('⚠️ Please enter a reminder message before adding this task');
+        return;
+      }
+    }
+
+    if (taskType === 'activity-selector') {
+      if (!content.activities || content.activities.length === 0) {
+        alert('⚠️ Please add at least one activity before adding this task');
+        return;
+      }
+    }
+
+    if (taskType === 'quick-assessment') {
+      if (!content.questions || content.questions.length === 0) {
+        alert('⚠️ Please add at least one question before adding this task');
+        return;
+      }
+    }
+
+    if (taskType === 'visual-cue') {
+      if (!content.imageUrl) {
+        alert('⚠️ Please upload an image before adding this task');
+        return;
+      }
+      if (!content.textContent) {
+        alert('⚠️ Please enter a message before adding this task');
+        return;
+      }
+    }
+
     const taskData = {
       taskType,
       title,
@@ -901,6 +1111,17 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
       content,
       enabled: true
     };
+
+    // Debug log for reminder tasks being saved
+    if (taskType === 'reminder') {
+      console.log('💾 Saving Reminder Task:', {
+        taskType,
+        title,
+        reminderMessage: content.reminderMessage,
+        frequency: content.frequency,
+        fullContent: content
+      });
+    }
 
     try {
       setSavingTask(true);
@@ -1122,7 +1343,7 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
           </div>
         )}
 
-        {(taskType === 'motivation-message' || taskType === 'greeting-message' || taskType === 'healthcare-tip' || taskType === 'reflection-prompt') && (
+        {(taskType === 'motivation-message' || taskType === 'greeting-message' || taskType === 'healthcare-tip') && (
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
               Message Content ({selectedLanguage})
@@ -1148,27 +1369,596 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
           </div>
         )}
 
-        {taskType === 'audio-message' && (
+        {taskType === 'reflection-prompt' && (
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
-              Audio URL ({selectedLanguage})
+              Reflection Question ({selectedLanguage})
             </label>
-            <input
-              type="text"
-              value={content.audioUrl || ''}
+            <textarea
+              value={content.reflectionQuestion || ''}
               onChange={(e) => setContent(prev => ({
                 ...prev,
-                audioUrl: e.target.value
+                reflectionQuestion: e.target.value
               }))}
-              placeholder="Enter audio file URL"
+              placeholder="e.g., How are you feeling today? How stressed do you feel?"
+              rows={3}
               style={{
                 width: '100%',
                 padding: '12px 14px',
                 fontSize: '15px',
                 border: '2px solid #e5e7eb',
-                borderRadius: '8px'
+                borderRadius: '8px',
+                fontFamily: 'inherit',
+                resize: 'vertical'
               }}
             />
+            <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#6b7280', fontStyle: 'italic' }}>
+              💡 Caregiver will use a slider to respond (left = not well/very stressed, right = very well/not stressed)
+            </p>
+          </div>
+        )}
+
+        {taskType === 'feeling-check' && (
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+              Feeling Question ({selectedLanguage})
+            </label>
+            <textarea
+              value={content.feelingQuestion || ''}
+              onChange={(e) => setContent(prev => ({
+                ...prev,
+                feelingQuestion: e.target.value
+              }))}
+              placeholder="e.g., How are you feeling right now?"
+              rows={2}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                fontSize: '15px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                fontFamily: 'inherit',
+                resize: 'vertical'
+              }}
+            />
+            <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#6b7280', fontStyle: 'italic' }}>
+              💡 Caregiver will select from 4 emojis: 😊 🙂 😐 😔
+            </p>
+          </div>
+        )}
+
+        {taskType === 'audio-message' && (
+          <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#f5f3ff', border: '2px solid #c4b5fd', borderRadius: '12px' }}>
+            <h4 style={{ fontSize: '16px', fontWeight: '600', marginTop: 0, marginBottom: '16px', color: '#5b21b6' }}>
+              🔊 Audio File Management
+            </h4>
+
+            {content.audioUrl ? (
+              <div>
+                {/* Current Audio Display */}
+                <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'white', border: '2px solid #ddd6fe', borderRadius: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '10px', color: '#6b7280' }}>
+                    Current Audio:
+                  </label>
+                  <audio 
+                    controls 
+                    src={content.audioUrl}
+                    style={{ width: '100%', marginBottom: '12px' }}
+                  />
+                  <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6b7280', wordBreak: 'break-all' }}>
+                    🔗 {content.audioUrl}
+                  </p>
+                </div>
+
+                {/* Replace and Delete Buttons */}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <label style={{ flex: '1', minWidth: '150px' }}>
+                    <input
+                      type="file"
+                      accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac,audio/m4a"
+                      onChange={handleAudioUpload}
+                      disabled={uploading}
+                      style={{ display: 'none' }}
+                    />
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: '12px 20px',
+                        backgroundColor: uploading ? '#9ca3af' : '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: uploading ? 'not-allowed' : 'pointer',
+                        textAlign: 'center',
+                        opacity: uploading ? 0.7 : 1
+                      }}
+                    >
+                      {uploading ? `⏳ Uploading... ${uploadProgress}%` : '🔄 Replace Audio'}
+                    </motion.div>
+                  </label>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      if (confirm('⚠️ Are you sure you want to delete this audio?')) {
+                        setContent(prev => ({ ...prev, audioUrl: '' }));
+                      }
+                    }}
+                    disabled={uploading}
+                    style={{
+                      padding: '12px 20px',
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                      opacity: uploading ? 0.5 : 1
+                    }}
+                  >
+                    🗑️ Delete Audio
+                  </motion.button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {/* Upload New Audio */}
+                <label style={{ display: 'block', cursor: uploading ? 'not-allowed' : 'pointer' }}>
+                  <input
+                    type="file"
+                    accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac,audio/m4a"
+                    onChange={handleAudioUpload}
+                    disabled={uploading}
+                    style={{ display: 'none' }}
+                  />
+                  <motion.div
+                    whileHover={{ scale: uploading ? 1 : 1.02 }}
+                    whileTap={{ scale: uploading ? 1 : 0.98 }}
+                    style={{
+                      padding: '40px 20px',
+                      backgroundColor: uploading ? '#f3f4f6' : 'white',
+                      border: '3px dashed #c4b5fd',
+                      borderRadius: '12px',
+                      textAlign: 'center',
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔊</div>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600', color: '#5b21b6' }}>
+                      {uploading ? `⏳ Uploading... ${uploadProgress}%` : '📤 Upload Audio File'}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
+                      Click to browse (MP3, WAV, OGG, AAC, M4A - Max 100MB)
+                    </p>
+                    {uploading && (
+                      <div style={{ marginTop: '16px', width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
+                        <div style={{ width: `${uploadProgress}%`, backgroundColor: '#8b5cf6', height: '100%', transition: 'width 0.3s' }} />
+                      </div>
+                    )}
+                  </motion.div>
+                </label>
+
+                {/* Manual URL Input Option */}
+                <div style={{ marginTop: '16px' }}>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '600', color: '#6b7280', textAlign: 'center' }}>
+                    Or enter audio URL manually:
+                  </p>
+                  <input
+                    type="text"
+                    value={content.audioUrl || ''}
+                    onChange={(e) => setContent(prev => ({ ...prev, audioUrl: e.target.value }))}
+                    placeholder="https://example.com/audio.mp3"
+                    disabled={uploading}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      fontSize: '14px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      backgroundColor: uploading ? '#f9fafb' : 'white'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {taskType === 'visual-cue' && (
+          <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#fef2f2', border: '2px solid #fecaca', borderRadius: '12px' }}>
+            <h4 style={{ fontSize: '16px', fontWeight: '600', marginTop: 0, marginBottom: '16px', color: '#991b1b' }}>
+              🖼️ Visual Cue with Image
+            </h4>
+
+            {/* Image Upload Section */}
+            {content.imageUrl ? (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'white', border: '2px solid #fecaca', borderRadius: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '10px', color: '#6b7280' }}>
+                    Current Image:
+                  </label>
+                  <img 
+                    src={content.imageUrl}
+                    alt="Visual cue"
+                    style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', borderRadius: '8px', marginBottom: '12px' }}
+                  />
+                  <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6b7280', wordBreak: 'break-all' }}>
+                    🔗 {content.imageUrl}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <label style={{ flex: '1', minWidth: '150px' }}>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                      style={{ display: 'none' }}
+                    />
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: '12px 20px',
+                        backgroundColor: uploading ? '#9ca3af' : '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: uploading ? 'not-allowed' : 'pointer',
+                        textAlign: 'center',
+                        opacity: uploading ? 0.7 : 1
+                      }}
+                    >
+                      {uploading ? `⏳ Uploading... ${uploadProgress}%` : '🔄 Replace Image'}
+                    </motion.div>
+                  </label>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      if (confirm('⚠️ Are you sure you want to delete this image?')) {
+                        setContent(prev => ({ ...prev, imageUrl: '' }));
+                      }
+                    }}
+                    disabled={uploading}
+                    style={{
+                      padding: '12px 20px',
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                      opacity: uploading ? 0.5 : 1
+                    }}
+                  >
+                    🗑️ Delete Image
+                  </motion.button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', cursor: uploading ? 'not-allowed' : 'pointer' }}>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    onChange={handleImageUpload}
+                    disabled={uploading}
+                    style={{ display: 'none' }}
+                  />
+                  <motion.div
+                    whileHover={{ scale: uploading ? 1 : 1.02 }}
+                    whileTap={{ scale: uploading ? 1 : 0.98 }}
+                    style={{
+                      padding: '40px 20px',
+                      backgroundColor: uploading ? '#f3f4f6' : 'white',
+                      border: '3px dashed #fecaca',
+                      borderRadius: '12px',
+                      textAlign: 'center',
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>🖼️</div>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600', color: '#991b1b' }}>
+                      {uploading ? `⏳ Uploading... ${uploadProgress}%` : '📤 Upload Image'}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
+                      Click to browse (JPEG, PNG, GIF, WebP - Max 10MB)
+                    </p>
+                    {uploading && (
+                      <div style={{ marginTop: '16px', width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
+                        <div style={{ width: `${uploadProgress}%`, backgroundColor: '#dc2626', height: '100%', transition: 'width 0.3s' }} />
+                      </div>
+                    )}
+                  </motion.div>
+                </label>
+
+                <div style={{ marginTop: '16px' }}>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '600', color: '#6b7280', textAlign: 'center' }}>
+                    Or enter image URL manually:
+                  </p>
+                  <input
+                    type="text"
+                    value={content.imageUrl || ''}
+                    onChange={(e) => setContent(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    placeholder="https://example.com/image.jpg"
+                    disabled={uploading}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      fontSize: '14px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      backgroundColor: uploading ? '#f9fafb' : 'white'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Message Text Area */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                Message ({selectedLanguage})
+              </label>
+              <textarea
+                value={content.textContent || ''}
+                onChange={(e) => setContent(prev => ({ ...prev, textContent: e.target.value }))}
+                placeholder="Enter message to display with the image..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  fontSize: '15px',
+                  border: '2px solid #fecaca',
+                  borderRadius: '8px',
+                  fontFamily: 'inherit',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {taskType === 'reminder' && (
+          <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#fef3c7', border: '2px solid #fbbf24', borderRadius: '12px' }}>
+            <h4 style={{ fontSize: '16px', fontWeight: '600', marginTop: 0, marginBottom: '16px', color: '#92400e' }}>
+              ⏰ Reminder Schedule Settings
+            </h4>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                Reminder Message ({selectedLanguage})
+              </label>
+              <textarea
+                value={content.reminderMessage || ''}
+                onChange={(e) => setContent(prev => ({ ...prev, reminderMessage: e.target.value }))}
+                placeholder="Enter reminder message that will be shown in notification"
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '14px',
+                  border: '2px solid #fbbf24',
+                  borderRadius: '8px',
+                  fontFamily: 'inherit',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#fff7ed', border: '2px solid #fed7aa', borderRadius: '10px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+                👥 Target Audience
+              </label>
+              <select
+                value={content.targetAudience || 'all'}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setContent(prev => ({ 
+                    ...prev, 
+                    targetAudience: value,
+                    targetLevels: value === 'all' ? [] : (prev.targetLevels || [])
+                  }));
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '14px',
+                  border: '2px solid #fbbf24',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  marginBottom: '12px'
+                }}
+              >
+                <option value="all">🌍 All Caregivers</option>
+                <option value="specific">🎯 Specific Groups (by burden/stress level)</option>
+              </select>
+
+              {content.targetAudience === 'specific' && (
+                <div>
+                  <p style={{ fontSize: '13px', color: '#92400e', marginBottom: '12px', fontWeight: '500' }}>
+                    Select which caregiver groups should receive this reminder:
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { key: 'mild', label: '🟢 Mild', description: 'Low burden/stress level' },
+                      { key: 'moderate', label: '🟡 Moderate', description: 'Medium burden/stress level' },
+                      { key: 'severe', label: '🔴 Severe', description: 'High burden/stress level' }
+                    ].map(level => {
+                      const isSelected = (content.targetLevels || []).includes(level.key);
+                      return (
+                        <label
+                          key={level.key}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '12px',
+                            backgroundColor: isSelected ? '#fef3c7' : 'white',
+                            border: `2px solid ${isSelected ? '#fbbf24' : '#e5e7eb'}`,
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            fontWeight: isSelected ? '600' : '400'
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const levels = content.targetLevels || [];
+                              const updated = e.target.checked
+                                ? [...levels, level.key]
+                                : levels.filter(l => l !== level.key);
+                              setContent(prev => ({ ...prev, targetLevels: updated }));
+                            }}
+                            style={{ marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
+                          />
+                          <div>
+                            <div style={{ fontSize: '14px', color: '#374151' }}>{level.label}</div>
+                            <div style={{ fontSize: '12px', color: '#6b7280' }}>{level.description}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {(!content.targetLevels || content.targetLevels.length === 0) && (
+                    <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '8px', margin: '8px 0 0 0', fontWeight: '500' }}>
+                      ⚠️ Please select at least one group
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                Frequency
+              </label>
+              <select
+                value={content.frequency || 'daily'}
+                onChange={(e) => setContent(prev => ({ ...prev, frequency: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '14px',
+                  border: '2px solid #fbbf24',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                <option value="daily">📅 Daily</option>
+                <option value="weekly">📆 Weekly</option>
+                <option value="custom">🕐 Custom Time</option>
+              </select>
+            </div>
+
+            {content.frequency === 'weekly' && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '10px', color: '#374151' }}>
+                  Select Days of Week
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, idx) => {
+                    const isSelected = (content.weekDays || []).includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const days = content.weekDays || [];
+                          const updated = isSelected
+                            ? days.filter(d => d !== day)
+                            : [...days, day];
+                          setContent(prev => ({ ...prev, weekDays: updated }));
+                        }}
+                        style={{
+                          padding: '10px 16px',
+                          backgroundColor: isSelected ? '#fbbf24' : 'white',
+                          color: isSelected ? '#78350f' : '#6b7280',
+                          border: `2px solid ${isSelected ? '#f59e0b' : '#e5e7eb'}`,
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {day.substring(0, 3)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                Time
+              </label>
+              <input
+                type="time"
+                value={content.reminderTime || '09:00'}
+                onChange={(e) => setContent(prev => ({ ...prev, reminderTime: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '14px',
+                  border: '2px solid #fbbf24',
+                  borderRadius: '8px',
+                  fontWeight: '500'
+                }}
+              />
+            </div>
+
+            {content.frequency === 'custom' && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                  Custom Schedule (Minutes)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={content.customInterval || 60}
+                  onChange={(e) => setContent(prev => ({ ...prev, customInterval: parseInt(e.target.value) || 60 }))}
+                  placeholder="e.g., 30 for every 30 minutes"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '14px',
+                    border: '2px solid #fbbf24',
+                    borderRadius: '8px'
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: '#92400e', marginTop: '6px', margin: '6px 0 0 0' }}>
+                  Set interval in minutes (e.g., 30 = every 30 minutes, 120 = every 2 hours)
+                </p>
+              </div>
+            )}
+
+            <div style={{ padding: '12px', backgroundColor: '#fff7ed', borderRadius: '8px', border: '1px solid #fdba74' }}>
+              <p style={{ fontSize: '13px', color: '#9a3412', margin: 0, lineHeight: '1.6' }}>
+                <strong>ℹ️ Preview:</strong> {content.frequency === 'daily' ? 'Daily' : content.frequency === 'weekly' ? `Weekly on ${(content.weekDays || []).join(', ') || 'no days selected'}` : `Every ${content.customInterval || 60} minutes`} at {content.reminderTime || '09:00'}
+                <br />
+                <strong>👥 Audience:</strong> {content.targetAudience === 'specific' && content.targetLevels?.length > 0 ? `${content.targetLevels.join(', ')} caregivers only` : 'All caregivers'}
+              </p>
+            </div>
           </div>
         )}
 
@@ -1179,7 +1969,14 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
             </label>
             <select
               value={content.fieldType || 'text'}
-              onChange={(e) => setContent(prev => ({ ...prev, fieldType: e.target.value }))}
+              onChange={(e) => {
+                console.log('🔄 Field type changed to:', e.target.value);
+                setContent(prev => {
+                  const updated = { ...prev, fieldType: e.target.value };
+                  console.log('📝 Updated content:', updated);
+                  return updated;
+                });
+              }}
               style={{
                 width: '100%',
                 padding: '12px 14px',
@@ -1195,26 +1992,82 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
               <option value="rating">Rating (1-5)</option>
               <option value="mood-selector">Mood Selector</option>
             </select>
+            
+            <div style={{ marginTop: '12px', padding: '8px', backgroundColor: '#fef3c7', borderRadius: '6px', fontSize: '12px', color: '#92400e' }}>
+              ℹ️ Current fieldType: <strong>{content.fieldType || 'text'}</strong> | Showing textarea fields: <strong>{content.fieldType === 'textarea' ? 'YES' : 'NO'}</strong>
+            </div>
 
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginTop: '12px', marginBottom: '8px', color: '#374151' }}>
-              Placeholder ({selectedLanguage})
-            </label>
-            <input
-              type="text"
-              value={content.placeholder || ''}
-              onChange={(e) => setContent(prev => ({
-                ...prev,
-                placeholder: e.target.value
-              }))}
-              placeholder="Enter placeholder text"
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                fontSize: '15px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '8px'
-              }}
-            />
+            {content.fieldType !== 'textarea' && (
+              <>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginTop: '12px', marginBottom: '8px', color: '#374151' }}>
+                  Placeholder ({selectedLanguage})
+                </label>
+                <input
+                  type="text"
+                  value={content.placeholder || ''}
+                  onChange={(e) => setContent(prev => ({
+                    ...prev,
+                    placeholder: e.target.value
+                  }))}
+                  placeholder="Enter placeholder text"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    fontSize: '15px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px'
+                  }}
+                />
+              </>
+            )}
+
+            {content.fieldType === 'textarea' && (
+              <>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginTop: '16px', marginBottom: '8px', color: '#374151' }}>
+                  Problem Label ({selectedLanguage})
+                </label>
+                <textarea
+                  value={content.problemLabel || ''}
+                  onChange={(e) => setContent(prev => ({
+                    ...prev,
+                    problemLabel: e.target.value
+                  }))}
+                  placeholder="Enter label for the problem field (e.g., 'What is your main challenge?')"
+                  rows={2}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    fontSize: '15px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical'
+                  }}
+                />
+
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginTop: '16px', marginBottom: '8px', color: '#374151' }}>
+                  Solution Label ({selectedLanguage})
+                </label>
+                <textarea
+                  value={content.solutionLabel || ''}
+                  onChange={(e) => setContent(prev => ({
+                    ...prev,
+                    solutionLabel: e.target.value
+                  }))}
+                  placeholder="Enter label for the solution field (e.g., 'What solutions can you think of?')"
+                  rows={2}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    fontSize: '15px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical'
+                  }}
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -1325,6 +2178,61 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
           </div>
         )}
 
+        {taskType === 'activity-selector' && (
+          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px' }}>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+              🎯 Activities ({(content.activities || []).length})
+            </label>
+
+            {(content.activities || []).map((activity, ai) => (
+              <div key={ai} style={{ marginBottom: '12px', padding: '12px', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ fontSize: '13px', color: '#075985' }}>Activity {ai + 1}</strong>
+                  <button
+                    onClick={() => {
+                      if (!confirm('⚠️ Delete this activity?')) return;
+                      const updated = (content.activities || []).filter((_, i) => i !== ai);
+                      setContent(prev => ({ ...prev, activities: updated }));
+                    }}
+                    style={{ padding: '6px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
+                  Activity Name ({selectedLanguage})
+                </label>
+                <input
+                  type="text"
+                  value={activity.activityName || ''}
+                  onChange={(e) => {
+                    const updated = (content.activities || []).slice();
+                    updated[ai] = { ...updated[ai], activityName: e.target.value };
+                    setContent(prev => ({ ...prev, activities: updated }));
+                  }}
+                  placeholder="e.g., Take a Walk, Read a Book, Call a Friend"
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', marginBottom: '10px', fontSize: '14px' }}
+                />
+
+                
+              </div>
+            ))}
+
+            <div style={{ marginTop: '12px' }}>
+              <button
+                onClick={() => {
+                  const newActivity = { activityName: '', activityDescription: '' };
+                  setContent(prev => ({ ...prev, activities: [...(prev.activities || []), newActivity] }));
+                }}
+                style={{ padding: '10px 16px', backgroundColor: '#0284c7', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
+              >
+                + Add Activity
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '28px', paddingTop: '20px', borderTop: '2px solid #e5e7eb', alignItems: 'center' }}>
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -1395,6 +2303,18 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
 
 // TaskCard Component - Individual task display with animations
 function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
+  // Debug log for reminder tasks
+  if (task.taskType === 'reminder') {
+    console.log('📋 Reminder Task Card Data:', {
+      taskType: task.taskType,
+      title: task.title,
+      hasContent: !!task.content,
+      reminderMessage: task.content?.reminderMessage,
+      frequency: task.content?.frequency,
+      fullContent: task.content
+    });
+  }
+  
   return (
     <motion.div
       layout
@@ -1452,6 +2372,210 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
               {(task.content.questions || []).slice(0, 2).map((q, i) => (
                 <div key={i} style={{ marginTop: '6px', color: '#6b7280' }}>{i + 1}. {typeof q.questionText === 'string' ? q.questionText : JSON.stringify(q.questionText)}</div>
               ))}
+            </div>
+          )}
+
+          {(task.taskType === 'video' || task.taskType === 'calming-video') && task.content?.videoUrl && (
+            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#f0f9ff', border: '2px solid #bae6fd', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: '600', color: '#0c4a6e' }}>
+                🎥 Video Preview:
+              </p>
+              <video 
+                controls 
+                style={{ width: '100%', maxHeight: '200px', borderRadius: '6px', backgroundColor: '#000' }}
+                src={task.content.videoUrl}
+              />
+            </div>
+          )}
+
+          {task.taskType === 'audio-message' && task.content?.audioUrl && (
+            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#f5f3ff', border: '2px solid #c4b5fd', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: '600', color: '#5b21b6' }}>
+                🔊 Audio Preview:
+              </p>
+              <audio 
+                controls 
+                style={{ width: '100%' }}
+                src={task.content.audioUrl}
+              />
+            </div>
+          )}
+
+          {(task.taskType === 'motivation-message' || task.taskType === 'greeting-message' || task.taskType === 'healthcare-tip') && task.content?.textContent && (
+            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '600', color: '#92400e' }}>
+                💬 Message:
+              </p>
+              <p style={{ margin: 0, fontSize: '13px', color: '#78350f', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                {task.content.textContent.length > 150 ? task.content.textContent.substring(0, 150) + '...' : task.content.textContent}
+              </p>
+            </div>
+          )}
+
+          {task.taskType === 'reflection-prompt' && task.content?.reflectionQuestion && (
+            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '600', color: '#92400e' }}>
+                💭 Question:
+              </p>
+              <p style={{ margin: 0, fontSize: '13px', color: '#78350f', lineHeight: '1.5' }}>
+                {task.content.reflectionQuestion}
+              </p>
+            </div>
+          )}
+
+          {task.taskType === 'feeling-check' && task.content?.feelingQuestion && (
+            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '600', color: '#991b1b' }}>
+                😊 Question:
+              </p>
+              <p style={{ margin: 0, fontSize: '13px', color: '#7f1d1d', lineHeight: '1.5' }}>
+                {task.content.feelingQuestion}
+              </p>
+            </div>
+          )}
+
+          {task.taskType === 'activity-selector' && task.content?.activities && task.content.activities.length > 0 && (
+            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '600', color: '#0c4a6e' }}>
+                🎯 Activities: {task.content.activities.length}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {task.content.activities.slice(0, 3).map((activity, idx) => (
+                  <div key={idx} style={{ fontSize: '12px', color: '#075985', padding: '6px', backgroundColor: '#e0f2fe', borderRadius: '4px' }}>
+                    • {activity.activityName}
+                  </div>
+                ))}
+                {task.content.activities.length > 3 && (
+                  <div style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>
+                    +{task.content.activities.length - 3} more
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {task.taskType === 'reminder' && task.content && (
+            <div style={{ marginTop: '14px', padding: '14px', backgroundColor: '#fef3c7', border: '2px solid #fbbf24', borderRadius: '8px' }}>
+              {task.content.reminderMessage && (
+                <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a' }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: '600', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    📢 Reminder Message
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#78350f', lineHeight: '1.6', fontWeight: '500' }}>
+                    {task.content.reminderMessage}
+                  </p>
+                </div>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '12px' }}>
+                {task.content.frequency && (
+                  <span style={{ padding: '6px 12px', backgroundColor: '#dbeafe', color: '#1e40af', borderRadius: '6px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {task.content.frequency === 'daily' && '📅 Daily'}
+                    {task.content.frequency === 'weekly' && `📆 Weekly${task.content.weekDays && task.content.weekDays.length > 0 ? ` (${task.content.weekDays.join(', ')})` : ''}`}
+                    {task.content.frequency === 'custom' && `🔄 Every ${task.content.customInterval || 60} min`}
+                    {!['daily', 'weekly', 'custom'].includes(task.content.frequency) && '📅 Not Set'}
+                  </span>
+                )}
+                {task.content.frequency !== 'custom' && (
+                  <span style={{ padding: '6px 12px', backgroundColor: '#e0e7ff', color: '#3730a3', borderRadius: '6px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    ⏰ {task.content.reminderTime || '09:00'}
+                  </span>
+                )}
+                <span style={{ 
+                  padding: '6px 12px', 
+                  backgroundColor: (task.content.targetAudience || 'all') === 'all' ? '#d1fae5' : '#fed7aa', 
+                  color: (task.content.targetAudience || 'all') === 'all' ? '#065f46' : '#9a3412', 
+                  borderRadius: '6px', 
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  👥 {(task.content.targetAudience || 'all') === 'all' ? 'All Caregivers' : `${(task.content.targetLevels || []).join(', ')} only`}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {task.taskType === 'interactive-field' && task.content && (
+            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px' }}>
+              {task.content.fieldType === 'textarea' && (task.content.problemLabel || task.content.solutionLabel) ? (
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <textarea
+                      placeholder={task.content.problemLabel || 'Problem'}
+                      disabled
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        fontSize: '13px',
+                        border: '1px solid #86efac',
+                        borderRadius: '6px',
+                        backgroundColor: '#f0fdf4',
+                        color: '#15803d',
+                        fontFamily: 'inherit',
+                        resize: 'none'
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <textarea
+                      placeholder={task.content.solutionLabel || 'Solution'}
+                      disabled
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        fontSize: '13px',
+                        border: '1px solid #86efac',
+                        borderRadius: '6px',
+                        backgroundColor: '#f0fdf4',
+                        color: '#15803d',
+                        fontFamily: 'inherit',
+                        resize: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                task.content.placeholder && (
+                  <input
+                    type="text"
+                    placeholder={task.content.placeholder}
+                    disabled
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      fontSize: '13px',
+                      border: '1px solid #86efac',
+                      borderRadius: '6px',
+                      backgroundColor: '#f0fdf4',
+                      color: '#15803d'
+                    }}
+                  />
+                )
+              )}
+            </div>
+          )}
+
+          {task.taskType === 'visual-cue' && task.content && (
+            <div style={{ marginTop: '14px', padding: '14px', backgroundColor: '#fef2f2', border: '2px solid #fecaca', borderRadius: '8px' }}>
+              {task.content.imageUrl && (
+                <div style={{ marginBottom: '12px' }}>
+                  <img 
+                    src={task.content.imageUrl}
+                    alt="Visual cue"
+                    style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '8px' }}
+                  />
+                </div>
+              )}
+              {task.content.textContent && (
+                <div style={{ padding: '10px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #fecaca' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#7f1d1d', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                    {task.content.textContent.length > 150 ? task.content.textContent.substring(0, 150) + '...' : task.content.textContent}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1512,7 +2636,8 @@ function getTypeIcon(type) {
     'feeling-check': '😊',
     'audio-message': '🔊',
     'healthcare-tip': '🏥',
-    'task-checklist': '✅'
+    'task-checklist': '✅',
+    'visual-cue': '🖼️'
   };
   return icons[type] || '📄';
 }
@@ -1531,7 +2656,8 @@ function getTypeColor(type) {
     'feeling-check': { bg: '#fed7aa', text: '#9a3412' },
     'audio-message': { bg: '#ddd6fe', text: '#5b21b6' },
     'healthcare-tip': { bg: '#d1fae5', text: '#065f46' },
-    'task-checklist': { bg: '#e0e7ff', text: '#3730a3' }
+    'task-checklist': { bg: '#e0e7ff', text: '#3730a3' },
+    'visual-cue': { bg: '#fef2f2', text: '#991b1b' }
   };
   return colors[type] || { bg: '#f3f4f6', text: '#374151' };
 }

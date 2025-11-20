@@ -131,7 +131,18 @@ const CaregiverProgramSchema = new mongoose.Schema({
     note: String,
     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
     addedAt: { type: Date, default: Date.now }
-  }]
+  }],
+  // Track last notification times for reminders
+  lastNotifications: {
+    type: Map,
+    of: Date,
+    default: {}
+  },
+  language: {
+    type: String,
+    enum: ['english', 'kannada', 'hindi'],
+    default: 'english'
+  }
 }, {
   timestamps: true
 });

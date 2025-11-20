@@ -235,40 +235,10 @@ const ProgramConfigSchema = new mongoose.Schema({
         title: { type: String },
         description: { type: String },
         
-        // Type-specific content (flexible schema)
-        content: {
-          // For video tasks
-          videoUrl: { type: String },
-          
-          // For audio tasks
-          audioUrl: { type: String },
-          
-          // For text-based content
-          textContent: { type: String },
-          
-          // For interactive fields
-          fieldType: { type: String, enum: ['text', 'textarea', 'rating', 'mood-selector'] },
-          placeholder: { type: String },
-          
-          // For quick assessment
-          questions: [{
-            questionText: { type: String },
-            questionType: { type: String, enum: ['rating', 'yes-no', 'multiple-choice'] },
-            options: [{
-              optionText: { type: String }
-            }]
-          }],
-          
-          // For activity selector
-          activities: [{
-            activityName: { type: String },
-            activityDescription: { type: String }
-          }],
-          
-          // For task checklist
-          checklistItems: [{
-            itemText: { type: String }
-          }]
+        // Type-specific content (flexible schema - accepts any structure)
+        content: { 
+          type: mongoose.Schema.Types.Mixed,
+          default: {}
         },
         
         enabled: { type: Boolean, default: true },

@@ -177,12 +177,25 @@ function extractLocalizedContent(content) {
   if (content.videoUrl) result.videoUrl = content.videoUrl;
   if (content.audioUrl) result.audioUrl = content.audioUrl;
   if (content.textContent) result.textContent = content.textContent;
+  if (content.reflectionQuestion) result.reflectionQuestion = content.reflectionQuestion;
+  if (content.feelingQuestion) result.feelingQuestion = content.feelingQuestion;
   
   // Interactive field
   if (content.fieldType) {
     result.fieldType = content.fieldType;
     result.placeholder = content.placeholder || '';
+    result.problemLabel = content.problemLabel || '';
+    result.solutionLabel = content.solutionLabel || '';
   }
+
+  // Reminder fields
+  if (content.reminderMessage) result.reminderMessage = content.reminderMessage;
+  if (content.frequency) result.frequency = content.frequency;
+  if (content.reminderTime) result.reminderTime = content.reminderTime;
+  if (content.targetAudience) result.targetAudience = content.targetAudience;
+  if (content.targetLevels) result.targetLevels = content.targetLevels;
+  if (content.weekDays) result.weekDays = content.weekDays;
+  if (content.customInterval) result.customInterval = content.customInterval;
 
   // Quick assessment questions
   if (content.questions && Array.isArray(content.questions)) {
@@ -198,8 +211,7 @@ function extractLocalizedContent(content) {
   // Activities
   if (content.activities && Array.isArray(content.activities)) {
     result.activities = content.activities.map(activity => ({
-      activityName: activity.activityName || '',
-      activityDescription: activity.activityDescription || ''
+      activityName: activity.activityName || ''
     }));
   }
 

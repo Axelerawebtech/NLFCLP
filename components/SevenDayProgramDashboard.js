@@ -4,6 +4,61 @@ import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
 import InlineBurdenAssessment from './InlineBurdenAssessment';
 import DailyAssessment from './DailyAssessment';
+import NotificationManager from './NotificationManager';
+import ReminderDisplayCard from './ReminderDisplayCard';
+
+// Reflection Prompt Slider Component
+function ReflectionPromptSlider({ question }) {
+  const [sliderValue, setSliderValue] = useState(50);
+
+  return (
+    <div style={{ marginTop: '16px' }}>
+      <p style={{ margin: '0 0 20px 0', fontSize: '16px', fontWeight: '600', lineHeight: '1.6', color: '#78350f' }}>
+        {question}
+      </p>
+      
+      <div style={{ padding: '20px', backgroundColor: '#fffbeb', borderRadius: '12px', border: '2px solid #fde68a' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '600' }}>
+          <span style={{ color: '#dc2626' }}>😔 Not Well / Very Stressed</span>
+          <span style={{ color: '#16a34a' }}>😊 Very Well / Not Stressed</span>
+        </div>
+        
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={sliderValue}
+          onChange={(e) => setSliderValue(e.target.value)}
+          style={{
+            width: '100%',
+            height: '8px',
+            borderRadius: '4px',
+            background: `linear-gradient(to right, #dc2626 0%, #fbbf24 50%, #16a34a 100%)`,
+            outline: 'none',
+            cursor: 'pointer',
+            WebkitAppearance: 'none',
+            appearance: 'none'
+          }}
+        />
+        
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+          <div style={{ 
+            display: 'inline-block',
+            padding: '8px 20px', 
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            border: '2px solid #fbbf24',
+            fontSize: '18px',
+            fontWeight: '700',
+            color: '#92400e'
+          }}>
+            {sliderValue}%
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SevenDayProgramDashboard({ caregiverId }) {
   const { currentLanguage } = useLanguage();
@@ -104,7 +159,6 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       case 'motivation-message':
       case 'greeting-message':
       case 'healthcare-tip':
-      case 'reflection-prompt':
         return (
           <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef3c7', borderColor: '#fbbf24'}}>
             {taskHeader}
@@ -112,6 +166,61 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               <p style={{ margin: '12px 0 0 0', fontSize: '15px', lineHeight: '1.6', color: '#78350f' }}>
                 {task.content.textContent}
               </p>
+            )}
+          </div>
+        );
+
+      case 'reflection-prompt':
+        const [sliderValue, setSliderValue] = useState(50);
+        return (
+          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef9f3', borderColor: '#fbbf24', borderWidth: '2px'}}>
+            {taskHeader}
+            {task.content?.reflectionQuestion && (
+              <div style={{ marginTop: '16px' }}>
+                <p style={{ margin: '0 0 20px 0', fontSize: '16px', fontWeight: '600', lineHeight: '1.6', color: '#78350f' }}>
+                  {task.content.reflectionQuestion}
+                </p>
+                
+                <div style={{ padding: '20px', backgroundColor: '#fffbeb', borderRadius: '12px', border: '2px solid #fde68a' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '600' }}>
+                    <span style={{ color: '#dc2626' }}>😔 Not Well / Very Stressed</span>
+                    <span style={{ color: '#16a34a' }}>😊 Very Well / Not Stressed</span>
+                  </div>
+                  
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={sliderValue}
+                    onChange={(e) => setSliderValue(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '8px',
+                      borderRadius: '4px',
+                      background: `linear-gradient(to right, #dc2626 0%, #fbbf24 50%, #16a34a 100%)`,
+                      outline: 'none',
+                      cursor: 'pointer',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
+                  />
+                  
+                  <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                    <div style={{ 
+                      display: 'inline-block',
+                      padding: '8px 20px', 
+                      backgroundColor: 'white',
+                      borderRadius: '8px',
+                      border: '2px solid #fbbf24',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      color: '#92400e'
+                    }}>
+                      {sliderValue}%
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         );
@@ -136,18 +245,62 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         return (
           <div key={task.taskId || index} style={taskStyle}>
             {taskHeader}
-            <textarea
-              placeholder={task.content?.placeholder || 'Write your thoughts...'}
-              style={{
-                width: '100%',
-                minHeight: '100px',
-                padding: '12px',
-                fontSize: '14px',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                fontFamily: 'inherit'
-              }}
-            />
+            {task.content?.fieldType === 'textarea' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
+                {/* Problem Field */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                    {task.content?.problemLabel || 'Problem'}
+                  </label>
+                  <textarea
+                    placeholder="Describe the problem..."
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '14px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                {/* Solution Field */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                    {task.content?.solutionLabel || 'Solution'}
+                  </label>
+                  <textarea
+                    placeholder="Write your solution..."
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '14px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <textarea
+                placeholder={task.content?.placeholder || 'Write your thoughts...'}
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  padding: '12px',
+                  fontSize: '14px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  fontFamily: 'inherit'
+                }}
+              />
+            )}
           </div>
         );
 
@@ -168,27 +321,130 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           </div>
         );
 
-      case 'feeling-check':
+      case 'activity-selector':
         return (
-          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef2f2', borderColor: '#fca5a5'}}>
+          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#f0f9ff', borderColor: '#38bdf8', borderWidth: '2px'}}>
             {taskHeader}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '12px', justifyContent: 'center' }}>
-              {['😊', '🙂', '😐', '😔', '😢'].map((emoji, idx) => (
-                <button
-                  key={idx}
-                  style={{
-                    fontSize: '32px',
-                    padding: '12px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '12px',
-                    backgroundColor: 'white',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
+            {task.content?.activities && task.content.activities.length > 0 && (
+              <div style={{ marginTop: '14px', display: 'grid', gap: '12px' }}>
+                {task.content.activities.map((activity, idx) => (
+                  <div 
+                    key={idx} 
+                    style={{ 
+                      padding: '16px', 
+                      backgroundColor: 'white', 
+                      border: '2px solid #e0f2fe',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#0284c7';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#e0f2fe';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
+                      <div style={{ 
+                        width: '40px', 
+                        height: '40px', 
+                        backgroundColor: '#dbeafe', 
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '20px',
+                        flexShrink: 0
+                      }}>
+                        🎯
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '600', color: '#0c4a6e' }}>
+                          {activity.activityName || `Activity ${idx + 1}`}
+                        </h4>
+                        {activity.activityDescription && (
+                          <p style={{ margin: 0, fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+                            {activity.activityDescription}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(!task.content?.activities || task.content.activities.length === 0) && (
+              <p style={{ margin: '12px 0 0 0', fontSize: '14px', color: '#9ca3af', fontStyle: 'italic' }}>
+                No activities available
+              </p>
+            )}
+          </div>
+        );
+
+      case 'feeling-check':
+        const [selectedFeeling, setSelectedFeeling] = useState(null);
+        const feelings = [
+          { emoji: '😊', label: 'Great', color: '#10b981' },
+          { emoji: '🙂', label: 'Good', color: '#3b82f6' },
+          { emoji: '😐', label: 'Okay', color: '#f59e0b' },
+          { emoji: '😔', label: 'Not Good', color: '#ef4444' }
+        ];
+        
+        return (
+          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef2f2', borderColor: '#fca5a5', borderWidth: '2px'}}>
+            {taskHeader}
+            {task.content?.feelingQuestion && (
+              <div style={{ marginTop: '14px' }}>
+                <p style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', lineHeight: '1.6', color: '#7f1d1d' }}>
+                  {task.content.feelingQuestion}
+                </p>
+                
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {feelings.map((feeling, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedFeeling(idx)}
+                      style={{
+                        fontSize: '48px',
+                        padding: '16px',
+                        border: selectedFeeling === idx ? `3px solid ${feeling.color}` : '2px solid #e5e7eb',
+                        borderRadius: '16px',
+                        backgroundColor: selectedFeeling === idx ? '#fffbeb' : 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        transform: selectedFeeling === idx ? 'scale(1.1)' : 'scale(1)',
+                        boxShadow: selectedFeeling === idx ? `0 4px 12px ${feeling.color}40` : 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                        minWidth: '100px'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (selectedFeeling !== idx) {
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.borderColor = feeling.color;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedFeeling !== idx) {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.borderColor = '#e5e7eb';
+                        }
+                      }}
+                    >
+                      <span>{feeling.emoji}</span>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: '#6b7280' }}>
+                        {feeling.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
 
@@ -298,6 +554,130 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   {submittingQuick[task.taskId] ? 'Submitting...' : 'Submit Answers'}
                 </button>
               </div>
+            </div>
+          </div>
+        );
+
+      case 'reminder':
+        const reminderContent = task.content || {};
+        const frequency = reminderContent.frequency || 'daily';
+        const time = reminderContent.reminderTime || '09:00';
+        const message = reminderContent.reminderMessage || task.description || 'Reminder';
+        const customInterval = reminderContent.customInterval || 60;
+        const weekDays = reminderContent.weekDays || [];
+        const targetAudience = reminderContent.targetAudience || 'all';
+        const targetLevels = reminderContent.targetLevels || [];
+
+        return (
+          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fffbeb', borderColor: '#fbbf24', borderWidth: '2px'}}>
+            {taskHeader}
+            
+            {/* Reminder Message */}
+            <div style={{ 
+              padding: '14px', 
+              backgroundColor: '#fef3c7', 
+              borderRadius: '10px',
+              border: '1px solid #fde68a',
+              marginTop: '12px',
+              marginBottom: '16px'
+            }}>
+              <p style={{ margin: 0, fontSize: '15px', color: '#78350f', lineHeight: '1.6', fontWeight: '500' }}>
+                {message}
+              </p>
+            </div>
+
+            {/* Reminder Details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Frequency */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', minWidth: '90px' }}>
+                  📅 Frequency:
+                </span>
+                <div style={{ 
+                  padding: '6px 14px', 
+                  backgroundColor: '#dbeafe', 
+                  color: '#1e40af', 
+                  borderRadius: '8px', 
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  flex: 1
+                }}>
+                  {frequency === 'daily' && '🗓️ Daily'}
+                  {frequency === 'weekly' && '📆 Weekly'}
+                  {frequency === 'custom' && `🔄 Every ${customInterval} minutes`}
+                </div>
+              </div>
+
+              {/* Days (for weekly) */}
+              {frequency === 'weekly' && weekDays.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', minWidth: '90px' }}>
+                    📌 Days:
+                  </span>
+                  <div style={{ 
+                    padding: '6px 14px', 
+                    backgroundColor: '#e0e7ff', 
+                    color: '#4338ca', 
+                    borderRadius: '8px', 
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    flex: 1
+                  }}>
+                    {weekDays.join(', ')}
+                  </div>
+                </div>
+              )}
+
+              {/* Time (for daily/weekly) */}
+              {frequency !== 'custom' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', minWidth: '90px' }}>
+                    🕐 Time:
+                  </span>
+                  <div style={{ 
+                    padding: '6px 14px', 
+                    backgroundColor: '#fef3c7', 
+                    color: '#92400e', 
+                    borderRadius: '8px', 
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    flex: 1
+                  }}>
+                    {time}
+                  </div>
+                </div>
+              )}
+
+              {/* Target Audience */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', minWidth: '90px' }}>
+                  👥 For:
+                </span>
+                <div style={{ 
+                  padding: '6px 14px', 
+                  backgroundColor: targetAudience === 'all' ? '#d1fae5' : '#fed7aa', 
+                  color: targetAudience === 'all' ? '#065f46' : '#9a3412', 
+                  borderRadius: '8px', 
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  flex: 1
+                }}>
+                  {targetAudience === 'all' ? '✨ All Caregivers' : `🎯 ${targetLevels.join(', ')} Burden Level`}
+                </div>
+              </div>
+            </div>
+
+            {/* Info Note */}
+            <div style={{
+              marginTop: '14px',
+              padding: '10px 12px',
+              backgroundColor: '#fef3c7',
+              borderRadius: '8px',
+              border: '1px solid #fcd34d'
+            }}>
+              <p style={{ margin: 0, fontSize: '12px', color: '#92400e', lineHeight: '1.5' }}>
+                💡 You'll receive a notification at the scheduled time
+              </p>
             </div>
           </div>
         );
@@ -910,6 +1290,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
   return (
     <div style={styles.container}>
+      {/* Notification Manager for Reminders */}
+      <NotificationManager caregiverId={caregiverId} day={selectedDay} />
+
       {/* Progress Overview */}
       <div style={styles.headerCard}>
         <div style={styles.headerFlex}>
@@ -955,6 +1338,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           <div style={{ fontSize: '32px' }}>{burdenInfo.emoji}</div>
         </div>
       )}
+
+      {/* Reminder Display Card */}
+      <ReminderDisplayCard caregiverId={caregiverId} day={selectedDay} language="english" />
 
       {/* Progressive Content Info */}
       {programData.burdenTestCompleted && (
@@ -1400,12 +1786,16 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                             </div>
                           )}
 
-                          {(task.taskType === 'motivation-message' || task.taskType === 'greeting-message' || task.taskType === 'healthcare-tip' || task.taskType === 'reflection-prompt') && task.content.textContent && (
+                          {(task.taskType === 'motivation-message' || task.taskType === 'greeting-message' || task.taskType === 'healthcare-tip') && task.content.textContent && (
                             <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
                               <p style={{ margin: 0, fontSize: '14px', color: '#374151', whiteSpace: 'pre-wrap' }}>
                                 {task.content.textContent}
                               </p>
                             </div>
+                          )}
+
+                          {task.taskType === 'reflection-prompt' && task.content.reflectionQuestion && (
+                            <ReflectionPromptSlider question={task.content.reflectionQuestion} />
                           )}
 
                           {task.taskType === 'audio-message' && task.content.audioUrl && (

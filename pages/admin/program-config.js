@@ -88,23 +88,14 @@ export default function ProgramConfigPage() {
     headerInner: {
       maxWidth: '1280px',
       margin: '0 auto',
-      padding: '16px',
-      '@media (min-width: 640px)': {
-        padding: '16px 24px'
-      },
-      '@media (min-width: 1024px)': {
-        padding: '16px 32px'
-      }
+      padding: '16px 32px'
     },
     headerContent: {
       display: 'flex',
-      flexDirection: 'column',
-      gap: '16px',
-      '@media (min-width: 640px)': {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: '16px'
     },
     backButton: {
       color: isBackHovered ? '#1d4ed8' : '#2563eb',
@@ -119,13 +110,10 @@ export default function ProgramConfigPage() {
       transition: 'color 0.2s'
     },
     title: {
-      fontSize: '24px',
+      fontSize: '30px',
       fontWeight: '700',
       color: '#111827',
-      margin: 0,
-      '@media (min-width: 640px)': {
-        fontSize: '30px'
-      }
+      margin: 0
     },
     subtitle: {
       fontSize: '14px',
@@ -135,24 +123,12 @@ export default function ProgramConfigPage() {
     mainContent: {
       maxWidth: '1280px',
       margin: '0 auto',
-      padding: '32px 16px',
-      '@media (min-width: 640px)': {
-        padding: '32px 24px'
-      },
-      '@media (min-width: 1024px)': {
-        padding: '32px 32px'
-      }
+      padding: '32px'
     },
     tabsContainer: {
       maxWidth: '1280px',
       margin: '0 auto',
-      padding: '0 16px',
-      '@media (min-width: 640px)': {
-        padding: '0 24px'
-      },
-      '@media (min-width: 1024px)': {
-        padding: '0 32px'
-      }
+      padding: '0 32px'
     },
     tabs: {
       display: 'flex',
