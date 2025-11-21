@@ -199,6 +199,8 @@ export default function VideoPlayer({
           style={styles.video}
           src={videoUrl}
           controls
+          preload="metadata"
+          poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450' viewBox='0 0 800 450'%3E%3Crect fill='%231f2937' width='800' height='450'/%3E%3Ccircle cx='400' cy='225' r='60' fill='%233b82f6' opacity='0.9'/%3E%3Cpath d='M 380 205 L 380 245 L 420 225 Z' fill='white'/%3E%3Ctext x='400' y='300' font-family='Arial, sans-serif' font-size='18' fill='%239ca3af' text-anchor='middle'%3EClick to play video%3C/text%3E%3C/svg%3E"
           onLoadedMetadata={handleLoadedMetadata}
           onTimeUpdate={handleTimeUpdate}
           onPlay={handlePlay}

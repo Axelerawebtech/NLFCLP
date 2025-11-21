@@ -1252,16 +1252,31 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
 
         {/* Type-specific content fields */}
         {(taskType === 'video' || taskType === 'calming-video') && (
-          <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#f0f9ff', border: '2px solid #bfdbfe', borderRadius: '8px' }}>
+          <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#f0f9ff', border: '2px solid #bfdbfe', borderRadius: '12px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e40af' }}>
               🎥 Video Upload ({selectedLanguage})
             </label>
             
             {content.videoUrl && (
-              <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: '#dbeafe', borderRadius: '6px' }}>
-                <p style={{ fontSize: '13px', color: '#1e40af', margin: 0, wordBreak: 'break-all' }}>
-                  ✅ Current: {content.videoUrl}
-                </p>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ padding: '12px', backgroundColor: '#dbeafe', borderRadius: '6px', marginBottom: '12px' }}>
+                  <p style={{ fontSize: '13px', color: '#1e40af', margin: 0, wordBreak: 'break-all' }}>
+                    ✅ Video URL: {content.videoUrl}
+                  </p>
+                </div>
+                <video 
+                  controls 
+                  style={{ 
+                    width: '100%', 
+                    maxHeight: '300px', 
+                    borderRadius: '8px',
+                    backgroundColor: '#000',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                  src={content.videoUrl}
+                >
+                  Your browser does not support the video tag.
+                </video>
               </div>
             )}
 

@@ -142,16 +142,53 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       case 'video':
       case 'calming-video':
         return (
-          <div key={task.taskId || index} style={taskStyle}>
-            {taskHeader}
+          <div key={task.taskId || index} style={{
+            padding: '28px',
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            border: '2px solid #e5e7eb',
+            marginBottom: '24px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+          }}>
+            {/* Title */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '32px' }}>{getTaskIcon(task.taskType)}</span>
+                <h3 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#111827', lineHeight: '1.2' }}>
+                  {task.title}
+                </h3>
+              </div>
+              
+              {/* Description */}
+              {task.description && (
+                <p style={{ 
+                  margin: '12px 0 0 44px', 
+                  fontSize: '16px', 
+                  color: '#6b7280', 
+                  lineHeight: '1.6',
+                  paddingRight: '20px'
+                }}>
+                  {task.description}
+                </p>
+              )}
+            </div>
+
+            {/* Video Player */}
             {task.content?.videoUrl && (
-              <VideoPlayer
-                videoUrl={task.content.videoUrl}
-                videoTitle={task.title}
-                caregiverId={caregiverId}
-                day={selectedDay}
-                onComplete={() => fetchProgramStatus()}
-              />
+              <div style={{ 
+                marginTop: '20px',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}>
+                <VideoPlayer
+                  videoUrl={task.content.videoUrl}
+                  videoTitle={task.title}
+                  caregiverId={caregiverId}
+                  day={selectedDay}
+                  onComplete={() => fetchProgramStatus()}
+                />
+              </div>
             )}
           </div>
         );
@@ -160,13 +197,95 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       case 'greeting-message':
       case 'healthcare-tip':
         return (
-          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef3c7', borderColor: '#fbbf24'}}>
-            {taskHeader}
-            {task.content?.textContent && (
-              <p style={{ margin: '12px 0 0 0', fontSize: '15px', lineHeight: '1.6', color: '#78350f' }}>
-                {task.content.textContent}
-              </p>
-            )}
+          <div key={task.taskId || index} style={{
+            padding: '32px',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '3px solid #fbbf24',
+            marginBottom: '24px',
+            boxShadow: '0 10px 25px -5px rgba(251, 191, 36, 0.3), 0 8px 10px -6px rgba(251, 191, 36, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Decorative hearts pattern background */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.08,
+              pointerEvents: 'none',
+              background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+              backgroundSize: '40px 40px'
+            }} />
+
+            {/* Content */}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {/* Title with icon */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '36px' }}>{getTaskIcon(task.taskType)}</span>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '28px', 
+                  fontWeight: '700', 
+                  color: '#92400e',
+                  lineHeight: '1.2',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                }}>
+                  {task.title}
+                </h3>
+              </div>
+
+              {/* Description */}
+              {task.description && (
+                <p style={{ 
+                  margin: '0 0 20px 48px',
+                  fontSize: '16px',
+                  color: '#78350f',
+                  lineHeight: '1.5',
+                  fontStyle: 'italic',
+                  opacity: 0.9
+                }}>
+                  {task.description}
+                </p>
+              )}
+
+              {/* Message Content with decorative styling */}
+              {task.content?.textContent && (
+                <div style={{
+                  marginTop: '24px',
+                  padding: '28px',
+                  backgroundColor: '#fffbeb',
+                  borderRadius: '12px',
+                  border: '2px solid #fde68a',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                }}>
+                  <p style={{ 
+                    margin: 0,
+                    fontSize: '20px',
+                    lineHeight: '1.8',
+                    color: '#78350f',
+                    textAlign: 'center',
+                    fontWeight: '500',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                    letterSpacing: '0.3px'
+                  }}>
+                    {task.content.textContent}
+                  </p>
+
+                  {/* Decorative hearts */}
+                  <div style={{
+                    marginTop: '20px',
+                    textAlign: 'center',
+                    fontSize: '20px',
+                    opacity: 0.6
+                  }}>
+                    💛 ✨ 💛
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         );
 
@@ -1752,45 +1871,112 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 {selectedDayData.tasks && selectedDayData.tasks.length > 0 && (
                   <div style={{ marginBottom: '24px' }}>
                     <h4 style={styles.sectionTitle}>📝 Day {selectedDay} Content</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                       {selectedDayData.tasks.map((task, idx) => (
                         <div key={task.taskId} style={{
-                          padding: '16px',
+                          padding: (task.taskType === 'video' || task.taskType === 'calming-video') ? '28px' : '20px',
                           backgroundColor: 'white',
                           border: '2px solid #e5e7eb',
-                          borderRadius: '12px'
+                          borderRadius: '16px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                         }}>
                           {/* Task Header */}
-                          <div style={{ marginBottom: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '20px' }}>{getTaskIcon(task.taskType)}</span>
-                              <h5 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+                          <div style={{ marginBottom: (task.taskType === 'video' || task.taskType === 'calming-video') ? '16px' : '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                              <span style={{ fontSize: (task.taskType === 'video' || task.taskType === 'calming-video') ? '32px' : '20px' }}>
+                                {getTaskIcon(task.taskType)}
+                              </span>
+                              <h3 style={{ 
+                                margin: 0, 
+                                fontSize: (task.taskType === 'video' || task.taskType === 'calming-video') ? '24px' : '18px',
+                                fontWeight: (task.taskType === 'video' || task.taskType === 'calming-video') ? '700' : '600',
+                                color: '#111827',
+                                lineHeight: '1.2'
+                              }}>
                                 {task.title}
-                              </h5>
+                              </h3>
                             </div>
                             {task.description && (
-                              <p style={{ margin: '4px 0 0 28px', fontSize: '14px', color: '#6b7280' }}>
+                              <p style={{ 
+                                margin: (task.taskType === 'video' || task.taskType === 'calming-video') ? '12px 0 0 44px' : '4px 0 0 32px',
+                                fontSize: (task.taskType === 'video' || task.taskType === 'calming-video') ? '16px' : '14px',
+                                color: '#6b7280',
+                                lineHeight: '1.6',
+                                paddingRight: '20px'
+                              }}>
                                 {task.description}
                               </p>
                             )}
                           </div>
 
                           {/* Task Content Based on Type */}
-                          {task.taskType === 'video' && task.content.videoUrl && (
-                            <div style={{ marginTop: '12px' }}>
-                              <video 
-                                controls 
-                                style={{ width: '100%', borderRadius: '8px' }}
-                                src={task.content.videoUrl}
+                          {(task.taskType === 'video' || task.taskType === 'calming-video') && task.content.videoUrl && (
+                            <div style={{ 
+                              marginTop: '20px',
+                              borderRadius: '12px',
+                              overflow: 'hidden',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}>
+                              <VideoPlayer
+                                videoUrl={task.content.videoUrl}
+                                videoTitle={task.title}
+                                caregiverId={caregiverId}
+                                day={selectedDay}
+                                onComplete={() => fetchProgramStatus()}
                               />
                             </div>
                           )}
 
                           {(task.taskType === 'motivation-message' || task.taskType === 'greeting-message' || task.taskType === 'healthcare-tip') && task.content.textContent && (
-                            <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
-                              <p style={{ margin: 0, fontSize: '14px', color: '#374151', whiteSpace: 'pre-wrap' }}>
+                            <div style={{
+                              marginTop: '20px',
+                              padding: '28px',
+                              backgroundColor: '#fffbeb',
+                              borderRadius: '12px',
+                              border: '2px solid #fde68a',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                              position: 'relative'
+                            }}>
+                              {/* Subtle decorative pattern */}
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                opacity: 0.05,
+                                pointerEvents: 'none',
+                                background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+                                backgroundSize: '30px 30px'
+                              }} />
+
+                              <p style={{ 
+                                margin: 0,
+                                fontSize: '20px',
+                                lineHeight: '1.8',
+                                color: '#78350f',
+                                textAlign: 'center',
+                                fontWeight: '500',
+                                fontFamily: 'Georgia, "Times New Roman", serif',
+                                letterSpacing: '0.3px',
+                                whiteSpace: 'pre-wrap',
+                                position: 'relative',
+                                zIndex: 1
+                              }}>
                                 {task.content.textContent}
                               </p>
+
+                              {/* Decorative hearts */}
+                              <div style={{
+                                marginTop: '20px',
+                                textAlign: 'center',
+                                fontSize: '20px',
+                                opacity: 0.6,
+                                position: 'relative',
+                                zIndex: 1
+                              }}>
+                                💛 ✨ 💛
+                              </div>
                             </div>
                           )}
 
