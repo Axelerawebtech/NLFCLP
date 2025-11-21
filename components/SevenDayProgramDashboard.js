@@ -634,64 +634,142 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       case 'feeling-check':
         const [selectedFeeling, setSelectedFeeling] = useState(null);
         const feelings = [
-          { emoji: '😊', label: 'Great', color: '#10b981' },
-          { emoji: '🙂', label: 'Good', color: '#3b82f6' },
-          { emoji: '😐', label: 'Okay', color: '#f59e0b' },
-          { emoji: '😔', label: 'Not Good', color: '#ef4444' }
+          { emoji: '😊', label: 'Happy', color: '#10b981' },
+          { emoji: '😐', label: 'Neutral', color: '#f59e0b' },
+          { emoji: '😟', label: 'Sad', color: '#ef4444' }
         ];
         
         return (
-          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef2f2', borderColor: '#fca5a5', borderWidth: '2px'}}>
-            {taskHeader}
-            {task.content?.feelingQuestion && (
-              <div style={{ marginTop: '14px' }}>
-                <p style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', lineHeight: '1.6', color: '#7f1d1d' }}>
-                  {task.content.feelingQuestion}
-                </p>
-                
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {feelings.map((feeling, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedFeeling(idx)}
-                      style={{
-                        fontSize: '48px',
-                        padding: '16px',
-                        border: selectedFeeling === idx ? `3px solid ${feeling.color}` : '2px solid #e5e7eb',
-                        borderRadius: '16px',
-                        backgroundColor: selectedFeeling === idx ? '#fffbeb' : 'white',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        transform: selectedFeeling === idx ? 'scale(1.1)' : 'scale(1)',
-                        boxShadow: selectedFeeling === idx ? `0 4px 12px ${feeling.color}40` : 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
-                        minWidth: '100px'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (selectedFeeling !== idx) {
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                          e.currentTarget.style.borderColor = feeling.color;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (selectedFeeling !== idx) {
-                          e.currentTarget.style.transform = 'scale(1)';
-                          e.currentTarget.style.borderColor = '#e5e7eb';
-                        }
-                      }}
-                    >
-                      <span>{feeling.emoji}</span>
-                      <span style={{ fontSize: '13px', fontWeight: '600', color: '#6b7280' }}>
-                        {feeling.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+          <div key={task.taskId || index} style={{
+            padding: '32px',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '3px solid #fbbf24',
+            marginBottom: '24px',
+            boxShadow: '0 10px 25px -5px rgba(251, 191, 36, 0.3), 0 8px 10px -6px rgba(251, 191, 36, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Decorative pattern background */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.08,
+              pointerEvents: 'none',
+              background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+              backgroundSize: '40px 40px'
+            }} />
+
+            {/* Content */}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {/* Title with icon */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '36px' }}>💗</span>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '28px', 
+                  fontWeight: '700', 
+                  color: '#78350f',
+                  lineHeight: '1.2'
+                }}>
+                  {task.title}
+                </h3>
               </div>
-            )}
+
+              {/* Description */}
+              {task.description && (
+                <p style={{ 
+                  margin: '0 0 20px 48px',
+                  fontSize: '16px',
+                  color: '#92400e',
+                  lineHeight: '1.6',
+                  fontStyle: 'italic'
+                }}>
+                  {task.description}
+                </p>
+              )}
+
+              {/* Feeling Question and Emojis */}
+              {task.content?.feelingQuestion && (
+                <div style={{
+                  marginTop: '24px',
+                  padding: '28px',
+                  backgroundColor: '#fffbeb',
+                  borderRadius: '12px',
+                  border: '2px solid #fde68a',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                }}>
+                  <p style={{ 
+                    margin: '0 0 24px 0',
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    lineHeight: '1.6',
+                    color: '#78350f',
+                    textAlign: 'center',
+                    fontFamily: 'Georgia, "Times New Roman", serif'
+                  }}>
+                    {task.content.feelingQuestion}
+                  </p>
+                  
+                  <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {feelings.map((feeling, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedFeeling(idx)}
+                        style={{
+                          fontSize: '64px',
+                          padding: '24px',
+                          border: selectedFeeling === idx ? `4px solid ${feeling.color}` : '3px solid #fde68a',
+                          borderRadius: '20px',
+                          backgroundColor: selectedFeeling === idx ? 'white' : '#fffbeb',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s',
+                          transform: selectedFeeling === idx ? 'scale(1.15)' : 'scale(1)',
+                          boxShadow: selectedFeeling === idx ? `0 8px 24px ${feeling.color}60` : '0 2px 8px rgba(0,0,0,0.1)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '12px',
+                          minWidth: '140px'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (selectedFeeling !== idx) {
+                            e.currentTarget.style.transform = 'scale(1.08)';
+                            e.currentTarget.style.borderColor = feeling.color;
+                            e.currentTarget.style.backgroundColor = 'white';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (selectedFeeling !== idx) {
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.borderColor = '#fde68a';
+                            e.currentTarget.style.backgroundColor = '#fffbeb';
+                          }
+                        }}
+                      >
+                        <span>{feeling.emoji}</span>
+                        <span style={{ fontSize: '16px', fontWeight: '600', color: feeling.color }}>
+                          {feeling.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Decorative hearts */}
+                  <div style={{
+                    marginTop: '24px',
+                    textAlign: 'center',
+                    fontSize: '20px',
+                    opacity: 0.6
+                  }}>
+                    💛 ✨ 💛
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         );
 
@@ -2068,6 +2146,99 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                               <audio controls style={{ width: '100%' }}>
                                 <source src={task.content.audioUrl} />
                               </audio>
+                            </div>
+                          )}
+
+                          {task.taskType === 'feeling-check' && task.content?.feelingQuestion && (
+                            <div style={{
+                              marginTop: '20px',
+                              padding: '28px',
+                              backgroundColor: '#fffbeb',
+                              borderRadius: '12px',
+                              border: '2px solid #fde68a',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                              position: 'relative'
+                            }}>
+                              {/* Subtle decorative pattern */}
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                opacity: 0.05,
+                                pointerEvents: 'none',
+                                background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+                                backgroundSize: '30px 30px'
+                              }} />
+
+                              <p style={{ 
+                                margin: '0 0 24px 0',
+                                fontSize: '20px',
+                                fontWeight: '600',
+                                lineHeight: '1.6',
+                                color: '#78350f',
+                                textAlign: 'center',
+                                fontFamily: 'Georgia, "Times New Roman", serif',
+                                position: 'relative',
+                                zIndex: 1
+                              }}>
+                                {task.content.feelingQuestion}
+                              </p>
+                              
+                              <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+                                {[
+                                  { emoji: '😊', label: 'Happy', color: '#10b981' },
+                                  { emoji: '😐', label: 'Neutral', color: '#f59e0b' },
+                                  { emoji: '😟', label: 'Sad', color: '#ef4444' }
+                                ].map((feeling, idx) => (
+                                  <button
+                                    key={idx}
+                                    style={{
+                                      fontSize: '64px',
+                                      padding: '24px',
+                                      border: '3px solid #fde68a',
+                                      borderRadius: '20px',
+                                      backgroundColor: '#fffbeb',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.3s',
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      gap: '12px',
+                                      minWidth: '140px'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.transform = 'scale(1.08)';
+                                      e.currentTarget.style.borderColor = feeling.color;
+                                      e.currentTarget.style.backgroundColor = 'white';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                      e.currentTarget.style.borderColor = '#fde68a';
+                                      e.currentTarget.style.backgroundColor = '#fffbeb';
+                                    }}
+                                  >
+                                    <span>{feeling.emoji}</span>
+                                    <span style={{ fontSize: '16px', fontWeight: '600', color: feeling.color }}>
+                                      {feeling.label}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* Decorative hearts */}
+                              <div style={{
+                                marginTop: '24px',
+                                textAlign: 'center',
+                                fontSize: '20px',
+                                opacity: 0.6,
+                                position: 'relative',
+                                zIndex: 1
+                              }}>
+                                💛 ✨ 💛
+                              </div>
                             </div>
                           )}
 
