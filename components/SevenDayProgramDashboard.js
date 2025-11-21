@@ -424,64 +424,136 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
       case 'activity-selector':
         return (
-          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#f0f9ff', borderColor: '#38bdf8', borderWidth: '2px'}}>
-            {taskHeader}
-            {task.content?.activities && task.content.activities.length > 0 && (
-              <div style={{ marginTop: '14px', display: 'grid', gap: '12px' }}>
-                {task.content.activities.map((activity, idx) => (
-                  <div 
-                    key={idx} 
-                    style={{ 
-                      padding: '16px', 
-                      backgroundColor: 'white', 
-                      border: '2px solid #e0f2fe',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#0284c7';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '#e0f2fe';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
-                      <div style={{ 
-                        width: '40px', 
-                        height: '40px', 
-                        backgroundColor: '#dbeafe', 
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '20px',
-                        flexShrink: 0
-                      }}>
-                        🎯
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '600', color: '#0c4a6e' }}>
-                          {activity.activityName || `Activity ${idx + 1}`}
-                        </h4>
-                        {activity.activityDescription && (
-                          <p style={{ margin: 0, fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-                            {activity.activityDescription}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          <div key={task.taskId || index} style={{
+            padding: '32px',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '3px solid #fbbf24',
+            marginBottom: '24px',
+            boxShadow: '0 10px 25px -5px rgba(251, 191, 36, 0.3), 0 8px 10px -6px rgba(251, 191, 36, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Decorative pattern background */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.08,
+              pointerEvents: 'none',
+              background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+              backgroundSize: '40px 40px'
+            }} />
+
+            {/* Content */}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {/* Title with icon */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '36px' }}>🎯</span>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '28px', 
+                  fontWeight: '700', 
+                  color: '#78350f',
+                  lineHeight: '1.2'
+                }}>
+                  {task.title}
+                </h3>
               </div>
-            )}
-            {(!task.content?.activities || task.content.activities.length === 0) && (
-              <p style={{ margin: '12px 0 0 0', fontSize: '14px', color: '#9ca3af', fontStyle: 'italic' }}>
-                No activities available
-              </p>
-            )}
+
+              {/* Description */}
+              {task.description && (
+                <p style={{ 
+                  margin: '0 0 20px 48px',
+                  fontSize: '16px',
+                  color: '#92400e',
+                  lineHeight: '1.6',
+                  fontStyle: 'italic'
+                }}>
+                  {task.description}
+                </p>
+              )}
+
+              {/* Activities Content */}
+              {task.content?.activities && task.content.activities.length > 0 && (
+                <div style={{
+                  marginTop: '24px',
+                  padding: '24px',
+                  backgroundColor: '#fffbeb',
+                  borderRadius: '12px',
+                  border: '2px solid #fde68a',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                }}>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    {task.content.activities.map((activity, idx) => (
+                      <div 
+                        key={idx} 
+                        style={{ 
+                          padding: '16px', 
+                          backgroundColor: 'white', 
+                          border: '2px solid #fde68a',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#fbbf24';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#fde68a';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            backgroundColor: '#fef3c7', 
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '20px',
+                            flexShrink: 0
+                          }}>
+                            ✨
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '600', color: '#78350f' }}>
+                              {activity.activityName || `Activity ${idx + 1}`}
+                            </h4>
+                            {activity.activityDescription && (
+                              <p style={{ margin: 0, fontSize: '14px', color: '#92400e', lineHeight: '1.5' }}>
+                                {activity.activityDescription}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Decorative hearts */}
+                  <div style={{
+                    marginTop: '20px',
+                    textAlign: 'center',
+                    fontSize: '20px',
+                    opacity: 0.6
+                  }}>
+                    💛 ✨ 💛
+                  </div>
+                </div>
+              )}
+
+              {(!task.content?.activities || task.content.activities.length === 0) && (
+                <p style={{ margin: '12px 0 0 0', fontSize: '14px', color: '#9ca3af', fontStyle: 'italic' }}>
+                  No activities available
+                </p>
+              )}
+            </div>
           </div>
         );
 
@@ -1902,6 +1974,77 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                                     minHeight: '150px'
                                   }}
                                 />
+                              </div>
+                            </div>
+                          )}
+
+                          {task.taskType === 'activity-selector' && task.content?.activities && task.content.activities.length > 0 && (
+                            <div style={{
+                              marginTop: '20px',
+                              padding: '24px',
+                              backgroundColor: '#fffbeb',
+                              borderRadius: '12px',
+                              border: '2px solid #fde68a',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                            }}>
+                              <div style={{ display: 'grid', gap: '12px' }}>
+                                {task.content.activities.map((activity, idx) => (
+                                  <div 
+                                    key={idx} 
+                                    style={{ 
+                                      padding: '16px', 
+                                      backgroundColor: 'white', 
+                                      border: '2px solid #fde68a',
+                                      borderRadius: '10px',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.borderColor = '#fbbf24';
+                                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.2)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.borderColor = '#fde68a';
+                                      e.currentTarget.style.boxShadow = 'none';
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
+                                      <div style={{ 
+                                        width: '40px', 
+                                        height: '40px', 
+                                        backgroundColor: '#fef3c7', 
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '20px',
+                                        flexShrink: 0
+                                      }}>
+                                        ✨
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '600', color: '#78350f' }}>
+                                          {activity.activityName || `Activity ${idx + 1}`}
+                                        </h4>
+                                        {activity.activityDescription && (
+                                          <p style={{ margin: 0, fontSize: '14px', color: '#92400e', lineHeight: '1.5' }}>
+                                            {activity.activityDescription}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Decorative hearts */}
+                              <div style={{
+                                marginTop: '20px',
+                                textAlign: 'center',
+                                fontSize: '20px',
+                                opacity: 0.6
+                              }}>
+                                💛 ✨ 💛
                               </div>
                             </div>
                           )}
