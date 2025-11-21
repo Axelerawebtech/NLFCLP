@@ -481,18 +481,143 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
       case 'task-checklist':
         return (
-          <div key={task.taskId || index} style={taskStyle}>
-            {taskHeader}
-            {task.content?.checklistItems && task.content.checklistItems.length > 0 && (
-              <div style={{ marginTop: '12px' }}>
-                {task.content.checklistItems.map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <input type="checkbox" style={{ width: '18px', height: '18px' }} />
-                    <span style={{ fontSize: '14px', color: '#374151' }}>{item.itemText}</span>
-                  </div>
-                ))}
+          <div key={task.taskId || index} style={{
+            padding: '32px',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '3px solid #fbbf24',
+            marginBottom: '24px',
+            boxShadow: '0 10px 25px -5px rgba(251, 191, 36, 0.3), 0 8px 10px -6px rgba(251, 191, 36, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Decorative pattern background */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.08,
+              pointerEvents: 'none',
+              background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+              backgroundSize: '40px 40px'
+            }} />
+
+            {/* Content */}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {/* Title with icon */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '36px' }}>✅</span>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '28px', 
+                  fontWeight: '700', 
+                  color: '#78350f',
+                  lineHeight: '1.2'
+                }}>
+                  {task.title}
+                </h3>
               </div>
-            )}
+
+              {/* Description */}
+              {task.description && (
+                <p style={{ 
+                  margin: '0 0 24px 48px',
+                  fontSize: '16px',
+                  fontStyle: 'italic',
+                  color: '#92400e',
+                  lineHeight: '1.6'
+                }}>
+                  {task.description}
+                </p>
+              )}
+
+              {/* Question and Yes/No buttons */}
+              <div style={{
+                marginTop: '20px',
+                padding: '28px',
+                backgroundColor: '#fffbeb',
+                borderRadius: '12px',
+                border: '2px solid #fde68a',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+              }}>
+                {task.content?.checklistQuestion ? (
+                  <>
+                    <p style={{ 
+                      margin: '0 0 24px 0',
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      lineHeight: '1.6',
+                      color: '#78350f',
+                      textAlign: 'center',
+                      fontFamily: 'Georgia, "Times New Roman", serif'
+                    }}>
+                      {task.content.checklistQuestion}
+                    </p>
+                    
+                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+                      {['Yes', 'No'].map((answer, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleTaskResponse(task.taskId, 'task-checklist', {
+                          question: task.content.checklistQuestion,
+                          answer: answer
+                        })}
+                        style={{
+                          fontSize: '18px',
+                          padding: '16px 48px',
+                          border: '3px solid #fde68a',
+                          borderRadius: '12px',
+                          backgroundColor: '#fffbeb',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                          fontWeight: '600',
+                          color: answer === 'Yes' ? '#10b981' : '#ef4444',
+                          minWidth: '160px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.borderColor = answer === 'Yes' ? '#10b981' : '#ef4444';
+                          e.currentTarget.style.backgroundColor = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.borderColor = '#fde68a';
+                          e.currentTarget.style.backgroundColor = '#fffbeb';
+                        }}
+                      >
+                          {answer === 'Yes' ? '✅ ' : '❌ '}{answer}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ 
+                    margin: 0,
+                    fontSize: '18px',
+                    fontWeight: '500',
+                    lineHeight: '1.6',
+                    color: '#92400e',
+                    textAlign: 'center',
+                    fontStyle: 'italic'
+                  }}>
+                    No question added yet. Please add a question in the admin dashboard.
+                  </p>
+                )}
+
+                {/* Decorative hearts */}
+                <div style={{
+                  marginTop: '24px',
+                  textAlign: 'center',
+                  fontSize: '20px',
+                  opacity: 0.6
+                }}>
+                  💛 ✨ 💛
+                </div>
+              </div>
+            </div>
           </div>
         );
 
@@ -1302,6 +1427,34 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     fetchProgramStatus(); // Refresh the program status
   };
 
+  const handleTaskResponse = async (taskId, taskType, responseData) => {
+    try {
+      const response = await fetch('/api/caregiver/update-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caregiverId,
+          day: selectedDay,
+          taskResponse: {
+            taskId,
+            taskType,
+            ...responseData,
+            completedAt: new Date().toISOString()
+          }
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✅ ${taskType} response saved:`, responseData);
+        fetchProgramStatus(); // Refresh to show updated responses
+      } else {
+        console.error('Failed to save task response:', response.status);
+      }
+    } catch (err) {
+      console.error('Failed to save task response:', err);
+    }
+  };
+
   const handleTestSubmit = async () => {
     try {
       setSubmittingTest(true);
@@ -1961,23 +2114,46 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                       {selectedDayData.tasks.filter(task => task.taskType !== 'reminder').map((task, idx) => (
                         <div key={task.taskId} style={{
-                          padding: (task.taskType === 'video' || task.taskType === 'calming-video') ? '28px' : '20px',
+                          padding: task.taskType === 'task-checklist' ? '32px' : ((task.taskType === 'video' || task.taskType === 'calming-video') ? '28px' : '20px'),
                           backgroundColor: 'white',
-                          border: '2px solid #e5e7eb',
+                          border: task.taskType === 'task-checklist' ? '3px solid #fbbf24' : '2px solid #e5e7eb',
                           borderRadius: '16px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                          boxShadow: task.taskType === 'task-checklist' 
+                            ? '0 10px 25px -5px rgba(251, 191, 36, 0.3), 0 8px 10px -6px rgba(251, 191, 36, 0.2)' 
+                            : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                          position: task.taskType === 'task-checklist' ? 'relative' : 'static',
+                          overflow: task.taskType === 'task-checklist' ? 'hidden' : 'visible'
                         }}>
+                          {/* Decorative pattern background for task-checklist */}
+                          {task.taskType === 'task-checklist' && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              opacity: 0.08,
+                              pointerEvents: 'none',
+                              background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+                              backgroundSize: '40px 40px'
+                            }} />
+                          )}
+
                           {/* Task Header */}
-                          <div style={{ marginBottom: (task.taskType === 'video' || task.taskType === 'calming-video') ? '16px' : '12px' }}>
+                          <div style={{ 
+                            marginBottom: (task.taskType === 'video' || task.taskType === 'calming-video') ? '16px' : '12px',
+                            position: task.taskType === 'task-checklist' ? 'relative' : 'static',
+                            zIndex: task.taskType === 'task-checklist' ? 1 : 'auto'
+                          }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                              <span style={{ fontSize: (task.taskType === 'video' || task.taskType === 'calming-video') ? '32px' : '20px' }}>
+                              <span style={{ fontSize: task.taskType === 'task-checklist' ? '36px' : ((task.taskType === 'video' || task.taskType === 'calming-video') ? '32px' : '20px') }}>
                                 {getTaskIcon(task.taskType)}
                               </span>
                               <h3 style={{ 
                                 margin: 0, 
-                                fontSize: (task.taskType === 'video' || task.taskType === 'calming-video') ? '24px' : '18px',
-                                fontWeight: (task.taskType === 'video' || task.taskType === 'calming-video') ? '700' : '600',
-                                color: '#111827',
+                                fontSize: task.taskType === 'task-checklist' ? '28px' : ((task.taskType === 'video' || task.taskType === 'calming-video') ? '24px' : '18px'),
+                                fontWeight: task.taskType === 'task-checklist' ? '700' : ((task.taskType === 'video' || task.taskType === 'calming-video') ? '700' : '600'),
+                                color: task.taskType === 'task-checklist' ? '#78350f' : '#111827',
                                 lineHeight: '1.2'
                               }}>
                                 {task.title}
@@ -1985,9 +2161,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                             </div>
                             {task.description && (
                               <p style={{ 
-                                margin: (task.taskType === 'video' || task.taskType === 'calming-video') ? '12px 0 0 44px' : '4px 0 0 32px',
-                                fontSize: (task.taskType === 'video' || task.taskType === 'calming-video') ? '16px' : '14px',
-                                color: '#6b7280',
+                                margin: task.taskType === 'task-checklist' ? '0 0 24px 48px' : ((task.taskType === 'video' || task.taskType === 'calming-video') ? '12px 0 0 44px' : '4px 0 0 32px'),
+                                fontSize: task.taskType === 'task-checklist' ? '16px' : ((task.taskType === 'video' || task.taskType === 'calming-video') ? '16px' : '14px'),
+                                fontStyle: task.taskType === 'task-checklist' ? 'italic' : 'normal',
+                                color: task.taskType === 'task-checklist' ? '#92400e' : '#6b7280',
                                 lineHeight: '1.6',
                                 paddingRight: '20px'
                               }}>
@@ -2194,6 +2371,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                                 ].map((feeling, idx) => (
                                   <button
                                     key={idx}
+                                    onClick={() => handleTaskResponse(task.taskId, 'feeling-check', {
+                                      question: task.content.feelingQuestion,
+                                      response: feeling.label,
+                                      emoji: feeling.emoji
+                                    })}
                                     style={{
                                       fontSize: '64px',
                                       padding: '24px',
@@ -2242,14 +2424,111 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                             </div>
                           )}
 
-                          {task.taskType === 'task-checklist' && task.content.checklistItems && task.content.checklistItems.length > 0 && (
-                            <div style={{ marginTop: '12px' }}>
-                              {task.content.checklistItems.map((item, itemIdx) => (
-                                <label key={itemIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', cursor: 'pointer' }}>
-                                  <input type="checkbox" style={{ width: '18px', height: '18px' }} />
-                                  <span style={{ fontSize: '14px' }}>{item.itemText}</span>
-                                </label>
-                              ))}
+                          {task.taskType === 'task-checklist' && (
+                            <div style={{
+                              marginTop: '20px',
+                              padding: '28px',
+                              backgroundColor: '#fffbeb',
+                              borderRadius: '12px',
+                              border: '2px solid #fde68a',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                              position: 'relative'
+                            }}>
+                              {/* Subtle decorative pattern */}
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                opacity: 0.05,
+                                pointerEvents: 'none',
+                                background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+                                backgroundSize: '30px 30px'
+                              }} />
+
+                              {task.content?.checklistQuestion ? (
+                                <>
+                                  <p style={{ 
+                                    margin: '0 0 24px 0',
+                                    fontSize: '20px',
+                                    fontWeight: '600',
+                                    lineHeight: '1.6',
+                                    color: '#78350f',
+                                    textAlign: 'center',
+                                    fontFamily: 'Georgia, "Times New Roman", serif',
+                                    position: 'relative',
+                                    zIndex: 1
+                                  }}>
+                                    {task.content.checklistQuestion}
+                                  </p>
+                                </>
+                              ) : (
+                                <p style={{ 
+                                  margin: '0 0 24px 0',
+                                  fontSize: '18px',
+                                  fontWeight: '500',
+                                  lineHeight: '1.6',
+                                  color: '#92400e',
+                                  textAlign: 'center',
+                                  fontStyle: 'italic',
+                                  position: 'relative',
+                                  zIndex: 1
+                                }}>
+                                  No question added yet. Please add a question in the admin dashboard.
+                                </p>
+                              )}
+                              
+                              {task.content?.checklistQuestion && (
+                                <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+                                  {['Yes', 'No'].map((answer, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() => handleTaskResponse(task.taskId, 'task-checklist', {
+                                        question: task.content.checklistQuestion,
+                                        answer: answer
+                                      })}
+                                    style={{
+                                      fontSize: '18px',
+                                      padding: '16px 48px',
+                                      border: '3px solid #fde68a',
+                                      borderRadius: '12px',
+                                      backgroundColor: '#fffbeb',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.3s',
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                      fontWeight: '600',
+                                      color: answer === 'Yes' ? '#10b981' : '#ef4444',
+                                      minWidth: '160px'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.transform = 'scale(1.05)';
+                                      e.currentTarget.style.borderColor = answer === 'Yes' ? '#10b981' : '#ef4444';
+                                      e.currentTarget.style.backgroundColor = 'white';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                      e.currentTarget.style.borderColor = '#fde68a';
+                                      e.currentTarget.style.backgroundColor = '#fffbeb';
+                                    }}
+                                  >
+                                      {answer === 'Yes' ? '✅ ' : '❌ '}{answer}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Decorative hearts */}
+                              <div style={{
+                                marginTop: '24px',
+                                textAlign: 'center',
+                                fontSize: '20px',
+                                opacity: 0.6,
+                                position: 'relative',
+                                zIndex: 1
+                              }}>
+                                💛 ✨ 💛
+                              </div>
                             </div>
                           )}
 

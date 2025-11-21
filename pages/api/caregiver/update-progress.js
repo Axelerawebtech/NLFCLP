@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { caregiverId, day, videoProgress, videoWatched, videoCompleted, taskResponses, tasksCompleted } = req.body;
+      const { caregiverId, day, videoProgress, videoWatched, videoCompleted, taskResponses, tasksCompleted, taskResponse } = req.body;
       
       if (!caregiverId || day === undefined) {
         return res.status(400).json({
@@ -78,7 +78,30 @@ export default async function handler(req, res) {
         }
       }
       
-      // Update task responses
+      // Handle individual task response (for feeling check, task checklist, etc.)
+      if (taskResponse) {
+        if (!dayModule.taskResponses) {
+          dayModule.taskResponses = [];
+        }
+        
+        // Check if response already exists for this task
+        const existingIndex = dayModule.taskResponses.findIndex(
+          r => r.taskId === taskResponse.taskId
+        );
+        
+        if (existingIndex >= 0) {
+          // Update existing response
+          dayModule.taskResponses[existingIndex] = {
+            ...dayModule.taskResponses[existingIndex],
+            ...taskResponse
+          };
+        } else {
+          // Add new response
+          dayModule.taskResponses.push(taskResponse);
+        }
+      }
+      
+      // Update task responses (bulk update)
       if (taskResponses && Array.isArray(taskResponses)) {
         dayModule.taskResponses = taskResponses;
       }

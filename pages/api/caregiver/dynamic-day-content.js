@@ -215,12 +215,24 @@ function extractLocalizedContent(content) {
     }));
   }
 
-  // Checklist items
+  // Checklist items (old structure - for backward compatibility)
   if (content.checklistItems && Array.isArray(content.checklistItems)) {
     result.checklistItems = content.checklistItems.map(item => ({
       itemText: item.itemText || ''
     }));
   }
+
+  // Task checklist question (new structure)
+  if (content.checklistQuestion) {
+    result.checklistQuestion = content.checklistQuestion;
+  }
+
+  // Reflection prompt slider labels
+  if (content.sliderLeftLabel) result.sliderLeftLabel = content.sliderLeftLabel;
+  if (content.sliderRightLabel) result.sliderRightLabel = content.sliderRightLabel;
+
+  // Visual cue
+  if (content.imageUrl) result.imageUrl = content.imageUrl;
 
   return result;
 }

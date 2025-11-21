@@ -1104,6 +1104,13 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
       }
     }
 
+    if (taskType === 'task-checklist') {
+      if (!content.checklistQuestion) {
+        alert('⚠️ Please enter a question before adding this task');
+        return;
+      }
+    }
+
     const taskData = {
       taskType,
       title,
@@ -1111,6 +1118,17 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
       content,
       enabled: true
     };
+
+    // Debug log for task-checklist
+    if (taskType === 'task-checklist') {
+      console.log('💾 Saving Task Checklist:', {
+        taskType,
+        title,
+        description,
+        checklistQuestion: content.checklistQuestion,
+        fullContent: content
+      });
+    }
 
     // Debug log for reminder tasks being saved
     if (taskType === 'reminder') {
@@ -1790,6 +1808,38 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
                   resize: 'vertical'
                 }}
               />
+            </div>
+          </div>
+        )}
+
+        {taskType === 'task-checklist' && (
+          <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#e0e7ff', border: '2px solid #a5b4fc', borderRadius: '12px' }}>
+            <h4 style={{ fontSize: '16px', fontWeight: '600', marginTop: 0, marginBottom: '16px', color: '#3730a3' }}>
+              ✅ Task Checklist Question
+            </h4>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                Question ({selectedLanguage})
+              </label>
+              <textarea
+                value={content.checklistQuestion || ''}
+                onChange={(e) => setContent(prev => ({ ...prev, checklistQuestion: e.target.value }))}
+                placeholder="e.g., Did you complete your daily exercise?"
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  fontSize: '15px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontFamily: 'inherit',
+                  resize: 'vertical'
+                }}
+              />
+              <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#6b7280', fontStyle: 'italic' }}>
+                💡 Caregiver will answer with Yes or No
+              </p>
             </div>
           </div>
         )}
@@ -2623,6 +2673,24 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
                 <div style={{ padding: '10px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #fecaca' }}>
                   <p style={{ margin: 0, fontSize: '13px', color: '#7f1d1d', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
                     {task.content.textContent.length > 150 ? task.content.textContent.substring(0, 150) + '...' : task.content.textContent}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {task.taskType === 'task-checklist' && task.content && (
+            <div style={{ marginTop: '14px', padding: '14px', backgroundColor: '#e0e7ff', border: '2px solid #a5b4fc', borderRadius: '8px' }}>
+              {task.content.checklistQuestion && (
+                <div style={{ padding: '10px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #a5b4fc' }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: '600', color: '#3730a3', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    ❓ Question
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#3730a3', lineHeight: '1.6', fontWeight: '500' }}>
+                    {task.content.checklistQuestion}
+                  </p>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6366f1', fontStyle: 'italic' }}>
+                    ✅ Yes / ❌ No response
                   </p>
                 </div>
               )}
