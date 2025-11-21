@@ -292,18 +292,82 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       case 'reflection-prompt':
         const [sliderValue, setSliderValue] = useState(50);
         return (
-          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fef9f3', borderColor: '#fbbf24', borderWidth: '2px'}}>
-            {taskHeader}
-            {task.content?.reflectionQuestion && (
-              <div style={{ marginTop: '16px' }}>
-                <p style={{ margin: '0 0 20px 0', fontSize: '16px', fontWeight: '600', lineHeight: '1.6', color: '#78350f' }}>
-                  {task.content.reflectionQuestion}
+          <div key={task.taskId || index} style={{
+            padding: '32px',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '3px solid #fbbf24',
+            marginBottom: '24px',
+            boxShadow: '0 10px 25px -5px rgba(251, 191, 36, 0.3), 0 8px 10px -6px rgba(251, 191, 36, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Decorative pattern background */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.08,
+              pointerEvents: 'none',
+              background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+              backgroundSize: '40px 40px'
+            }} />
+
+            {/* Content */}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {/* Title with icon */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '36px' }}>💭</span>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '28px', 
+                  fontWeight: '700', 
+                  color: '#78350f',
+                  lineHeight: '1.2'
+                }}>
+                  {task.title}
+                </h3>
+              </div>
+
+              {/* Description */}
+              {task.description && (
+                <p style={{ 
+                  margin: '0 0 20px 48px',
+                  fontSize: '16px',
+                  color: '#92400e',
+                  lineHeight: '1.6',
+                  fontStyle: 'italic'
+                }}>
+                  {task.description}
                 </p>
-                
-                <div style={{ padding: '20px', backgroundColor: '#fffbeb', borderRadius: '12px', border: '2px solid #fde68a' }}>
+              )}
+
+              {/* Reflection Question and Slider */}
+              {task.content?.reflectionQuestion && (
+                <div style={{
+                  marginTop: '24px',
+                  padding: '28px',
+                  backgroundColor: '#fffbeb',
+                  borderRadius: '12px',
+                  border: '2px solid #fde68a',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                }}>
+                  <p style={{ 
+                    margin: '0 0 24px 0',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    lineHeight: '1.6',
+                    color: '#78350f',
+                    textAlign: 'center'
+                  }}>
+                    {task.content.reflectionQuestion}
+                  </p>
+                  
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '600' }}>
-                    <span style={{ color: '#dc2626' }}>😔 Not Well / Very Stressed</span>
-                    <span style={{ color: '#16a34a' }}>😊 Very Well / Not Stressed</span>
+                    <span style={{ color: '#dc2626' }}>😔 {task.content?.sliderLeftLabel || 'Not Well / Very Stressed'}</span>
+                    <span style={{ color: '#16a34a' }}>😊 {task.content?.sliderRightLabel || 'Very Well / Not Stressed'}</span>
                   </div>
                   
                   <input
@@ -338,9 +402,19 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       {sliderValue}%
                     </div>
                   </div>
+
+                  {/* Decorative hearts */}
+                  <div style={{
+                    marginTop: '20px',
+                    textAlign: 'center',
+                    fontSize: '20px',
+                    opacity: 0.6
+                  }}>
+                    💛 ✨ 💛
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         );
 
@@ -1916,7 +1990,77 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                           )}
 
                           {task.taskType === 'reflection-prompt' && task.content.reflectionQuestion && (
-                            <ReflectionPromptSlider question={task.content.reflectionQuestion} />
+                            <div style={{
+                              marginTop: '20px',
+                              padding: '28px',
+                              backgroundColor: '#fffbeb',
+                              borderRadius: '12px',
+                              border: '2px solid #fde68a',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                              position: 'relative'
+                            }}>
+                              {/* Subtle decorative pattern */}
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                opacity: 0.05,
+                                pointerEvents: 'none',
+                                background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+                                backgroundSize: '30px 30px'
+                              }} />
+
+                              <p style={{ 
+                                margin: '0 0 24px 0',
+                                fontSize: '18px',
+                                fontWeight: '600',
+                                lineHeight: '1.6',
+                                color: '#78350f',
+                                textAlign: 'center',
+                                position: 'relative',
+                                zIndex: 1
+                              }}>
+                                {task.content.reflectionQuestion}
+                              </p>
+                              
+                              <div style={{ position: 'relative', zIndex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '600' }}>
+                                  <span style={{ color: '#dc2626' }}>😔 {task.content?.sliderLeftLabel || 'Not Well / Very Stressed'}</span>
+                                  <span style={{ color: '#16a34a' }}>😊 {task.content?.sliderRightLabel || 'Very Well / Not Stressed'}</span>
+                                </div>
+                                
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  defaultValue="50"
+                                  style={{
+                                    width: '100%',
+                                    height: '8px',
+                                    borderRadius: '4px',
+                                    background: `linear-gradient(to right, #dc2626 0%, #fbbf24 50%, #16a34a 100%)`,
+                                    outline: 'none',
+                                    cursor: 'pointer',
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none'
+                                  }}
+                                />
+                              </div>
+
+                              {/* Decorative hearts */}
+                              <div style={{
+                                marginTop: '20px',
+                                textAlign: 'center',
+                                fontSize: '20px',
+                                opacity: 0.6,
+                                position: 'relative',
+                                zIndex: 1
+                              }}>
+                                💛 ✨ 💛
+                              </div>
+                            </div>
                           )}
 
                           {task.taskType === 'audio-message' && task.content.audioUrl && (

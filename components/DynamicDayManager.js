@@ -1407,8 +1407,55 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
                 resize: 'vertical'
               }}
             />
+            
+            <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
+                  Left Label (Min Value)
+                </label>
+                <input
+                  type="text"
+                  value={content.sliderLeftLabel || ''}
+                  onChange={(e) => setContent(prev => ({
+                    ...prev,
+                    sliderLeftLabel: e.target.value
+                  }))}
+                  placeholder="e.g., Not Well / Very Stressed"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '14px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
+                  Right Label (Max Value)
+                </label>
+                <input
+                  type="text"
+                  value={content.sliderRightLabel || ''}
+                  onChange={(e) => setContent(prev => ({
+                    ...prev,
+                    sliderRightLabel: e.target.value
+                  }))}
+                  placeholder="e.g., Very Well / Not Stressed"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '14px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px'
+                  }}
+                />
+              </div>
+            </div>
+            
             <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#6b7280', fontStyle: 'italic' }}>
-              💡 Caregiver will use a slider to respond (left = not well/very stressed, right = very well/not stressed)
+              💡 Caregiver will use a slider (0-100%) to respond based on your custom labels
             </p>
           </div>
         )}
@@ -2432,9 +2479,15 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
               <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '600', color: '#92400e' }}>
                 💭 Question:
               </p>
-              <p style={{ margin: 0, fontSize: '13px', color: '#78350f', lineHeight: '1.5' }}>
+              <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#78350f', lineHeight: '1.5' }}>
                 {task.content.reflectionQuestion}
               </p>
+              {(task.content.sliderLeftLabel || task.content.sliderRightLabel) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#92400e', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #fde68a' }}>
+                  <span>📍 Left: {task.content.sliderLeftLabel || 'Not set'}</span>
+                  <span>📍 Right: {task.content.sliderRightLabel || 'Not set'}</span>
+                </div>
+              )}
             </div>
           )}
 
