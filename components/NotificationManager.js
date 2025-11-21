@@ -108,7 +108,7 @@ export default function NotificationManager({ caregiverId, day }) {
 
   return (
     <>
-      {/* In-app notification banner */}
+      {/* In-app notification banner - Beautiful Format */}
       {notifications.length > 0 && (
         <div style={{
           position: 'fixed',
@@ -117,50 +117,131 @@ export default function NotificationManager({ caregiverId, day }) {
           zIndex: 9999,
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px',
-          maxWidth: '400px'
+          gap: '16px',
+          maxWidth: '450px'
         }}>
           {notifications.map(notification => (
             <div
               key={notification.id}
               style={{
-                backgroundColor: '#fef3c7',
-                border: '2px solid #f59e0b',
-                borderRadius: '12px',
-                padding: '16px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                display: 'flex',
-                alignItems: 'start',
-                gap: '12px',
+                backgroundColor: '#ffffff',
+                border: '3px solid #fbbf24',
+                borderRadius: '16px',
+                padding: '28px',
+                boxShadow: '0 10px 25px -5px rgba(251, 191, 36, 0.3), 0 8px 10px -6px rgba(251, 191, 36, 0.2)',
+                position: 'relative',
                 animation: 'slideIn 0.3s ease-out'
               }}
             >
-              <div style={{ fontSize: '24px' }}>⏰</div>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontWeight: '600', fontSize: '14px', color: '#92400e', marginBottom: '4px' }}>
-                  Reminder
-                </p>
-                <p style={{ margin: 0, fontSize: '14px', color: '#78350f', lineHeight: '1.5' }}>
-                  {notification.message}
-                </p>
-                <p style={{ margin: 0, fontSize: '11px', color: '#a16207', marginTop: '6px' }}>
-                  {notification.title || 'Task Reminder'}
-                </p>
-              </div>
+              {/* Decorative pattern background */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: 0.08,
+                pointerEvents: 'none',
+                background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+                backgroundSize: '30px 30px',
+                borderRadius: '16px'
+              }} />
+
+              {/* Close button */}
               <button
                 onClick={() => dismissNotification(notification.id)}
                 style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
                   background: 'transparent',
                   border: 'none',
-                  fontSize: '18px',
+                  fontSize: '24px',
                   cursor: 'pointer',
                   color: '#92400e',
                   padding: '4px',
-                  lineHeight: 1
+                  lineHeight: 1,
+                  zIndex: 2,
+                  opacity: 0.6,
+                  transition: 'opacity 0.2s'
                 }}
+                onMouseEnter={(e) => e.target.style.opacity = '1'}
+                onMouseLeave={(e) => e.target.style.opacity = '0.6'}
               >
                 ✕
               </button>
+
+              {/* Title with Icon */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '16px',
+                position: 'relative',
+                zIndex: 1
+              }}>
+                <span style={{ fontSize: '36px' }}>🔔</span>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: '#78350f',
+                  lineHeight: '1.2'
+                }}>
+                  {notification.title || 'Reminder'}
+                </h3>
+              </div>
+
+              {/* Description */}
+              {notification.description && (
+                <p style={{
+                  margin: '0 0 16px 48px',
+                  fontSize: '15px',
+                  color: '#92400e',
+                  lineHeight: '1.6',
+                  fontStyle: 'italic',
+                  position: 'relative',
+                  zIndex: 1
+                }}>
+                  {notification.description}
+                </p>
+              )}
+
+              {/* Message Content - Centered Box */}
+              <div style={{
+                padding: '20px',
+                backgroundColor: '#fffbeb',
+                borderRadius: '10px',
+                border: '2px solid #fde68a',
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1
+              }}>
+                <p style={{
+                  margin: 0,
+                  fontSize: '18px',
+                  lineHeight: '1.7',
+                  color: '#78350f',
+                  fontWeight: '500',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  letterSpacing: '0.3px',
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {notification.message}
+                </p>
+              </div>
+
+              {/* Decorative hearts */}
+              <div style={{
+                marginTop: '16px',
+                textAlign: 'center',
+                fontSize: '18px',
+                opacity: 0.6,
+                position: 'relative',
+                zIndex: 1
+              }}>
+                💛 ✨ 💛
+              </div>
             </div>
           ))}
         </div>

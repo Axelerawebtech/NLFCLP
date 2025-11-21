@@ -2513,51 +2513,13 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
 
           {task.taskType === 'interactive-field' && task.content && (
             <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px' }}>
-              {task.content.fieldType === 'textarea' && (task.content.problemLabel || task.content.solutionLabel) ? (
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ flex: 1 }}>
-                    <textarea
-                      placeholder={task.content.problemLabel || 'Problem'}
-                      disabled
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        fontSize: '13px',
-                        border: '1px solid #86efac',
-                        borderRadius: '6px',
-                        backgroundColor: '#f0fdf4',
-                        color: '#15803d',
-                        fontFamily: 'inherit',
-                        resize: 'none'
-                      }}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <textarea
-                      placeholder={task.content.solutionLabel || 'Solution'}
-                      disabled
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        fontSize: '13px',
-                        border: '1px solid #86efac',
-                        borderRadius: '6px',
-                        backgroundColor: '#f0fdf4',
-                        color: '#15803d',
-                        fontFamily: 'inherit',
-                        resize: 'none'
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                task.content.placeholder && (
-                  <input
-                    type="text"
-                    placeholder={task.content.placeholder}
+              {/* Two textareas side by side */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <textarea
+                    placeholder="Write your problem here"
                     disabled
+                    rows={3}
                     style={{
                       width: '100%',
                       padding: '10px',
@@ -2565,11 +2527,31 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
                       border: '1px solid #86efac',
                       borderRadius: '6px',
                       backgroundColor: '#f0fdf4',
-                      color: '#15803d'
+                      color: '#15803d',
+                      fontFamily: 'inherit',
+                      resize: 'none'
                     }}
                   />
-                )
-              )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <textarea
+                    placeholder="Write your solution here"
+                    disabled
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      fontSize: '13px',
+                      border: '1px solid #86efac',
+                      borderRadius: '6px',
+                      backgroundColor: '#f0fdf4',
+                      color: '#15803d',
+                      fontFamily: 'inherit',
+                      resize: 'none'
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           )}
 

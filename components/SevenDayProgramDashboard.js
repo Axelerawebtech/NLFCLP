@@ -364,62 +364,44 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         return (
           <div key={task.taskId || index} style={taskStyle}>
             {taskHeader}
-            {task.content?.fieldType === 'textarea' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
-                {/* Problem Field */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
-                    {task.content?.problemLabel || 'Problem'}
-                  </label>
-                  <textarea
-                    placeholder="Describe the problem..."
-                    rows={4}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      fontSize: '14px',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '8px',
-                      fontFamily: 'inherit',
-                      resize: 'vertical'
-                    }}
-                  />
-                </div>
-
-                {/* Solution Field */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
-                    {task.content?.solutionLabel || 'Solution'}
-                  </label>
-                  <textarea
-                    placeholder="Write your solution..."
-                    rows={4}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      fontSize: '14px',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '8px',
-                      fontFamily: 'inherit',
-                      resize: 'vertical'
-                    }}
-                  />
-                </div>
+            {/* Two textareas side by side */}
+            <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
+              {/* Problem Field */}
+              <div style={{ flex: 1 }}>
+                <textarea
+                  placeholder="Write your problem here"
+                  rows={6}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '14px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    minHeight: '150px'
+                  }}
+                />
               </div>
-            ) : (
-              <textarea
-                placeholder={task.content?.placeholder || 'Write your thoughts...'}
-                style={{
-                  width: '100%',
-                  minHeight: '100px',
-                  padding: '12px',
-                  fontSize: '14px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontFamily: 'inherit'
-                }}
-              />
-            )}
+
+              {/* Solution Field */}
+              <div style={{ flex: 1 }}>
+                <textarea
+                  placeholder="Write your solution here"
+                  rows={6}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '14px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    minHeight: '150px'
+                  }}
+                />
+              </div>
+            </div>
           </div>
         );
 
@@ -678,128 +660,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         );
 
       case 'reminder':
-        const reminderContent = task.content || {};
-        const frequency = reminderContent.frequency || 'daily';
-        const time = reminderContent.reminderTime || '09:00';
-        const message = reminderContent.reminderMessage || task.description || 'Reminder';
-        const customInterval = reminderContent.customInterval || 60;
-        const weekDays = reminderContent.weekDays || [];
-        const targetAudience = reminderContent.targetAudience || 'all';
-        const targetLevels = reminderContent.targetLevels || [];
-
-        return (
-          <div key={task.taskId || index} style={{...taskStyle, backgroundColor: '#fffbeb', borderColor: '#fbbf24', borderWidth: '2px'}}>
-            {taskHeader}
-            
-            {/* Reminder Message */}
-            <div style={{ 
-              padding: '14px', 
-              backgroundColor: '#fef3c7', 
-              borderRadius: '10px',
-              border: '1px solid #fde68a',
-              marginTop: '12px',
-              marginBottom: '16px'
-            }}>
-              <p style={{ margin: 0, fontSize: '15px', color: '#78350f', lineHeight: '1.6', fontWeight: '500' }}>
-                {message}
-              </p>
-            </div>
-
-            {/* Reminder Details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {/* Frequency */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', minWidth: '90px' }}>
-                  📅 Frequency:
-                </span>
-                <div style={{ 
-                  padding: '6px 14px', 
-                  backgroundColor: '#dbeafe', 
-                  color: '#1e40af', 
-                  borderRadius: '8px', 
-                  fontWeight: '600',
-                  fontSize: '13px',
-                  flex: 1
-                }}>
-                  {frequency === 'daily' && '🗓️ Daily'}
-                  {frequency === 'weekly' && '📆 Weekly'}
-                  {frequency === 'custom' && `🔄 Every ${customInterval} minutes`}
-                </div>
-              </div>
-
-              {/* Days (for weekly) */}
-              {frequency === 'weekly' && weekDays.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', minWidth: '90px' }}>
-                    📌 Days:
-                  </span>
-                  <div style={{ 
-                    padding: '6px 14px', 
-                    backgroundColor: '#e0e7ff', 
-                    color: '#4338ca', 
-                    borderRadius: '8px', 
-                    fontWeight: '600',
-                    fontSize: '13px',
-                    flex: 1
-                  }}>
-                    {weekDays.join(', ')}
-                  </div>
-                </div>
-              )}
-
-              {/* Time (for daily/weekly) */}
-              {frequency !== 'custom' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', minWidth: '90px' }}>
-                    🕐 Time:
-                  </span>
-                  <div style={{ 
-                    padding: '6px 14px', 
-                    backgroundColor: '#fef3c7', 
-                    color: '#92400e', 
-                    borderRadius: '8px', 
-                    fontWeight: '600',
-                    fontSize: '13px',
-                    flex: 1
-                  }}>
-                    {time}
-                  </div>
-                </div>
-              )}
-
-              {/* Target Audience */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', minWidth: '90px' }}>
-                  👥 For:
-                </span>
-                <div style={{ 
-                  padding: '6px 14px', 
-                  backgroundColor: targetAudience === 'all' ? '#d1fae5' : '#fed7aa', 
-                  color: targetAudience === 'all' ? '#065f46' : '#9a3412', 
-                  borderRadius: '8px', 
-                  fontWeight: '600',
-                  fontSize: '13px',
-                  flex: 1
-                }}>
-                  {targetAudience === 'all' ? '✨ All Caregivers' : `🎯 ${targetLevels.join(', ')} Burden Level`}
-                </div>
-              </div>
-            </div>
-
-            {/* Info Note */}
-            <div style={{
-              marginTop: '14px',
-              padding: '10px 12px',
-              backgroundColor: '#fef3c7',
-              borderRadius: '8px',
-              border: '1px solid #fcd34d'
-            }}>
-              <p style={{ margin: 0, fontSize: '12px', color: '#92400e', lineHeight: '1.5' }}>
-                💡 You'll receive a notification at the scheduled time
-              </p>
-            </div>
-          </div>
-        );
+        // Reminders don't show as task cards on caregiver dashboard
+        // They only appear as popup notifications via NotificationManager
+        return null;
 
       default:
         return (
@@ -1458,8 +1321,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         </div>
       )}
 
-      {/* Reminder Display Card */}
-      <ReminderDisplayCard caregiverId={caregiverId} day={selectedDay} language="english" />
+      {/* Reminder Display Card - Hidden (reminders show as popups only) */}
+      {/* <ReminderDisplayCard caregiverId={caregiverId} day={selectedDay} language="english" /> */}
 
       {/* Progressive Content Info */}
       {programData.burdenTestCompleted && (
@@ -1872,7 +1735,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   <div style={{ marginBottom: '24px' }}>
                     <h4 style={styles.sectionTitle}>📝 Day {selectedDay} Content</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                      {selectedDayData.tasks.map((task, idx) => (
+                      {selectedDayData.tasks.filter(task => task.taskType !== 'reminder').map((task, idx) => (
                         <div key={task.taskId} style={{
                           padding: (task.taskType === 'video' || task.taskType === 'calming-video') ? '28px' : '20px',
                           backgroundColor: 'white',
@@ -2004,33 +1867,42 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                           )}
 
                           {task.taskType === 'interactive-field' && (
-                            <div style={{ marginTop: '12px' }}>
-                              {task.content.fieldType === 'textarea' ? (
+                            <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
+                              {/* Problem Field */}
+                              <div style={{ flex: 1 }}>
                                 <textarea
-                                  placeholder={task.content.placeholder || 'Enter your response...'}
+                                  placeholder="Write your problem here"
+                                  rows={6}
                                   style={{
                                     width: '100%',
                                     padding: '12px',
                                     fontSize: '14px',
-                                    border: '1px solid #d1d5db',
+                                    border: '2px solid #e5e7eb',
                                     borderRadius: '8px',
-                                    minHeight: '100px',
-                                    fontFamily: 'inherit'
+                                    fontFamily: 'inherit',
+                                    resize: 'vertical',
+                                    minHeight: '150px'
                                   }}
                                 />
-                              ) : (
-                                <input
-                                  type="text"
-                                  placeholder={task.content.placeholder || 'Enter your response...'}
+                              </div>
+
+                              {/* Solution Field */}
+                              <div style={{ flex: 1 }}>
+                                <textarea
+                                  placeholder="Write your solution here"
+                                  rows={6}
                                   style={{
                                     width: '100%',
                                     padding: '12px',
                                     fontSize: '14px',
-                                    border: '1px solid #d1d5db',
-                                    borderRadius: '8px'
+                                    border: '2px solid #e5e7eb',
+                                    borderRadius: '8px',
+                                    fontFamily: 'inherit',
+                                    resize: 'vertical',
+                                    minHeight: '150px'
                                   }}
                                 />
-                              )}
+                              </div>
                             </div>
                           )}
 

@@ -79,34 +79,103 @@ export default function ReminderDisplayCard({ caregiverId, day, language = 'engl
             <div
               key={reminder.taskId || index}
               style={{
-                padding: '18px',
-                backgroundColor: 'white',
-                border: '2px solid #fcd34d',
+                padding: '28px',
+                backgroundColor: '#ffffff',
+                border: '3px solid #fbbf24',
                 borderRadius: '12px',
-                boxShadow: '0 2px 8px rgba(251, 191, 36, 0.15)'
+                boxShadow: '0 10px 25px -5px rgba(251, 191, 36, 0.2), 0 8px 10px -6px rgba(251, 191, 36, 0.15)',
+                position: 'relative',
+                marginBottom: '8px'
               }}
             >
-              <div style={{ marginBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '24px' }}>🔔</span>
-                  <h4 style={{ margin: 0, fontWeight: '700', fontSize: '17px', color: '#1f2937' }}>
-                    {reminder.title || 'Reminder'}
-                  </h4>
-                </div>
-                <div style={{ 
-                  padding: '12px', 
-                  backgroundColor: '#fef3c7', 
-                  borderRadius: '8px',
-                  border: '1px solid #fde68a',
-                  marginBottom: '14px'
+              {/* Subtle decorative pattern */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: 0.08,
+                pointerEvents: 'none',
+                background: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
+                backgroundSize: '30px 30px',
+                borderRadius: '12px'
+              }} />
+
+              {/* Title with Icon */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '16px',
+                position: 'relative',
+                zIndex: 1
+              }}>
+                <span style={{ fontSize: '36px' }}>🔔</span>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '28px',
+                  fontWeight: '700',
+                  color: '#78350f',
+                  lineHeight: '1.2'
                 }}>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#78350f', lineHeight: '1.6', fontWeight: '500' }}>
-                    {message}
-                  </p>
-                </div>
+                  {reminder.title || 'Reminder'}
+                </h3>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Description */}
+              {reminder.description && (
+                <p style={{
+                  margin: '0 0 20px 48px',
+                  fontSize: '16px',
+                  color: '#92400e',
+                  lineHeight: '1.6',
+                  fontStyle: 'italic',
+                  position: 'relative',
+                  zIndex: 1
+                }}>
+                  {reminder.description}
+                </p>
+              )}
+
+              {/* Message Content - Centered Box */}
+              <div style={{
+                padding: '24px',
+                backgroundColor: '#fffbeb',
+                borderRadius: '10px',
+                border: '2px solid #fde68a',
+                textAlign: 'center',
+                marginBottom: '24px',
+                position: 'relative',
+                zIndex: 1
+              }}>
+                <p style={{
+                  margin: 0,
+                  fontSize: '20px',
+                  lineHeight: '1.8',
+                  color: '#78350f',
+                  fontWeight: '500',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  letterSpacing: '0.3px',
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {message}
+                </p>
+              </div>
+
+              {/* Decorative hearts */}
+              <div style={{
+                marginBottom: '20px',
+                textAlign: 'center',
+                fontSize: '20px',
+                opacity: 0.6,
+                position: 'relative',
+                zIndex: 1
+              }}>
+                💛 ✨ 💛
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', position: 'relative', zIndex: 1 }}>
                 {/* Frequency Badge */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600', minWidth: '80px' }}>
