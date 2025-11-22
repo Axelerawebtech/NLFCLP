@@ -19,7 +19,7 @@ const ZaritBurdenSchema = new mongoose.Schema({
     enum: ['mild', 'moderate', 'severe']
   },
   completedAt: { type: Date, default: Date.now }
-}, { strict: false }); // Allow additional fields
+}, { strict: false }); 
 
 const DailyTaskSchema = new mongoose.Schema({
   day: { type: Number, required: true }, // 0-7
