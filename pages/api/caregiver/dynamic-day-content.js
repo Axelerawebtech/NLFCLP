@@ -1,6 +1,6 @@
 import dbConnect from '../../../lib/mongodb';
 import ProgramConfig from '../../../models/ProgramConfig';
-import CaregiverProgram from '../../../models/CaregiverProgram';
+import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
 
 /**
  * API Route: /api/caregiver/dynamic-day-content
@@ -44,9 +44,29 @@ export default async function handler(req, res) {
       });
     }
 
-    // Get caregiver program data to determine burden level
-    const caregiverProgram = await CaregiverProgram.findOne({ caregiverId });
-    const burdenLevel = caregiverProgram?.burdenLevel || 'default';
+    // Find caregiver first (handle both string caregiverId and ObjectId)
+    const Caregiver = require('../../../models/Caregiver').default;
+    let caregiver = await Caregiver.findOne({ caregiverId });
+    
+    // If not found and the caregiverId looks like an ObjectId, try finding by _id
+    if (!caregiver && /^[0-9a-fA-F]{24}$/.test(caregiverId)) {
+      caregiver = await Caregiver.findById(caregiverId);
+    }
+    
+    if (!caregiver) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Caregiver not found',
+        searchedFor: caregiverId
+      });
+    }
+
+    // Get caregiver program data to determine burden level (use caregiver._id)
+    const caregiverProgram = await CaregiverProgram.findOne({ caregiverId: caregiver._id });
+    const programBurdenLevel = caregiverProgram?.burdenLevel || 'default';
+    const dayModule = caregiverProgram?.dayModules?.find(m => m.day === dayNumber);
+    const dynamicTestAssignedLevel = dayModule?.dynamicTest?.assignedLevel;
+    const dynamicTestCompleted = Boolean(dayModule?.dynamicTestCompleted || dayModule?.dynamicTest?.completedAt);
 
     // Find day configuration for specific language
     const dayConfig = config.dynamicDays?.find(
@@ -71,27 +91,18 @@ export default async function handler(req, res) {
       });
     }
 
+    const dayHasDynamicTest = Boolean(dayConfig.hasTest && dayConfig.testConfig);
+
     // Determine which level to show content from
-    let levelKey = 'default';
-    
-    if (dayConfig.hasTest && dayConfig.testConfig?.scoreRanges) {
-      // If day has test but caregiver hasn't taken it yet, show first level or default
-      if (burdenLevel && burdenLevel !== 'default') {
-        // Use caregiver's burden level if available
-        const matchingRange = dayConfig.testConfig.scoreRanges.find(
-          range => range.levelKey === burdenLevel
-        );
-        
-        if (matchingRange) {
-          levelKey = matchingRange.levelKey;
-        } else {
-          // Fallback to first level if burden level doesn't match
-          levelKey = dayConfig.testConfig.scoreRanges[0]?.levelKey || 'default';
-        }
-      } else {
-        // No burden level yet, use first level as default for days with tests
-        levelKey = dayConfig.testConfig.scoreRanges[0]?.levelKey || 'default';
+    let levelKey;
+    if (dayHasDynamicTest) {
+      levelKey = dynamicTestAssignedLevel || dayModule?.contentLevel || (programBurdenLevel !== 'default' ? programBurdenLevel : 'default');
+
+      if ((!levelKey || levelKey === 'default') && dayConfig.testConfig?.scoreRanges?.length) {
+        levelKey = dayConfig.testConfig.scoreRanges[0].levelKey || 'default';
       }
+    } else {
+      levelKey = dayConfig.defaultLevelKey || dayConfig.contentByLevel?.[0]?.levelKey || 'default';
     }
 
     // Get content for the level
@@ -120,37 +131,70 @@ export default async function handler(req, res) {
         content: extractLocalizedContent(task.content)
       }));
 
+    // Save tasks to the dayModule for progress tracking
+    if (caregiverProgram) {
+      const dayModule = caregiverProgram.dayModules?.find(m => m.day === dayNumber);
+      if (dayModule) {
+        console.log(`🔍 Day ${dayNumber} current state:`, {
+          existingTasksCount: dayModule.tasks?.length || 0,
+          newTasksCount: tasks.length,
+          existingTaskIds: dayModule.tasks?.map(t => t.taskId) || [],
+          newTaskIds: tasks.map(t => t.taskId)
+        });
+        
+        // Only update if tasks haven't been saved yet or are different
+        const tasksChanged = !dayModule.tasks || 
+                           dayModule.tasks.length !== tasks.length ||
+                           JSON.stringify(dayModule.tasks.map(t => t.taskId).sort()) !== 
+                           JSON.stringify(tasks.map(t => t.taskId).sort());
+        
+        console.log(`🔍 Day ${dayNumber} tasksChanged:`, tasksChanged);
+        
+        if (tasksChanged) {
+          dayModule.tasks = tasks;
+          caregiverProgram.markModified('dayModules');
+          await caregiverProgram.save({ validateBeforeSave: false });
+          console.log(`✅ Saved ${tasks.length} tasks to Day ${dayNumber} module`);
+        } else {
+          console.log(`ℹ️ Day ${dayNumber} tasks unchanged, skipping save`);
+        }
+      } else {
+        console.log(`⚠️ Day ${dayNumber} module not found in caregiverProgram`);
+      }
+    } else {
+      console.log(`⚠️ caregiverProgram not found`);
+    }
+
     // Prepare response
     const response = {
       success: true,
       dayNumber,
       language: lang,
       dayName: dayConfig.dayName || `Day ${dayNumber}`,
-      hasTest: dayConfig.hasTest,
-      burdenLevel,
+      hasTest: dayHasDynamicTest,
+      burdenLevel: levelKey || programBurdenLevel,
       levelLabel: levelConfig.levelLabel || '',
       tasks,
-      totalTasks: tasks.length
+      totalTasks: tasks.length,
+      testCompleted: dynamicTestCompleted
     };
 
-    // Include test configuration if day has test and caregiver hasn't completed it
-    if (dayConfig.hasTest && dayConfig.testConfig) {
-      const testCompleted = caregiverProgram?.day1?.burdenTestCompleted || false;
-      
-      if (!testCompleted) {
-        response.test = {
-          testName: dayConfig.testConfig.testName || '',
-          testType: dayConfig.testConfig.testType,
-          questions: dayConfig.testConfig.questions?.map(q => ({
-            id: q.id,
-            questionText: q.questionText || '',
-            options: q.options?.map(opt => ({
-              optionText: opt.optionText || '',
-              score: opt.score
-            }))
+    // Include test configuration for both pending and review states
+    if (dayHasDynamicTest) {
+      response.test = {
+        testName: dayConfig.testConfig.testName || '',
+        testType: dayConfig.testConfig.testType,
+        questions: dayConfig.testConfig.questions?.map(q => ({
+          id: q.id,
+          questionText: q.questionText || '',
+          options: q.options?.map(opt => ({
+            optionText: opt.optionText || '',
+            score: opt.score
           }))
-        };
-      }
+        })),
+        scoreRanges: dayConfig.testConfig.scoreRanges || []
+      };
+      response.testReadOnly = dynamicTestCompleted;
     }
 
     res.status(200).json(response);

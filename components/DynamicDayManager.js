@@ -31,6 +31,28 @@ export default function DynamicDayManager() {
     { code: 'hindi', label: 'हिंदी', flag: '🇮🇳' }
   ];
 
+  const toTitleCase = (text = '') =>
+    text.replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, (match) => match.toUpperCase())
+      .trim();
+
+  const resolveLevelLabel = (labelData) => {
+    if (!labelData) return '';
+    if (typeof labelData === 'string') return labelData;
+    if (typeof labelData === 'object') {
+      return labelData[selectedLanguage] || labelData.english || labelData.kannada || labelData.hindi || '';
+    }
+    return '';
+  };
+
+  const getLevelDisplayLabel = (levelConfig) => {
+    if (!levelConfig) return 'Level';
+    const label = resolveLevelLabel(levelConfig.label) || levelConfig.levelLabel;
+    if (label && label.trim()) return label;
+    if (levelConfig.levelKey) return toTitleCase(levelConfig.levelKey);
+    return 'Level';
+  };
+
   // Load all configured days for current language
   useEffect(() => {
     fetchDays();
@@ -594,10 +616,11 @@ export default function DynamicDayManager() {
                           fontWeight: '600',
                           cursor: 'pointer',
                           transition: 'all 0.2s',
-                          borderRadius: '8px 8px 0 0'
+                          borderRadius: '8px 8px 0 0',
+                          textTransform: 'capitalize'
                         }}
                       >
-                        {range.label[selectedLanguage]}
+                        {getLevelDisplayLabel(range)}
                       </motion.button>
                     ))}
                   </div>
@@ -609,7 +632,7 @@ export default function DynamicDayManager() {
             <motion.div layout style={{ marginBottom: '30px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#111827' }}>
-                  📝 Content Tasks {currentLevelConfig && `(${currentLevelConfig.levelLabel})`}
+                  📝 Content Tasks {currentLevelConfig && `(${getLevelDisplayLabel(currentLevelConfig)})`}
                 </h3>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -2614,49 +2637,119 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
             </div>
           )}
 
-          {task.taskType === 'interactive-field' && task.content && (
-            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px' }}>
-              {/* Two textareas side by side */}
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <div style={{ flex: 1 }}>
-                  <textarea
-                    placeholder="Write your problem here"
-                    disabled
-                    rows={3}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      fontSize: '13px',
-                      border: '1px solid #86efac',
-                      borderRadius: '6px',
-                      backgroundColor: '#f0fdf4',
-                      color: '#15803d',
-                      fontFamily: 'inherit',
-                      resize: 'none'
-                    }}
-                  />
+          {task.taskType === 'interactive-field' && task.content && (() => {
+            const fieldType = task.content.fieldType || 'text';
+            const problemLabel = task.content.problemLabel || 'Problem';
+            const solutionLabel = task.content.solutionLabel || 'Solution';
+            const placeholder = task.content.placeholder || 'Caregiver response...';
+            const previewStyles = {
+              wrapper: {
+                marginTop: '14px',
+                padding: '12px',
+                backgroundColor: '#dcfce7',
+                border: '1px solid #86efac',
+                borderRadius: '8px'
+              },
+              input: {
+                width: '100%',
+                padding: '10px',
+                fontSize: '13px',
+                border: '1px solid #86efac',
+                borderRadius: '6px',
+                backgroundColor: '#f0fdf4',
+                color: '#15803d',
+                fontFamily: 'inherit'
+              }
+            };
+
+            if (fieldType === 'textarea') {
+              return (
+                <div style={previewStyles.wrapper}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '12px', fontWeight: 600, color: '#15803d' }}>{problemLabel}</p>
+                      <textarea disabled rows={3} placeholder={placeholder} style={{ ...previewStyles.input, resize: 'none' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '12px', fontWeight: 600, color: '#15803d' }}>{solutionLabel}</p>
+                      <textarea disabled rows={3} placeholder="Describe the solution..." style={{ ...previewStyles.input, resize: 'none' }} />
+                    </div>
+                  </div>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <textarea
-                    placeholder="Write your solution here"
-                    disabled
-                    rows={3}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      fontSize: '13px',
-                      border: '1px solid #86efac',
-                      borderRadius: '6px',
-                      backgroundColor: '#f0fdf4',
-                      color: '#15803d',
-                      fontFamily: 'inherit',
-                      resize: 'none'
-                    }}
-                  />
+              );
+            }
+
+            if (fieldType === 'rating') {
+              return (
+                <div style={previewStyles.wrapper}>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 600, color: '#166534' }}>Caregiver sees a 1-5 rating scale</p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {[1, 2, 3, 4, 5].map(num => (
+                      <div key={num} style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        border: num === 3 ? '3px solid #f59e0b' : '2px solid #bbf7d0',
+                        backgroundColor: num === 3 ? '#fef3c7' : '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: '700',
+                        color: '#166534'
+                      }}>
+                        {num}
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#15803d' }}>
+                    Placeholder: {placeholder}
+                  </p>
                 </div>
+              );
+            }
+
+            if (fieldType === 'mood-selector') {
+              const moods = [
+                { emoji: '😌', label: 'Calm' },
+                { emoji: '😣', label: 'Stressed' },
+                { emoji: '😫', label: 'Overwhelmed' },
+                { emoji: '😊', label: 'Grateful' }
+              ];
+              return (
+                <div style={previewStyles.wrapper}>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 600, color: '#166534' }}>Caregiver picks one mood:</p>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {moods.map(mood => (
+                      <div key={mood.label} style={{
+                        flex: '1 0 120px',
+                        minWidth: '120px',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '2px solid #bbf7d0',
+                        backgroundColor: '#f0fdf4',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontWeight: '600',
+                        color: '#15803d'
+                      }}>
+                        <span style={{ fontSize: '24px' }}>{mood.emoji}</span>
+                        <span style={{ fontSize: '13px' }}>{mood.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div style={previewStyles.wrapper}>
+                <p style={{ margin: '0 0 6px 0', fontSize: '12px', fontWeight: 600, color: '#15803d' }}>Single text input</p>
+                <input type="text" disabled placeholder={placeholder} style={previewStyles.input} />
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {task.taskType === 'visual-cue' && task.content && (
             <div style={{ marginTop: '14px', padding: '14px', backgroundColor: '#fef2f2', border: '2px solid #fecaca', borderRadius: '8px' }}>

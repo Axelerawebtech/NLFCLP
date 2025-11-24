@@ -48,6 +48,35 @@ const DayModuleSchema = new mongoose.Schema({
     min: 0,
     max: 7
   },
+  // Legacy video tracking fields (for backward compatibility)
+  videoWatched: {
+    type: Boolean,
+    default: false
+  },
+  videoStartedAt: {
+    type: Date
+  },
+  videoCompletedAt: {
+    type: Date
+  },
+  videoId: {
+    type: String
+  },
+  videoTitle: {
+    english: { type: String },
+    kannada: { type: String },
+    hindi: { type: String }
+  },
+  videoUrl: {
+    english: { type: String },
+    kannada: { type: String },
+    hindi: { type: String }
+  },
+  content: {
+    english: { type: String },
+    kannada: { type: String },
+    hindi: { type: String }
+  },
   // Day-specific assessment (undefined for Day 0 initially)
   dailyAssessment: {
     type: DailyAssessmentSchema,
@@ -58,6 +87,19 @@ const DayModuleSchema = new mongoose.Schema({
     type: String,
     enum: ['low', 'moderate', 'high'],
     required: false // Make optional initially
+  },
+  // Dynamic day assessments/tests (e.g., custom admin-defined tests)
+  dynamicTest: {
+    testName: { type: String },
+    assignedLevel: { type: String },
+    totalScore: { type: Number },
+    burdenLevel: { type: String },
+    answers: [{ type: mongoose.Schema.Types.Mixed }],
+    completedAt: { type: Date }
+  },
+  dynamicTestCompleted: {
+    type: Boolean,
+    default: false
   },
   // Video and task completion
   videoCompleted: {
@@ -82,10 +124,36 @@ const DayModuleSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  taskResponses: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed
+  burdenTestCompleted: {
+    type: Boolean,
+    default: false
   },
+  burdenLevel: {
+    type: String,
+    enum: ['mild', 'moderate', 'severe'],
+    default: null
+  },
+  burdenScore: {
+    type: Number,
+    default: null
+  },
+  taskResponses: [{
+    taskId: { type: String, required: true },
+    taskType: { type: String, required: true },
+    responseText: { type: String },
+    responseData: { type: mongoose.Schema.Types.Mixed }, // Store full response (slider values, problem/solution, etc.)
+    completed: { type: Boolean, default: true },
+    completedAt: { type: Date, default: Date.now }
+  }],
+  // Store dynamic tasks definition for this day
+  tasks: [{
+    taskId: { type: String },
+    taskOrder: { type: Number },
+    taskType: { type: String },
+    title: { type: String },
+    description: { type: String },
+    content: { type: mongoose.Schema.Types.Mixed }
+  }],
   // Progress tracking
   progressPercentage: {
     type: Number,
@@ -99,6 +167,16 @@ const DayModuleSchema = new mongoose.Schema({
     default: function() {
       return this.day === 0; // Day 0 is always unlocked
     }
+  },
+  unlockedAt: {
+    type: Date
+  },
+  scheduledUnlockAt: {
+    type: Date
+  },
+  lastModifiedAt: {
+    type: Date,
+    default: Date.now
   },
   // Timing
   startedAt: {
@@ -154,6 +232,8 @@ const CaregiverProgramSchema = new mongoose.Schema({
   dailyTasks: [DailyTaskSchema],
   currentDay: { type: Number, default: 0 },
   overallProgress: { type: Number, default: 0 },
+  burdenTestScore: { type: Number, default: null },
+  burdenTestCompletedAt: { type: Date, default: null },
   // Flow responses for burden-specific content interactions
   flowResponses: {
     type: Map,
@@ -226,6 +306,32 @@ const CaregiverProgramSchema = new mongoose.Schema({
   }],
   supportTriggered: { type: Boolean, default: false },
   consecutiveNoCount: { type: Number, default: 0 },
+  customWaitTimes: {
+    day0ToDay1: { type: Number },
+    betweenDays: { type: Number }
+  },
+  dayUnlockSchedule: [{
+    day: { type: Number },
+    scheduledUnlockAt: { type: Date },
+    actualUnlockedAt: { type: Date },
+    unlockMethod: { type: String, enum: ['automatic', 'manual-admin'], default: 'automatic' }
+  }],
+  contentAssignedDynamically: { type: Boolean, default: false },
+  adminNotes: [{
+    note: { type: String },
+    addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+    addedAt: { type: Date, default: Date.now }
+  }],
+  lastNotifications: {
+    type: Map,
+    of: Date,
+    default: {}
+  },
+  language: {
+    type: String,
+    enum: ['english', 'kannada', 'hindi'],
+    default: 'english'
+  },
   // Admin actions log
   adminActions: [{
     action: { 
@@ -251,6 +357,7 @@ CaregiverProgramSchema.methods.initializeDayModules = function() {
   for (let i = 0; i <= 7; i++) {
     const dayModule = {
       day: i,
+      videoWatched: false,
       videoCompleted: false,
       videoProgress: 0,
       tasksCompleted: false,
@@ -418,6 +525,33 @@ CaregiverProgramSchema.methods.updateDayProgress = function(day) {
   this.calculateOverallProgress();
 };
 
+// Schedule day unlock based on wait time
+CaregiverProgramSchema.methods.scheduleDayUnlock = function(day, waitTimeHours) {
+  const previousDay = this.dayModules.find(m => m.day === day - 1);
+  if (!previousDay) return null;
+
+  const baseTime = previousDay.completedAt || previousDay.unlockedAt || new Date();
+  const scheduledUnlockAt = new Date(baseTime.getTime() + waitTimeHours * 60 * 60 * 1000);
+
+  const dayModule = this.dayModules.find(m => m.day === day);
+  if (dayModule) {
+    dayModule.scheduledUnlockAt = scheduledUnlockAt;
+  }
+
+  if (!Array.isArray(this.dayUnlockSchedule)) {
+    this.dayUnlockSchedule = [];
+  }
+
+  this.dayUnlockSchedule.push({
+    day,
+    scheduledUnlockAt,
+    actualUnlockedAt: null,
+    unlockMethod: 'automatic'
+  });
+
+  return scheduledUnlockAt;
+};
+
 // Check if next day should be unlocked
 CaregiverProgramSchema.methods.checkDayUnlock = function() {
   for (let i = 1; i <= 7; i++) {
@@ -442,8 +576,118 @@ CaregiverProgramSchema.methods.unlockDay = function(day, method = 'automatic') {
   dayModule.adminPermissionGranted = true;
   dayModule.unlockedAt = now;
   
+  if (!Array.isArray(this.dayUnlockSchedule)) {
+    this.dayUnlockSchedule = [];
+  }
+
+  const scheduleEntry = this.dayUnlockSchedule.find(s => s.day === day);
+  if (scheduleEntry) {
+    scheduleEntry.actualUnlockedAt = now;
+    scheduleEntry.unlockMethod = method;
+  } else {
+    this.dayUnlockSchedule.push({
+      day,
+      scheduledUnlockAt: now,
+      actualUnlockedAt: now,
+      unlockMethod: method
+    });
+  }
+  
   return true;
 };
+
+// Assign dynamic content (legacy helper retained for compatibility)
+CaregiverProgramSchema.methods.assignDynamicContent = async function(programConfig) {
+  if (!this.burdenLevel || this.contentAssignedDynamically) {
+    return false;
+  }
+
+  const contentRules = programConfig?.contentRules?.[this.burdenLevel];
+  if (!contentRules || !contentRules.days) {
+    return false;
+  }
+
+  for (let day = 2; day <= 7; day++) {
+    const dayContent = contentRules.days.get(String(day));
+    const dayModule = this.dayModules.find(m => m.day === day);
+
+    if (dayContent && dayModule) {
+      dayModule.videoId = dayContent.videoId;
+      dayModule.videoTitle = dayContent.videoTitle;
+      dayModule.videoUrl = dayContent.videoUrl;
+    }
+  }
+
+  this.contentAssignedDynamically = true;
+  return true;
+};
+
+// Complete a day module (legacy helper for older flows)
+CaregiverProgramSchema.methods.completeDayModule = function(day) {
+  const dayModule = this.dayModules.find(module => module.day === day);
+  if (dayModule) {
+    dayModule.videoWatched = true;
+    dayModule.tasksCompleted = true;
+    dayModule.completedAt = new Date();
+    dayModule.progressPercentage = 100;
+
+    const completedModules = this.dayModules.filter(module => module.progressPercentage === 100).length;
+    this.overallProgress = Math.round((completedModules / this.dayModules.length) * 100);
+    this.lastActiveAt = new Date();
+  }
+};
+
+// Store legacy daily task responses (used by older API routes)
+CaregiverProgramSchema.methods.addDailyTaskResponse = function(day, taskData) {
+  if (!Array.isArray(this.dailyTasks)) {
+    this.dailyTasks = [];
+  }
+
+  this.dailyTasks.push({
+    day,
+    ...taskData
+  });
+
+  if (this.burdenLevel === 'severe' && taskData.task1 === false && taskData.task2 === false) {
+    this.consecutiveNoCount = (this.consecutiveNoCount || 0) + 1;
+    if (this.consecutiveNoCount >= 3 && !this.supportTriggered) {
+      this.triggerSupportMessage();
+    }
+  } else {
+    this.consecutiveNoCount = 0;
+  }
+
+  this.lastActiveAt = new Date();
+};
+
+CaregiverProgramSchema.methods.triggerSupportMessage = function() {
+  this.supportTriggered = true;
+  this.notifications = this.notifications || [];
+  this.notifications.push({
+    message: 'It seems you are having a difficult week. Please call your nurse or Tele-MANAS (14416) for support.',
+    type: 'support'
+  });
+};
+
+function shouldReloadCaregiverProgramModel(existingModel) {
+  if (!existingModel) return false;
+
+  const dayModulesPath = existingModel.schema?.path('dayModules');
+  const taskResponsesPath = dayModulesPath?.schema?.path('taskResponses');
+  const responseSchema = taskResponsesPath?.schema;
+
+  const hasResponseText = responseSchema?.path('responseText');
+  const hasResponseData = responseSchema?.path('responseData');
+  const hasTaskType = responseSchema?.path('taskType');
+
+  // If any of the enhanced response fields are missing, force a reload so the new schema is applied
+  return !(hasResponseText && hasResponseData && hasTaskType);
+}
+
+if (shouldReloadCaregiverProgramModel(mongoose.models.CaregiverProgram)) {
+  console.warn('♻️ Reloading CaregiverProgram model with enhanced schema definitions');
+  mongoose.deleteModel('CaregiverProgram');
+}
 
 const CaregiverProgram = mongoose.models.CaregiverProgram || mongoose.model('CaregiverProgram', CaregiverProgramSchema);
 

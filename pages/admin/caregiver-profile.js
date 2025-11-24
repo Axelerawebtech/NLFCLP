@@ -671,7 +671,7 @@ export default function CaregiverProfile() {
           {/* Tabs */}
           <div style={styles.card}>
             <div style={styles.tabs}>
-              {['overview', 'progress', 'assessment', 'notes'].map((tab) => (
+              {['overview', 'progress', 'tasks', 'assessment', 'notes'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -893,8 +893,16 @@ export default function CaregiverProfile() {
                             <span style={day.tasksCompleted ? styles.checkIcon : styles.crossIcon}>
                               {day.tasksCompleted ? '✅' : '⭕'}
                             </span>
-                            <span style={{ color: '#6b7280' }}>Tasks</span>
+                            <span style={{ color: '#6b7280' }}>Tasks ({day.completedTasks || 0}/{day.totalTasks || 0})</span>
                           </div>
+                          {day.hasDynamicTest && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span style={day.dynamicTestCompleted ? styles.checkIcon : styles.crossIcon}>
+                                {day.dynamicTestCompleted ? '✅' : '⭕'}
+                              </span>
+                              <span style={{ color: '#6b7280' }}>Assessment</span>
+                            </div>
+                          )}
                           {day.completedAt && (
                             <div style={{ color: '#6b7280' }}>
                               <p style={{ fontSize: '0.75rem', margin: 0 }}>
@@ -903,9 +911,187 @@ export default function CaregiverProfile() {
                             </div>
                           )}
                         </div>
+                        
+                        {/* Task Progress Details */}
+                        {day.tasks && day.tasks.length > 0 && (
+                          <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
+                            <h5 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.75rem' }}>
+                              Task Progress ({day.completedTasks || 0}/{day.totalTasks || 0})
+                            </h5>
+                            <div style={{ display: 'grid', gap: '0.5rem' }}>
+                              {day.tasks.map((task, idx) => {
+                                const taskResponse = day.taskResponses?.find(tr => tr.taskId === task.taskId);
+                                const isCompleted = !!taskResponse;
+                                
+                                return (
+                                  <div key={idx} style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '0.5rem',
+                                    padding: '0.5rem',
+                                    backgroundColor: 'white',
+                                    borderRadius: '0.375rem',
+                                    border: `1px solid ${isCompleted ? '#10b981' : '#e5e7eb'}`
+                                  }}>
+                                    <span style={{ fontSize: '1.25rem' }}>
+                                      {isCompleted ? '✅' : '⏳'}
+                                    </span>
+                                    <div style={{ flex: 1 }}>
+                                      <p style={{ fontSize: '0.875rem', fontWeight: '500', color: '#111827', margin: 0 }}>
+                                        {task.title || task.taskType}
+                                      </p>
+                                      {taskResponse && (
+                                        <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
+                                          Response: {taskResponse.responseSummary || taskResponse.responseText || 'Completed'}
+                                          {taskResponse.completedAt && ` • ${new Date(taskResponse.completedAt).toLocaleString()}`}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <span style={{ 
+                                      fontSize: '0.75rem', 
+                                      color: '#6b7280',
+                                      backgroundColor: '#f3f4f6',
+                                      padding: '0.25rem 0.5rem',
+                                      borderRadius: '0.25rem'
+                                    }}>
+                                      {task.taskType}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Tasks Tab */}
+              {activeTab === 'tasks' && (
+                <div>
+                  <h3 style={styles.sectionTitle}>Task Responses & Progress</h3>
+                  {statistics.daysProgress.length === 0 ? (
+                    <p style={{ color: '#6b7280' }}>No task activity recorded yet.</p>
+                  ) : (
+                    statistics.daysProgress.map((day) => (
+                      <div key={`tasks-${day.day}`} style={styles.dayCard}>
+                        <div style={styles.dayHeader}>
+                          <div style={{ flex: 1 }}>
+                            <h4 style={styles.dayTitle}>Day {day.day}</h4>
+                            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                              {day.videoTitle || 'Program Content'}
+                            </p>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: '1.75rem', fontWeight: '700', color: '#2563eb', margin: 0 }}>
+                              {day.progressPercentage}%
+                            </p>
+                            <p style={{ fontSize: '0.75rem', color: '#6b7280' }}>({day.completedTasks || 0}/{day.totalTasks || 0} tasks)</p>
+                          </div>
+                        </div>
+
+                        {day.tasks && day.tasks.length > 0 ? (
+                          <div style={{ display: 'grid', gap: '0.75rem' }}>
+                            {day.tasks.map((task) => {
+                              const taskResponse = day.taskResponses?.find(tr => tr.taskId === task.taskId);
+                              return (
+                                <div key={task.taskId} style={{
+                                  border: `1px solid ${taskResponse ? '#10b981' : '#e5e7eb'}`,
+                                  borderRadius: '0.5rem',
+                                  padding: '0.75rem',
+                                  backgroundColor: 'white'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                    <div>
+                                      <p style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: '#111827' }}>
+                                        {task.title || task.taskType}
+                                      </p>
+                                      <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0.15rem 0 0 0' }}>
+                                        {task.description || 'Task instructions'}
+                                      </p>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                      <span style={{
+                                        ...styles.badge,
+                                        ...(taskResponse ? styles.badgeGreen : styles.badgeGray)
+                                      }}>
+                                        {taskResponse ? 'Completed' : 'Pending'}
+                                      </span>
+                                      <p style={{ fontSize: '0.7rem', color: '#9ca3af', margin: '0.25rem 0 0 0' }}>
+                                        {task.taskType}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {taskResponse ? (
+                                    <div style={{ backgroundColor: '#f9fafb', borderRadius: '0.5rem', padding: '0.75rem' }}>
+                                      {taskResponse.responseSummary ? (
+                                        <p style={{ fontSize: '0.85rem', color: '#111827', margin: 0 }}>
+                                          <strong>Answer:</strong> {taskResponse.responseSummary}
+                                        </p>
+                                      ) : (
+                                        <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: 0 }}>
+                                          No written answer captured for this completion.
+                                        </p>
+                                      )}
+
+                                      {Array.isArray(taskResponse.responseDetails) && taskResponse.responseDetails.length > 0 && (
+                                        <div style={{ marginTop: '0.5rem', display: 'grid', gap: '0.35rem' }}>
+                                          {taskResponse.responseDetails.map((detail, idx) => (
+                                            <div key={`${task.taskId}-detail-${idx}`} style={{
+                                              display: 'flex',
+                                              justifyContent: 'space-between',
+                                              gap: '0.75rem',
+                                              fontSize: '0.78rem',
+                                              color: '#1f2937'
+                                            }}>
+                                              <span style={{ color: '#6b7280' }}>{detail.label}</span>
+                                              <span style={{ fontWeight: 600, textAlign: 'right' }}>{detail.value}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {taskResponse.responseData && (
+                                        <details style={{ marginTop: '0.5rem' }}>
+                                          <summary style={{ fontSize: '0.75rem', color: '#2563eb', cursor: 'pointer' }}>
+                                            View raw payload
+                                          </summary>
+                                          <pre style={{
+                                            marginTop: '0.5rem',
+                                            backgroundColor: '#fff',
+                                            borderRadius: '0.375rem',
+                                            padding: '0.5rem',
+                                            fontSize: '0.75rem',
+                                            color: '#374151',
+                                            overflowX: 'auto'
+                                          }}>
+                                            {JSON.stringify(taskResponse.responseData, null, 2)}
+                                          </pre>
+                                        </details>
+                                      )}
+
+                                      <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                                        Completed at: {taskResponse.completedAt ? new Date(taskResponse.completedAt).toLocaleString() : 'N/A'}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: 0 }}>
+                                      Awaiting caregiver response
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p style={{ color: '#9ca3af' }}>No tasks assigned for this day.</p>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
 
@@ -936,6 +1122,13 @@ export default function CaregiverProfile() {
                           {profileData?.assessments?.dailyModuleAssessments?.length || 0}
                         </p>
                         <p style={{ fontSize: '0.75rem', color: '#455a64' }}>Daily module assessments</p>
+                      </div>
+                      <div style={{ backgroundColor: '#ede9fe', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #c4b5fd' }}>
+                        <p style={styles.infoLabel}>Dynamic Tests</p>
+                        <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#6d28d9' }}>
+                          {profileData?.assessments?.dynamicTests?.length || 0}
+                        </p>
+                        <p style={{ fontSize: '0.75rem', color: '#4c1d95' }}>Personalized assessments completed</p>
                       </div>
                     </div>
                   </div>
@@ -1307,6 +1500,82 @@ export default function CaregiverProfile() {
                         <p style={{ color: '#6b7280', fontSize: '1rem' }}>No module assessments completed yet</p>
                         <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
                           Daily module assessments for Days 1-7 will appear here
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dynamic Tests Section */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={styles.sectionTitle}>🧪 Dynamic Test History</h3>
+                    {profileData?.assessments?.dynamicTests?.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {profileData.assessments.dynamicTests.map((test, index) => (
+                          <div key={`dynamic-test-${index}`} style={{
+                            backgroundColor: '#eef2ff',
+                            border: '1px solid #c7d2fe',
+                            borderRadius: '0.5rem',
+                            padding: '1rem'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                              <div>
+                                <span style={{
+                                  fontSize: '0.875rem',
+                                  fontWeight: '600',
+                                  color: '#4338ca',
+                                  backgroundColor: '#c7d2fe',
+                                  padding: '0.25rem 0.75rem',
+                                  borderRadius: '1rem'
+                                }}>
+                                  Day {test.day}
+                                </span>
+                                <p style={{ fontSize: '1rem', fontWeight: '600', color: '#312e81', margin: '0.5rem 0 0 0' }}>
+                                  {test.testName}
+                                </p>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4338ca', margin: 0 }}>
+                                  Score: {test.totalScore ?? '—'}
+                                </p>
+                                {test.assignedLevel && (
+                                  <span style={getBurdenLevelStyle(test.assignedLevel)}>
+                                    {test.assignedLevel?.toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0 0 0.5rem 0' }}>
+                              Completed: {test.completedAt ? new Date(test.completedAt).toLocaleString() : 'N/A'}
+                            </p>
+                            <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0 }}>
+                              Answers recorded: {test.answersCount || 0}
+                            </p>
+                            {test.raw && (
+                              <details style={{ marginTop: '0.75rem' }}>
+                                <summary style={{ fontSize: '0.75rem', color: '#4f46e5', cursor: 'pointer' }}>
+                                  View raw payload
+                                </summary>
+                                <pre style={{
+                                  marginTop: '0.5rem',
+                                  backgroundColor: '#fff',
+                                  borderRadius: '0.375rem',
+                                  padding: '0.75rem',
+                                  fontSize: '0.75rem',
+                                  color: '#1f2937',
+                                  overflowX: 'auto'
+                                }}>
+                                  {JSON.stringify(test.raw, null, 2)}
+                                </pre>
+                              </details>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+                        <p style={{ color: '#6b7280', fontSize: '1rem' }}>No dynamic tests completed yet</p>
+                        <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                          Personalized test attempts will appear here once completed
                         </p>
                       </div>
                     )}

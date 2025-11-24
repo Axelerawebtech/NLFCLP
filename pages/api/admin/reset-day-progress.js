@@ -1,5 +1,5 @@
 import dbConnect from '../../../lib/mongodb';
-import CaregiverProgram from '../../../models/CaregiverProgram';
+import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
 
 /**
  * API: /api/admin/reset-day-progress
@@ -50,8 +50,11 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: `Day ${day} module not found` });
     }
 
+    let dailyTasksChanged = false;
+
     // Reset video progress
     dayModule.videoWatched = false;
+    dayModule.videoCompleted = false;
     dayModule.videoProgress = 0;
     dayModule.videoStartedAt = null;
     dayModule.videoCompletedAt = null;
@@ -60,12 +63,29 @@ export default async function handler(req, res) {
     dayModule.audioCompleted = false;
     dayModule.audioCompletedAt = null;
 
-    // Reset task completion
+    // Reset task responses (new structure)
+    dayModule.taskResponses = [];
+    dayModule.tasksCompleted = false;
+    dayModule.completedAt = null;
+    
+    // Reset task completion (old structure - for compatibility)
     if (dayModule.tasks && dayModule.tasks.length > 0) {
       dayModule.tasks.forEach(task => {
         task.completed = false;
         task.completedAt = null;
       });
+    }
+
+    // Remove consolidated daily task logs for this day
+    if (Array.isArray(program.dailyTasks) && program.dailyTasks.length > 0) {
+      const filteredDailyTasks = program.dailyTasks.filter(entry => entry?.day !== day);
+      if (filteredDailyTasks.length !== program.dailyTasks.length) {
+        program.dailyTasks = filteredDailyTasks;
+        dailyTasksChanged = true;
+      }
+    } else if (program.dailyTasks) {
+      program.dailyTasks = [];
+      dailyTasksChanged = true;
     }
 
     // Special handling for Day 1 - burden test reset
@@ -100,6 +120,9 @@ export default async function handler(req, res) {
 
     // Mark as modified
     program.markModified('dayModules');
+    if (dailyTasksChanged) {
+      program.markModified('dailyTasks');
+    }
     if (resetBurdenTest && day === 1) {
       program.markModified('zaritBurdenAssessment');
     }

@@ -72,6 +72,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [submittingTest, setSubmittingTest] = useState(false);
   const [quickResponses, setQuickResponses] = useState({}); // { taskId: { qIdx: responseValue } }
   const [submittingQuick, setSubmittingQuick] = useState({});
+  const [showTestReview, setShowTestReview] = useState(false);
+  
+  // Task-specific state for different task types (using taskId as key)
+  const [interactiveFieldState, setInteractiveFieldState] = useState({}); // { taskId: { problemText, solutionText } }
+  const [selectedActivities, setSelectedActivities] = useState({}); // { taskId: activityIndex }
+  const [selectedFeelings, setSelectedFeelings] = useState({}); // { taskId: feelingIndex }
+  const [sliderValues, setSliderValues] = useState({}); // { taskId: sliderValue }
 
   // Map language codes: en -> english, kn -> kannada, hi -> hindi
   const getLanguageKey = () => {
@@ -186,7 +193,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   videoTitle={task.title}
                   caregiverId={caregiverId}
                   day={selectedDay}
-                  onComplete={() => fetchProgramStatus()}
+                  onComplete={() => {
+                    handleTaskResponse(task.taskId, task.taskType, {
+                      responseText: 'Video watched',
+                      videoUrl: task.content.videoUrl,
+                      completed: true
+                    });
+                  }}
                 />
               </div>
             )}
@@ -283,6 +296,38 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   }}>
                     💛 ✨ 💛
                   </div>
+
+                  {/* Continue Button */}
+                  <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                    <button
+                      onClick={() => handleTaskResponse(task.taskId, task.taskType, {
+                        responseText: 'Message acknowledged',
+                        completed: true
+                      })}
+                      style={{
+                        padding: '14px 32px',
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                      }}
+                    >
+                      Continue ➜
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -290,7 +335,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         );
 
       case 'reflection-prompt':
-        const [sliderValue, setSliderValue] = useState(50);
+        const sliderValue = sliderValues[task.taskId] !== undefined ? sliderValues[task.taskId] : 50;
         return (
           <div key={task.taskId || index} style={{
             padding: '32px',
@@ -375,7 +420,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     min="0"
                     max="100"
                     value={sliderValue}
-                    onChange={(e) => setSliderValue(e.target.value)}
+                    onChange={(e) => setSliderValues(prev => ({ ...prev, [task.taskId]: e.target.value }))}
                     style={{
                       width: '100%',
                       height: '8px',
@@ -412,6 +457,39 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   }}>
                     💛 ✨ 💛
                   </div>
+
+                  {/* Submit Button */}
+                  <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                    <button
+                      onClick={() => handleTaskResponse(task.taskId, 'reflection-prompt', {
+                        responseText: `${sliderValue}% - ${task.content.reflectionQuestion}`,
+                        sliderValue: sliderValue,
+                        completed: true
+                      })}
+                      style={{
+                        padding: '14px 32px',
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                      }}
+                    >
+                      Submit Response ➜
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -428,56 +506,256 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 audioTitle={task.title}
                 caregiverId={caregiverId}
                 day={selectedDay}
-                onComplete={() => fetchProgramStatus()}
+                onComplete={() => {
+                  handleTaskResponse(task.taskId, task.taskType, {
+                    responseText: 'Audio listened',
+                    audioUrl: task.content.audioUrl,
+                    completed: true
+                  });
+                }}
               />
             )}
           </div>
         );
 
-      case 'interactive-field':
+      case 'interactive-field': {
+        const fieldType = task.content?.fieldType || 'text';
+        const fieldState = interactiveFieldState[task.taskId] || {};
+        const updateFieldState = (updates) => {
+          setInteractiveFieldState(prev => ({
+            ...prev,
+            [task.taskId]: { ...prev[task.taskId], ...updates }
+          }));
+        };
+
+        const problemLabel = task.content?.problemLabel || 'Problem';
+        const solutionLabel = task.content?.solutionLabel || 'Solution';
+        const singlePlaceholder = task.content?.placeholder || 'Type your response here';
+
+        const moods = [
+          { key: 'calm', label: 'Calm', emoji: '😌', color: '#22c55e' },
+          { key: 'stressed', label: 'Stressed', emoji: '😣', color: '#f97316' },
+          { key: 'overwhelmed', label: 'Overwhelmed', emoji: '😫', color: '#ef4444' },
+          { key: 'grateful', label: 'Grateful', emoji: '😊', color: '#3b82f6' }
+        ];
+
+        const handleInteractiveSubmit = () => {
+          if (fieldType === 'textarea') {
+            const problemText = (fieldState.problemText || '').trim();
+            const solutionText = (fieldState.solutionText || '').trim();
+            if (!problemText || !solutionText) {
+              alert('Please fill in both sections');
+              return;
+            }
+            handleTaskResponse(task.taskId, 'interactive-field', {
+              responseText: `${problemLabel}: ${problemText} | ${solutionLabel}: ${solutionText}`,
+              problem: problemText,
+              solution: solutionText,
+              fieldType,
+              completed: true
+            });
+            return;
+          }
+
+          if (fieldType === 'rating') {
+            if (!fieldState.rating) {
+              alert('Please select a rating before submitting');
+              return;
+            }
+            handleTaskResponse(task.taskId, 'interactive-field', {
+              responseText: `Rating: ${fieldState.rating}/5`,
+              rating: fieldState.rating,
+              fieldType,
+              completed: true
+            });
+            return;
+          }
+
+          if (fieldType === 'mood-selector') {
+            if (!fieldState.mood) {
+              alert('Please pick a mood to continue');
+              return;
+            }
+            const selectedMood = moods.find(m => m.key === fieldState.mood);
+            handleTaskResponse(task.taskId, 'interactive-field', {
+              responseText: `Mood: ${selectedMood?.label || fieldState.mood}`,
+              mood: selectedMood?.label || fieldState.mood,
+              fieldType,
+              completed: true
+            });
+            return;
+          }
+
+          const textValue = (fieldState.value || '').trim();
+          if (!textValue) {
+            alert('Please enter your response');
+            return;
+          }
+          handleTaskResponse(task.taskId, 'interactive-field', {
+            responseText: textValue,
+            value: textValue,
+            fieldType,
+            completed: true
+          });
+        };
+
         return (
           <div key={task.taskId || index} style={taskStyle}>
             {taskHeader}
-            {/* Two textareas side by side */}
-            <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-              {/* Problem Field */}
-              <div style={{ flex: 1 }}>
-                <textarea
-                  placeholder="Write your problem here"
-                  rows={6}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '14px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontFamily: 'inherit',
-                    resize: 'vertical',
-                    minHeight: '150px'
-                  }}
-                />
-              </div>
 
-              {/* Solution Field */}
-              <div style={{ flex: 1 }}>
-                <textarea
-                  placeholder="Write your solution here"
-                  rows={6}
+            {/* Text input */}
+            {fieldType === 'text' && (
+              <div style={{ marginTop: '12px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                  {task.description || 'Your Response'}
+                </label>
+                <input
+                  type="text"
+                  value={fieldState.value || ''}
+                  onChange={(e) => updateFieldState({ value: e.target.value })}
+                  placeholder={singlePlaceholder}
                   style={{
                     width: '100%',
                     padding: '12px',
                     fontSize: '14px',
                     border: '2px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontFamily: 'inherit',
-                    resize: 'vertical',
-                    minHeight: '150px'
+                    borderRadius: '8px'
                   }}
                 />
               </div>
+            )}
+
+            {/* Dual textarea layout */}
+            {fieldType === 'textarea' && (
+              <div style={{ display: 'flex', gap: '16px', marginTop: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{problemLabel}</label>
+                  <textarea
+                    value={fieldState.problemText || ''}
+                    onChange={(e) => updateFieldState({ problemText: e.target.value })}
+                    placeholder={task.content?.placeholder || 'Describe the challenge'}
+                    rows={6}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '14px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      minHeight: '150px'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{solutionLabel}</label>
+                  <textarea
+                    value={fieldState.solutionText || ''}
+                    onChange={(e) => updateFieldState({ solutionText: e.target.value })}
+                    placeholder="Share how you might respond"
+                    rows={6}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '14px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      minHeight: '150px'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Rating scale */}
+            {fieldType === 'rating' && (
+              <div style={{ marginTop: '12px' }}>
+                <p style={{ fontSize: '14px', color: '#374151', marginBottom: '12px', fontWeight: 600 }}>
+                  {task.description || 'How would you rate yourself right now?'}
+                </p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {[1, 2, 3, 4, 5].map(score => (
+                    <button
+                      key={score}
+                      onClick={() => updateFieldState({ rating: score })}
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '12px',
+                        border: fieldState.rating === score ? '3px solid #f59e0b' : '2px solid #fde68a',
+                        backgroundColor: fieldState.rating === score ? '#fef3c7' : 'white',
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {score}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Mood selector */}
+            {fieldType === 'mood-selector' && (
+              <div style={{ marginTop: '12px' }}>
+                <p style={{ fontSize: '14px', color: '#374151', marginBottom: '12px', fontWeight: 600 }}>
+                  {task.description || 'Select the mood that best matches you now:'}
+                </p>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  {moods.map((mood) => (
+                    <button
+                      key={mood.key}
+                      onClick={() => updateFieldState({ mood: mood.key })}
+                      style={{
+                        flex: '1 0 120px',
+                        minWidth: '120px',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        border: fieldState.mood === mood.key ? `3px solid ${mood.color}` : '2px solid #e5e7eb',
+                        backgroundColor: fieldState.mood === mood.key ? `${mood.color}15` : 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: '600',
+                        color: mood.color,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span style={{ fontSize: '28px' }}>{mood.emoji}</span>
+                      <span style={{ fontSize: '14px' }}>{mood.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <div style={{ marginTop: '16px', textAlign: 'right' }}>
+              <button
+                onClick={handleInteractiveSubmit}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Submit Response ➜
+              </button>
             </div>
           </div>
         );
+      }
 
       case 'task-checklist':
         return (
@@ -622,6 +900,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         );
 
       case 'activity-selector':
+        const selectedActivity = selectedActivities[task.taskId];
+        
         return (
           <div key={task.taskId || index} style={{
             padding: '32px',
@@ -689,28 +969,33 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     {task.content.activities.map((activity, idx) => (
                       <div 
                         key={idx} 
+                        onClick={() => setSelectedActivities(prev => ({ ...prev, [task.taskId]: idx }))}
                         style={{ 
                           padding: '16px', 
-                          backgroundColor: 'white', 
-                          border: '2px solid #fde68a',
+                          backgroundColor: selectedActivity === idx ? '#fef3c7' : 'white', 
+                          border: selectedActivity === idx ? '2px solid #fbbf24' : '2px solid #fde68a',
                           borderRadius: '10px',
                           cursor: 'pointer',
                           transition: 'all 0.2s'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = '#fbbf24';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.2)';
+                          if (selectedActivity !== idx) {
+                            e.currentTarget.style.borderColor = '#fbbf24';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.2)';
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = '#fde68a';
-                          e.currentTarget.style.boxShadow = 'none';
+                          if (selectedActivity !== idx) {
+                            e.currentTarget.style.borderColor = '#fde68a';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
                           <div style={{ 
                             width: '40px', 
                             height: '40px', 
-                            backgroundColor: '#fef3c7', 
+                            backgroundColor: selectedActivity === idx ? '#fbbf24' : '#fef3c7', 
                             borderRadius: '8px',
                             display: 'flex',
                             alignItems: 'center',
@@ -718,7 +1003,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                             fontSize: '20px',
                             flexShrink: 0
                           }}>
-                            ✨
+                            {selectedActivity === idx ? '✓' : '✨'}
                           </div>
                           <div style={{ flex: 1 }}>
                             <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '600', color: '#78350f' }}>
@@ -734,6 +1019,45 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       </div>
                     ))}
                   </div>
+
+                  {/* Submit Button */}
+                  {selectedActivity !== null && (
+                    <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => {
+                          const activity = task.content.activities[selectedActivity];
+                          handleTaskResponse(task.taskId, 'activity-selector', {
+                            responseText: activity.activityName || `Activity ${selectedActivity + 1}`,
+                            selectedActivity: activity.activityName,
+                            activityDescription: activity.activityDescription,
+                            completed: true
+                          });
+                        }}
+                        style={{
+                          padding: '14px 32px',
+                          backgroundColor: '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                        }}
+                      >
+                        I've Chosen This Activity ➜
+                      </button>
+                    </div>
+                  )}
 
                   {/* Decorative hearts */}
                   <div style={{
@@ -757,7 +1081,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         );
 
       case 'feeling-check':
-        const [selectedFeeling, setSelectedFeeling] = useState(null);
+        const selectedFeeling = selectedFeelings[task.taskId];
         const feelings = [
           { emoji: '😊', label: 'Happy', color: '#10b981' },
           { emoji: '😐', label: 'Neutral', color: '#f59e0b' },
@@ -843,7 +1167,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     {feelings.map((feeling, idx) => (
                       <button
                         key={idx}
-                        onClick={() => setSelectedFeeling(idx)}
+                        onClick={() => setSelectedFeelings(prev => ({ ...prev, [task.taskId]: idx }))}
                         style={{
                           fontSize: '64px',
                           padding: '24px',
@@ -892,6 +1216,41 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   }}>
                     💛 ✨ 💛
                   </div>
+
+                  {/* Submit Button */}
+                  {selectedFeeling !== null && (
+                    <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleTaskResponse(task.taskId, 'feeling-check', {
+                          responseText: feelings[selectedFeeling].label,
+                          feeling: feelings[selectedFeeling].label,
+                          completed: true
+                        })}
+                        style={{
+                          padding: '14px 32px',
+                          backgroundColor: '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                        }}
+                      >
+                        Submit Feeling ➜
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -970,7 +1329,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
                     try {
                       setSubmittingQuick(prev => ({ ...prev, [task.taskId]: true }));
-                      const res = await fetch('/api/caregiver/daily-assessment', {
+                      
+                      // Save to daily-assessment API for record keeping
+                      await fetch('/api/caregiver/daily-assessment', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -983,15 +1344,16 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                         })
                       });
 
-                      const data = await res.json();
-                      if (res.ok && data.success) {
-                        alert('✅ Quick assessment saved');
-                        // Refresh program data
-                        await fetchProgramStatus();
-                      } else {
-                        console.error('Failed to save quick assessment', data);
-                        alert('Failed to save quick assessment');
-                      }
+                      // Also mark task as complete via handleTaskResponse for progress tracking
+                      await handleTaskResponse(task.taskId, 'quick-assessment', {
+                        responseText: 'Quick assessment completed',
+                        responses: responsesObj,
+                        questionTexts: questionTexts,
+                        totalQuestions: Object.keys(responsesObj).length,
+                        completed: true
+                      });
+
+                      alert('✅ Quick assessment saved');
                     } catch (err) {
                       console.error('Error submitting quick assessment', err);
                       alert('Error submitting quick assessment');
@@ -1051,6 +1413,26 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       fetchProgramStatus();
     }
   }, [currentLanguage]);
+
+  useEffect(() => {
+    setShowTestReview(false);
+    setTestAnswers({});
+  }, [selectedDay]);
+
+  useEffect(() => {
+    if (!programData) return;
+    const activeModule = programData.dayModules?.find(m => m.day === selectedDay);
+    if (!activeModule) return;
+
+    const storedAnswers = activeModule.dynamicTestResult?.answers;
+    if (activeModule.testCompleted && Array.isArray(storedAnswers) && storedAnswers.length > 0 && Object.keys(testAnswers).length === 0) {
+      const seededAnswers = {};
+      storedAnswers.forEach((score, idx) => {
+        seededAnswers[idx] = score;
+      });
+      setTestAnswers(seededAnswers);
+    }
+  }, [programData, selectedDay, testAnswers]);
 
   const styles = {
     container: {
@@ -1237,56 +1619,133 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 // Merge dynamic content into day module
                 const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
                 
+                console.log(`🔍 Day ${dayModule.day} - Database data BEFORE merge:`, {
+                  progressPercentage: baseModule.progressPercentage,
+                  taskResponsesCount: baseModule.taskResponses?.length || 0,
+                  uniqueTaskIds: [...new Set((baseModule.taskResponses || []).map(r => r.taskId))],
+                  tasksCount: baseModule.tasks?.length || 0
+                });
+                
+                // Calculate ACTUAL progress based on task responses vs content tasks
+                const contentTasks = (contentData.tasks || []).filter(t => t.taskType !== 'reminder');
+                const uniqueCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
+                const dayHasDynamicTest = Boolean(contentData.hasTest || baseModule.dynamicTest || baseModule.dynamicTestCompleted);
+                const dynamicTestCompleted = Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt);
+                const totalTasks = contentTasks.length + (dayHasDynamicTest ? 1 : 0);
+                const completedTasksCount = uniqueCompletedTaskIds.size + (dayHasDynamicTest && dynamicTestCompleted ? 1 : 0);
+                const calculatedProgress = totalTasks > 0 ? Math.round((completedTasksCount / totalTasks) * 100) : baseModule.progressPercentage || 0;
+                
+                console.log(`📊 Day ${dayModule.day} - Calculated progress:`, {
+                  completedTasks: completedTasksCount,
+                  totalTasks,
+                  calculatedProgress
+                });
+                
                 const mergedModule = {
                   ...baseModule,
                   dayName: contentData.dayName || `Day ${dayModule.day}`,
-                  hasTest: contentData.hasTest || false,
+                  hasTest: dayHasDynamicTest,
                   tasks: contentData.tasks || [],
-                  totalTasks: contentData.totalTasks || 0,
+                  totalTasks,
                   levelLabel: contentData.levelLabel || '',
+                  // USE CALCULATED PROGRESS instead of database value
+                  progressPercentage: calculatedProgress,
+                  taskResponses: baseModule.taskResponses || [],
+                  tasksCompleted: calculatedProgress === 100,
+                  completedTasks: completedTasksCount,
+                  videoCompleted: baseModule.videoCompleted || false,
+                  videoProgress: baseModule.videoProgress || 0,
+                  videoWatched: baseModule.videoWatched || false,
+                  audioCompleted: baseModule.audioCompleted || false,
+                  completedAt: calculatedProgress === 100 ? (baseModule.completedAt || new Date()) : baseModule.completedAt,
                   // Preserve burden assessment data from original day module
                   burdenTestCompleted: baseModule.burdenTestCompleted || false,
                   burdenLevel: baseModule.burdenLevel || contentData.burdenLevel || enhancedData.burdenLevel,
                   burdenScore: baseModule.burdenScore,
+                  testCompleted: Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt),
+                  dynamicTestResult: baseModule.dynamicTest || null,
                   // Add test if available
                   test: contentData.test || null
                 };
                 
-                console.log(`✅ Day ${dayModule.day} merged module:`, mergedModule);
+                console.log(`✅ Day ${dayModule.day} merged module - Progress: ${mergedModule.progressPercentage}%, Tasks: ${mergedModule.taskResponses?.length || 0}/${mergedModule.totalTasks}`);
                 
                 return mergedModule;
               } else {
                 console.warn(`⚠️ Day ${dayModule.day} content not found`);
                 const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
+                const fallbackHasTest = Boolean(baseModule.dynamicTest || baseModule.dynamicTestCompleted);
+                const fallbackCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
+                const fallbackTaskCount = Array.isArray(baseModule.tasks)
+                  ? baseModule.tasks.filter(task => task.taskType !== 'reminder').length
+                  : 0;
+                const fallbackTotalTasks = fallbackTaskCount + (fallbackHasTest ? 1 : 0);
+                const fallbackCompletedCount = fallbackCompletedTaskIds.size + (fallbackHasTest && Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt) ? 1 : 0);
                 
                 return {
                   ...baseModule,
                   tasks: [],
-                  totalTasks: 0,
+                  totalTasks: fallbackTotalTasks,
+                  hasTest: fallbackHasTest,
+                  // Preserve ALL progress data even when no content
+                  progressPercentage: baseModule.progressPercentage || 0,
+                  taskResponses: baseModule.taskResponses || [],
+                  tasksCompleted: fallbackTotalTasks > 0 ? (fallbackCompletedCount >= fallbackTotalTasks) : baseModule.tasksCompleted || false,
+                  completedTasks: fallbackCompletedCount,
+                  videoCompleted: baseModule.videoCompleted || false,
+                  videoProgress: baseModule.videoProgress || 0,
+                  completedAt: baseModule.completedAt,
                   // Preserve burden assessment data even when no content
                   burdenTestCompleted: baseModule.burdenTestCompleted || false,
                   burdenLevel: baseModule.burdenLevel || enhancedData.burdenLevel,
-                  burdenScore: baseModule.burdenScore
+                  burdenScore: baseModule.burdenScore,
+                  testCompleted: Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt),
+                  dynamicTestResult: baseModule.dynamicTest || null,
+                  test: null
                 };
               }
             } catch (contentError) {
               console.error(`❌ Error fetching content for Day ${dayModule.day}:`, contentError);
               const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
+              const fallbackHasTest = Boolean(baseModule.dynamicTest || baseModule.dynamicTestCompleted);
+              const fallbackCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
+              const fallbackTaskCount = Array.isArray(baseModule.tasks)
+                ? baseModule.tasks.filter(task => task.taskType !== 'reminder').length
+                : 0;
+              const fallbackTotalTasks = fallbackTaskCount + (fallbackHasTest ? 1 : 0);
+              const fallbackCompletedCount = fallbackCompletedTaskIds.size + (fallbackHasTest && Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt) ? 1 : 0);
               
               return {
                 ...baseModule,
                 tasks: [],
-                totalTasks: 0,
+                totalTasks: fallbackTotalTasks,
+                hasTest: fallbackHasTest,
+                // Preserve ALL progress data even on error
+                progressPercentage: baseModule.progressPercentage || 0,
+                taskResponses: baseModule.taskResponses || [],
+                tasksCompleted: fallbackTotalTasks > 0 ? (fallbackCompletedCount >= fallbackTotalTasks) : baseModule.tasksCompleted || false,
+                completedTasks: fallbackCompletedCount,
+                videoCompleted: baseModule.videoCompleted || false,
+                videoProgress: baseModule.videoProgress || 0,
+                completedAt: baseModule.completedAt,
                 // Preserve burden assessment data even on error
                 burdenTestCompleted: baseModule.burdenTestCompleted || false,
                 burdenLevel: baseModule.burdenLevel || enhancedData.burdenLevel,
-                burdenScore: baseModule.burdenScore
+                burdenScore: baseModule.burdenScore,
+                testCompleted: Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt),
+                dynamicTestResult: baseModule.dynamicTest || null,
+                test: null
               };
             }
           });
           
           const enhancedDayModules = await Promise.all(contentPromises);
           enhancedData.dayModules = enhancedDayModules;
+          
+          // Recalculate overall progress client-side using merged data (8 total days: 0-7)
+          const TOTAL_DAYS = 8;
+          const totalProgress = enhancedDayModules.reduce((sum, module) => sum + (module.progressPercentage || 0), 0);
+          enhancedData.overallProgress = Math.round(totalProgress / TOTAL_DAYS);
           
           // Debug burden data mapping
           console.log('🔍 Enhanced data burden info:', {
@@ -1297,6 +1756,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         }
         
         setProgramData(enhancedData);
+        
+        console.log('🎯 FINAL programData after setState:', {
+          overallProgress: enhancedData.overallProgress,
+          dayModulesCount: enhancedData.dayModules?.length || 0,
+          day0Progress: enhancedData.dayModules?.find(m => m.day === 0)?.progressPercentage,
+          day0TaskResponses: enhancedData.dayModules?.find(m => m.day === 0)?.taskResponses?.length || 0
+        });
         
         // Auto-select day logic - prioritize Day 0 for new users
         if (!selectedDay || selectedDay === 0) {
@@ -1429,29 +1895,39 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
   const handleTaskResponse = async (taskId, taskType, responseData) => {
     try {
+      console.log(`🚀 Calling update-progress API for Day ${selectedDay}, Task: ${taskType} (${taskId})`);
+      
+      const payload = {
+        caregiverId,
+        day: selectedDay,
+        taskResponse: {
+          taskId,
+          taskType,
+          ...responseData,
+          completedAt: new Date().toISOString()
+        }
+      };
+      
+      console.log(`📤 Payload:`, JSON.stringify(payload, null, 2));
+      
       const response = await fetch('/api/caregiver/update-progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          caregiverId,
-          day: selectedDay,
-          taskResponse: {
-            taskId,
-            taskType,
-            ...responseData,
-            completedAt: new Date().toISOString()
-          }
-        })
+        body: JSON.stringify(payload)
       });
 
+      console.log(`📥 Response status:`, response.status);
+      
       if (response.ok) {
-        console.log(`✅ ${taskType} response saved:`, responseData);
+        const data = await response.json();
+        console.log(`✅ ${taskType} response saved. Server returned:`, data);
         fetchProgramStatus(); // Refresh to show updated responses
       } else {
-        console.error('Failed to save task response:', response.status);
+        const errorData = await response.text();
+        console.error('❌ Failed to save task response:', response.status, errorData);
       }
     } catch (err) {
-      console.error('Failed to save task response:', err);
+      console.error('❌ Failed to save task response:', err);
     }
   };
 
@@ -1460,11 +1936,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       setSubmittingTest(true);
       
       // Get current day data
-      const selectedDayData = programData.days[selectedDay];
+      const selectedDayData = programData.dayModules?.find(m => m.day === selectedDay);
       if (!selectedDayData?.test) {
         alert('Test configuration not found');
         return;
       }
+
+      const wasRetake = Boolean(selectedDayData?.testCompleted);
       
       const test = selectedDayData.test;
       const questions = test.questions || [];
@@ -1524,8 +2002,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       
       // Refresh program status to get updated content
       await fetchProgramStatus();
+      setShowTestReview(false);
       
-      alert(`Assessment complete! Your burden level: ${burdenLevel.charAt(0).toUpperCase() + burdenLevel.slice(1)}`);
+      const friendlyLevel = burdenLevel.charAt(0).toUpperCase() + burdenLevel.slice(1);
+      alert(`${wasRetake ? 'Assessment updated' : 'Assessment complete'}! Your burden level: ${friendlyLevel}`);
       
     } catch (error) {
       console.error('Error submitting test:', error);
@@ -1622,6 +2102,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     }
   };
 
+  const formatLevelName = (level) => {
+    if (!level || typeof level !== 'string') return 'Personalized';
+    return level.charAt(0).toUpperCase() + level.slice(1);
+  };
+
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
@@ -1645,7 +2130,21 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   }
 
   const selectedDayData = programData.dayModules?.find(m => m.day === selectedDay);
+  const hasDynamicDayContent = Boolean(
+    (selectedDayData?.tasks && selectedDayData.tasks.length > 0) ||
+    selectedDayData?.test
+  );
+  const shouldUseLegacyBurdenFlow = selectedDay === 1 && !hasDynamicDayContent;
+  const isDynamicTestPending = !shouldUseLegacyBurdenFlow && Boolean(selectedDayData?.test && !selectedDayData?.testCompleted);
   const burdenInfo = getBurdenLevelInfo(programData.burdenLevel);
+  const selectedDayTestResult = selectedDayData?.dynamicTestResult || null;
+  const personalizedLevelLabel = selectedDayData?.levelLabel || formatLevelName(
+    selectedDayTestResult?.assignedLevel ||
+    selectedDayTestResult?.burdenLevel ||
+    selectedDayData?.burdenLevel ||
+    programData.burdenLevel
+  );
+  const testCompletedAt = selectedDayTestResult?.completedAt ? new Date(selectedDayTestResult.completedAt) : null;
 
   return (
     <div style={styles.container}>
@@ -1847,8 +2346,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           </div>
           
           <div style={styles.contentBody}>
-            {/* Day 1 Special Handling: Burden Test → Video → Tasks */}
-            {selectedDay === 1 && (
+            {/* Legacy Day 1 Burden Assessment Flow */}
+            {shouldUseLegacyBurdenFlow && (
               <>
                 {/* Phase 1: Burden Test - INLINE (always show if test completed but no video available) */}
                 {(!selectedDayData.videoCompleted && (!getLocalizedText(selectedDayData.videoUrl) || !(selectedDayData.burdenTestCompleted || programData.burdenTestCompleted))) && (
@@ -2023,17 +2522,91 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               </>
             )}
 
-            {/* Other Days: Normal Video → Tasks Flow (including Day 0 with dynamic content) */}
-            {selectedDay !== 1 && (
+            {/* Dynamic Content Flow (Tests + Tasks) */}
+            {!shouldUseLegacyBurdenFlow && (
               <>
-                {/* Dynamic Test (if available and not completed) */}
-                {selectedDayData.test && !selectedDayData.testCompleted && (
+                {/* Dynamic Test Summary */}
+                {selectedDayData.testCompleted && (
+                  <div style={{
+                    marginBottom: '24px',
+                    padding: '20px',
+                    backgroundColor: '#ecfccb',
+                    borderRadius: '12px',
+                    border: '2px solid #bef264'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: isMobile ? 'column' : 'row',
+                      justifyContent: 'space-between',
+                      alignItems: isMobile ? 'flex-start' : 'center',
+                      gap: '16px'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 600, color: '#3f6212' }}>
+                          Assessment Complete
+                        </p>
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#1a2e05' }}>
+                          You are on the {personalizedLevelLabel} plan
+                        </h4>
+                        {selectedDayTestResult?.totalScore !== undefined && (
+                          <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#3f6212' }}>
+                            Score: <strong>{selectedDayTestResult.totalScore}</strong>
+                          </p>
+                        )}
+                        {testCompletedAt && (
+                          <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#3f6212' }}>
+                            Finished on {testCompletedAt.toLocaleString()}
+                          </p>
+                        )}
+                        <p style={{ margin: 0, fontSize: '13px', color: '#3f6212' }}>
+                          Today's tasks are unlocked and tailored to this level. Work through them one at a time below.
+                        </p>
+                      </div>
+                      <div style={{ minWidth: isMobile ? '100%' : '240px' }}>
+                        <button
+                          onClick={() => {
+                            if (!showTestReview && Array.isArray(selectedDayTestResult?.answers)) {
+                              const seededAnswers = {};
+                              selectedDayTestResult.answers.forEach((score, idx) => {
+                                seededAnswers[idx] = score;
+                              });
+                              setTestAnswers(seededAnswers);
+                            }
+                            setShowTestReview(prev => !prev);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            backgroundColor: '#84cc16',
+                            color: '#1a2e05',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '15px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 10px rgba(132, 204, 22, 0.35)'
+                          }}
+                        >
+                          {showTestReview ? 'Hide assessment' : 'Review or edit answers'}
+                        </button>
+                        <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#4d7c0f' }}>
+                          Need to make changes? Update your responses anytime—tasks will refresh instantly.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dynamic Test (active or review) */}
+                {selectedDayData.test && (!selectedDayData.testCompleted || showTestReview) && (
                   <div style={{ marginBottom: '24px', padding: '20px', backgroundColor: '#fef3c7', borderRadius: '12px', border: '2px solid #fbbf24' }}>
                     <h4 style={{ ...styles.sectionTitle, color: '#92400e' }}>
                       📊 {selectedDayData.test.testName || 'Assessment'}
                     </h4>
                     <p style={{ fontSize: '14px', color: '#78350f', marginBottom: '16px' }}>
-                      Please complete this assessment to personalize your content.
+                      {selectedDayData.testCompleted
+                        ? 'Update your answers if anything has changed. Saving will instantly refresh today’s tasks.'
+                        : 'Please complete this assessment to personalize your content.'}
                     </p>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -2096,7 +2669,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                         opacity: submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length ? 0.6 : 1
                       }}
                     >
-                      {submittingTest ? 'Submitting...' : 'Submit Assessment'}
+                      {submittingTest
+                        ? (selectedDayData.testCompleted ? 'Saving...' : 'Submitting...')
+                        : (selectedDayData.testCompleted ? 'Save Updated Answers' : 'Submit Assessment')}
                     </button>
                     
                     {Object.keys(testAnswers).length < selectedDayData.test.questions?.length && (
@@ -2107,8 +2682,88 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   </div>
                 )}
 
-                {/* Dynamic Tasks */}
-                {selectedDayData.tasks && selectedDayData.tasks.length > 0 && (
+                {/* Dynamic Tasks: Locked until assessment is finished when a test is configured */}
+                {isDynamicTestPending && selectedDayData.hasTest && (
+                  <div style={{
+                    marginBottom: '24px',
+                    padding: '20px',
+                    backgroundColor: '#fef3c7',
+                    borderRadius: '12px',
+                    border: '2px dashed #f59e0b',
+                    textAlign: 'center'
+                  }}>
+                    <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
+                      Please complete the assessment above to unlock your personalized tasks.
+                    </p>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#b45309' }}>
+                      Your answers determine the right difficulty level for today.
+                    </p>
+                  </div>
+                )}
+
+                {/* Dynamic Tasks: Show completed tasks, then ONE active task at a time */}
+                {selectedDayData.tasks && selectedDayData.tasks.length > 0 && !isDynamicTestPending && (() => {
+                  const allTasks = selectedDayData.tasks.filter(t => t.taskType !== 'reminder');
+                  const taskResponses = selectedDayData.taskResponses || [];
+                  const completedTaskIds = taskResponses.map(r => r.taskId);
+                  const completedCount = completedTaskIds.length;
+                  const totalCount = allTasks.length;
+                  const nextTask = allTasks.find(t => !completedTaskIds.includes(t.taskId));
+
+                  return (
+                    <div style={{ marginBottom: '24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                        <h4 style={styles.sectionTitle}>📝 Day {selectedDay} Tasks</h4>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#2563eb' }}>
+                          {completedCount} / {totalCount} completed
+                        </div>
+                      </div>
+
+                      {/* Completed tasks */}
+                      {taskResponses.length > 0 && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <h5 style={{ margin: '0 0 10px 0', fontSize: '15px', color: '#10b981' }}>✅ Completed</h5>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {taskResponses.map((resp, rIdx) => {
+                              const task = allTasks.find(t => t.taskId === resp.taskId) || {};
+                              return (
+                                <div key={rIdx} style={{ padding: '14px', backgroundColor: '#f0fdf4', border: '2px solid #86efac', borderRadius: '8px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ fontSize: '20px' }}>{getTaskIcon(task.taskType)}</span>
+                                    <div style={{ flex: 1 }}>
+                                      <strong style={{ fontSize: '15px', color: '#166534' }}>{task.title || resp.taskId}</strong>
+                                      {resp.responseText && <div style={{ marginTop: '4px', fontSize: '13px', color: '#166534' }}>{resp.responseText}</div>}
+                                      {resp.selectedItems && Array.isArray(resp.selectedItems) && resp.selectedItems.length > 0 && (
+                                        <div style={{ marginTop: '4px', fontSize: '13px', color: '#166534' }}>{resp.selectedItems.join(', ')}</div>
+                                      )}
+                                    </div>
+                                    <span style={{ fontSize: '18px' }}>✔️</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Next active task (ONE at a time) */}
+                      {nextTask ? (
+                        <div>
+                          <h5 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#2563eb' }}>👉 Current Task</h5>
+                          {renderDynamicTask(nextTask, 0)}
+                        </div>
+                      ) : (
+                        <div style={{ padding: '20px', backgroundColor: '#dcfce7', border: '2px solid #86efac', borderRadius: '12px', textAlign: 'center' }}>
+                          <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '16px' }}>🎉 All tasks completed for Day {selectedDay}!</p>
+                          <p style={{ margin: '8px 0 0 0', color: '#166534', fontSize: '14px' }}>Great job! Next day will unlock after the configured wait time.</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Hidden: Old all-tasks rendering (kept for reference) */}
+                {false && selectedDayData.tasks && selectedDayData.tasks.length > 0 && (
                   <div style={{ marginBottom: '24px' }}>
                     <h4 style={styles.sectionTitle}>📝 Day {selectedDay} Content</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

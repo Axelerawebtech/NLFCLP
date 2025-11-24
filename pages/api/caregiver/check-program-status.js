@@ -115,6 +115,12 @@ export default async function handler(req, res) {
         ? program.dayModules.filter(m => m.adminPermissionGranted).map(m => m.day)
         : [];
       
+      // Debug progress data for each day
+      console.log('📊 Day Modules Progress Summary:');
+      program.dayModules?.forEach(dm => {
+        console.log(`  Day ${dm.day}: ${dm.progressPercentage}% - Tasks: ${dm.taskResponses?.length || 0}, Total: ${dm.tasks?.length || 0}`);
+      });
+      
       // Debug burden status using enhanced model structure
       const day1Module = program.dayModules?.find(m => m.day === 1);
       const burdenAssessment = program.oneTimeAssessments?.find(
