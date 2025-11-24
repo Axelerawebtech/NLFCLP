@@ -302,10 +302,16 @@ export default function CaregiverProfile() {
   const [activeTab, setActiveTab] = useState('overview');
   const [noteText, setNoteText] = useState('');
   const [customWaitTime, setCustomWaitTime] = useState({ day0ToDay1: 24, betweenDays: 24 });
+  const [globalWaitTimes, setGlobalWaitTimes] = useState({ day0ToDay1: 24, betweenDays: 24 });
   const [showWaitTimeModal, setShowWaitTimeModal] = useState(false);
   const [resetDialog, setResetDialog] = useState(false);
   const [resetDayData, setResetDayData] = useState(null);
   const [success, setSuccess] = useState('');
+
+  const formatHours = (value) => {
+    const hours = Number(value) || 0;
+    return `${hours} hour${hours === 1 ? '' : 's'}`;
+  };
 
   useEffect(() => {
     if (id) {
@@ -338,8 +344,18 @@ export default function CaregiverProfile() {
         });
         
         setProfileData(data.data);
-        if (data.data.program?.customWaitTimes) {
-          setCustomWaitTime(data.data.program.customWaitTimes);
+
+        const defaultWaitTimes = data.data.waitTimeDefaults?.global || { day0ToDay1: 24, betweenDays: 24 };
+        setGlobalWaitTimes(defaultWaitTimes);
+
+        const caregiverOverrides = data.data.waitTimeDefaults?.caregiverOverrides;
+        if (caregiverOverrides) {
+          setCustomWaitTime({
+            day0ToDay1: caregiverOverrides.day0ToDay1 ?? defaultWaitTimes.day0ToDay1,
+            betweenDays: caregiverOverrides.betweenDays ?? defaultWaitTimes.betweenDays
+          });
+        } else {
+          setCustomWaitTime(defaultWaitTimes);
         }
         
         // Validate that one-time assessments are properly loaded
@@ -421,7 +437,8 @@ export default function CaregiverProfile() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           caregiverId: id, 
-          ...customWaitTime
+          day0ToDay1: Number(customWaitTime.day0ToDay1) || 0,
+          betweenDays: Number(customWaitTime.betweenDays) || 0
         })
       });
       
@@ -562,7 +579,13 @@ export default function CaregiverProfile() {
     );
   }
 
-  const { caregiver, program, statistics, assessments } = profileData;
+  const { caregiver, program, statistics, assessments, waitTimeDefaults } = profileData;
+  const waitTimeOverrides = waitTimeDefaults?.caregiverOverrides || null;
+  const effectiveWaitTimes = {
+    day0ToDay1: waitTimeOverrides?.day0ToDay1 ?? globalWaitTimes.day0ToDay1,
+    betweenDays: waitTimeOverrides?.betweenDays ?? globalWaitTimes.betweenDays
+  };
+  const usingGlobalDefaults = !waitTimeOverrides;
 
   return (
     <>
@@ -666,6 +689,57 @@ export default function CaregiverProfile() {
                 <div style={{ fontSize: '2.5rem' }}>🎯</div>
               </div>
             </div>
+          </div>
+
+          {/* Wait Time Summary */}
+          <div style={styles.card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#111827' }}>Wait Time Settings</h2>
+                <p style={{ marginTop: '0.25rem', color: '#6b7280', fontSize: '0.95rem' }}>
+                  Global defaults apply to every caregiver unless you set an override below.
+                </p>
+              </div>
+              <div>
+                <span style={{
+                  ...styles.badge,
+                  ...(usingGlobalDefaults ? styles.badgeGray : styles.badgeGreen)
+                }}>
+                  {usingGlobalDefaults ? 'Using global defaults' : 'Custom override active'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem', backgroundColor: '#f9fafb' }}>
+                <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: 0 }}>Global Day 0 ➜ Day 1</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2563eb', margin: '0.35rem 0 0' }}>
+                  {formatHours(globalWaitTimes.day0ToDay1)}
+                </p>
+              </div>
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem', backgroundColor: '#f9fafb' }}>
+                <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: 0 }}>Global Between Days</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2563eb', margin: '0.35rem 0 0' }}>
+                  {formatHours(globalWaitTimes.betweenDays)}
+                </p>
+              </div>
+              <div style={{ border: '1px solid #d1fae5', borderRadius: '0.75rem', padding: '1rem', backgroundColor: '#ecfdf5' }}>
+                <p style={{ fontSize: '0.85rem', color: '#047857', margin: 0 }}>This Caregiver: Day 0 ➜ Day 1</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#047857', margin: '0.35rem 0 0' }}>
+                  {formatHours(effectiveWaitTimes.day0ToDay1)}
+                </p>
+              </div>
+              <div style={{ border: '1px solid #d1fae5', borderRadius: '0.75rem', padding: '1rem', backgroundColor: '#ecfdf5' }}>
+                <p style={{ fontSize: '0.85rem', color: '#047857', margin: 0 }}>This Caregiver: Between Days</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#047857', margin: '0.35rem 0 0' }}>
+                  {formatHours(effectiveWaitTimes.betweenDays)}
+                </p>
+              </div>
+            </div>
+
+            <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.85rem' }}>
+              Unlock schedules shown on the progress tab use the values above. Use the button at the top of this page to adjust overrides for this caregiver.
+            </p>
           </div>
 
           {/* Tabs */}
@@ -1690,10 +1764,19 @@ export default function CaregiverProfile() {
                 <input
                   type="number"
                   value={customWaitTime.day0ToDay1}
-                  onChange={(e) => setCustomWaitTime({ ...customWaitTime, day0ToDay1: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCustomWaitTime({
+                      ...customWaitTime,
+                      day0ToDay1: value === '' ? '' : Math.max(0, parseInt(value, 10) || 0)
+                    });
+                  }}
                   style={styles.input}
                   min="0"
                 />
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                  Global default: {formatHours(globalWaitTimes.day0ToDay1)}
+                </p>
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
@@ -1703,10 +1786,19 @@ export default function CaregiverProfile() {
                 <input
                   type="number"
                   value={customWaitTime.betweenDays}
-                  onChange={(e) => setCustomWaitTime({ ...customWaitTime, betweenDays: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCustomWaitTime({
+                      ...customWaitTime,
+                      betweenDays: value === '' ? '' : Math.max(0, parseInt(value, 10) || 0)
+                    });
+                  }}
                   style={styles.input}
                   min="0"
                 />
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                  Global default: {formatHours(globalWaitTimes.betweenDays)}
+                </p>
               </div>
               
               <div style={styles.buttonGroup}>

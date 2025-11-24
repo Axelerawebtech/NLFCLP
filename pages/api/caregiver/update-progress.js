@@ -89,11 +89,23 @@ export default async function handler(req, res) {
       };
 
       const doesDayHaveDynamicTest = async () => {
-        if (dayModule.dynamicTest || dayModule.dynamicTestCompleted) {
+        const localTestExists = Boolean(
+          dayModule.dynamicTestCompleted ||
+          (dayModule.dynamicTest && (
+            dayModule.dynamicTest.testName ||
+            dayModule.dynamicTest.assignedLevel ||
+            dayModule.dynamicTest.totalScore !== undefined ||
+            (Array.isArray(dayModule.dynamicTest.questions) && dayModule.dynamicTest.questions.length > 0) ||
+            (Array.isArray(dayModule.dynamicTest.answers) && dayModule.dynamicTest.answers.length > 0)
+          ))
+        );
+
+        if (localTestExists) {
           return true;
         }
+
         const dayConfig = await getDayConfig();
-        return Boolean(dayConfig?.hasTest);
+        return hasActiveDynamicTestConfig(dayConfig);
       };
       
       // Update video progress
@@ -197,7 +209,7 @@ export default async function handler(req, res) {
           if (!dayConfig) return [];
 
           let levelKey = 'default';
-          if (dayConfig.hasTest && dayConfig.testConfig?.scoreRanges?.length) {
+          if (hasActiveDynamicTestConfig(dayConfig) && dayConfig.testConfig?.scoreRanges?.length) {
             if (dayModule.contentLevel) {
               levelKey = dayModule.contentLevel;
             } else if (program.burdenLevel) {
@@ -237,7 +249,7 @@ export default async function handler(req, res) {
       };
 
       const deriveActionableTasks = tasks => Array.isArray(tasks)
-        ? tasks.filter(task => task.taskType !== 'reminder')
+        ? tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test')
         : [];
 
       let actionableTasks = deriveActionableTasks(allTasks);
@@ -309,13 +321,26 @@ export default async function handler(req, res) {
             configType: 'caregiver-specific',
             caregiverId
           }) || await ProgramConfig.findOne({ configType: 'global' });
-          
-          const waitTime = program.customWaitTimes?.betweenDays || config?.waitTimes?.betweenDays || 24;
-          const unlockTime = new Date(Date.now() + waitTime * 60 * 60 * 1000);
-          
+
+          const waitTime = (() => {
+            if (day === 0) {
+              return program.customWaitTimes?.day0ToDay1
+                ?? config?.waitTimes?.day0ToDay1
+                ?? 24;
+            }
+            return program.customWaitTimes?.betweenDays
+              ?? config?.waitTimes?.betweenDays
+              ?? 24;
+          })();
           const nextDayModule = program.dayModules.find(m => m.day === nextDay);
-          if (nextDayModule && !nextDayModule.scheduledUnlockAt) {
-            nextDayModule.scheduledUnlockAt = unlockTime;
+          if (nextDayModule && !nextDayModule.adminPermissionGranted) {
+            if (waitTime <= 0) {
+              program.unlockDay(nextDay, 'automatic');
+            } else {
+              const baseTime = dayModule.completedAt || new Date();
+              const unlockTime = new Date(baseTime.getTime() + waitTime * 60 * 60 * 1000);
+              nextDayModule.scheduledUnlockAt = unlockTime;
+            }
           }
         }
       }
@@ -449,4 +474,10 @@ function buildLanguagePreferenceOrder(language) {
     return [normalized, ...LANGUAGE_PRIORITY.filter(lang => lang !== normalized)];
   }
   return [...LANGUAGE_PRIORITY];
+}
+
+function hasActiveDynamicTestConfig(dayConfig) {
+  if (!dayConfig?.hasTest) return false;
+  const questions = dayConfig?.testConfig?.questions;
+  return Array.isArray(questions) && questions.length > 0;
 }

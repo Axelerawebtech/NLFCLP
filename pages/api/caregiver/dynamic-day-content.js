@@ -91,7 +91,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const dayHasDynamicTest = Boolean(dayConfig.hasTest && dayConfig.testConfig);
+    const dayHasDynamicTest = hasActiveDynamicTestConfig(dayConfig);
 
     // Determine which level to show content from
     let levelKey;
@@ -120,7 +120,7 @@ export default async function handler(req, res) {
 
     // Filter enabled tasks and sort by order
     const tasks = (levelConfig.tasks || [])
-      .filter(task => task.enabled)
+      .filter(task => task.enabled && task.taskType !== 'dynamic-test')
       .sort((a, b) => a.taskOrder - b.taskOrder)
       .map(task => ({
         taskId: task.taskId,
@@ -279,4 +279,10 @@ function extractLocalizedContent(content) {
   if (content.imageUrl) result.imageUrl = content.imageUrl;
 
   return result;
+}
+
+function hasActiveDynamicTestConfig(dayConfig) {
+  if (!dayConfig?.hasTest) return false;
+  const questions = dayConfig?.testConfig?.questions;
+  return Array.isArray(questions) && questions.length > 0;
 }

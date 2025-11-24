@@ -131,7 +131,8 @@ const DayModuleSchema = new mongoose.Schema({
   burdenLevel: {
     type: String,
     enum: ['mild', 'moderate', 'severe'],
-    default: null
+    set: (value) => (value === null || value === undefined ? undefined : value),
+    default: undefined
   },
   burdenScore: {
     type: Number,
@@ -294,7 +295,8 @@ const CaregiverProgramSchema = new mongoose.Schema({
   burdenLevel: { 
     type: String, 
     enum: ['mild', 'moderate', 'severe'], 
-    required: false // Make optional initially
+    required: false, // Make optional initially
+    set: (value) => (value === null || value === undefined ? undefined : value)
   },
   programStartedAt: { type: Date, default: Date.now },
   lastActiveAt: { type: Date, default: Date.now },

@@ -110,6 +110,35 @@ export default async function handler(req, res) {
         }
       }
       
+      // Load global wait-time defaults for countdown metadata
+      let globalConfig = null;
+      try {
+        globalConfig = await ProgramConfig.findOne({ configType: 'global' });
+      } catch (configErr) {
+        console.log('⚠️ Failed to load global program config for wait times:', configErr.message);
+      }
+
+      const globalWaitTimes = globalConfig?.waitTimes || { day0ToDay1: 24, betweenDays: 24 };
+
+      // Build countdown metadata for locked days
+      const countdownInfo = [];
+      const nowMs = now.getTime();
+      program.dayModules?.forEach(dm => {
+        if (dm.adminPermissionGranted || !dm.scheduledUnlockAt) return;
+        const unlockTime = new Date(dm.scheduledUnlockAt).getTime();
+        if (Number.isNaN(unlockTime)) return;
+
+        const hoursRemaining = Math.max(0, Math.ceil((unlockTime - nowMs) / (1000 * 60 * 60)));
+        const minutesRemaining = Math.max(0, Math.ceil((unlockTime - nowMs) / (1000 * 60)));
+
+        countdownInfo.push({
+          day: dm.day,
+          scheduledUnlockAt: dm.scheduledUnlockAt,
+          hoursRemaining,
+          minutesRemaining
+        });
+      });
+
       // Get available days
       const availableDays = program.dayModules
         ? program.dayModules.filter(m => m.adminPermissionGranted).map(m => m.day)
@@ -144,7 +173,12 @@ export default async function handler(req, res) {
           burdenLevel: program.burdenLevel,
           burdenTestCompleted: !!burdenAssessment, // Check oneTimeAssessments
           overallProgress: program.overallProgress,
-          oneTimeAssessments: program.oneTimeAssessments // Include assessment data
+          oneTimeAssessments: program.oneTimeAssessments, // Include assessment data
+          waitTimes: {
+            global: globalWaitTimes,
+            caregiverOverrides: program.customWaitTimes || null,
+            countdowns: countdownInfo
+          }
         }
       });
     } catch (error) {

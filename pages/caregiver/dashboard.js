@@ -24,25 +24,10 @@ import {
   AccordionDetails,
   Fab
 } from '@mui/material';
-import { 
-  FaSignOutAlt, 
-  FaSun, 
-  FaMoon, 
-  FaUserCircle, 
-  FaCalendarAlt, 
-  FaChartLine,
-  FaExclamationTriangle,
-  FaChevronDown,
-  FaLightbulb,
-  FaFileAlt,
-  FaCheckCircle,
-  FaPlayCircle,
-  FaBell
-} from 'react-icons/fa';
+import { FaSignOutAlt, FaSun, FaMoon, FaCalendarAlt, FaChartLine, FaExclamationTriangle, FaChevronDown, FaLightbulb, FaCheckCircle, FaPlayCircle, FaBell } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import ZaritBurdenAssessment from '../../components/ZaritBurdenAssessment';
 import ZaritBurdenAssessmentPreTest from '../../components/ZaritBurdenAssessmentPreTest';
 import NotificationSettings from '../../components/NotificationSettings';
 import SevenDayProgramDashboard from '../../components/SevenDayProgramDashboard';
@@ -55,8 +40,7 @@ export default function CaregiverDashboard() {
   // Enhanced state management - combining all functionality
   const [caregiverData, setCaregiverData] = useState(null);
   const [programData, setProgramData] = useState(null);
-  const [showAssessment, setShowAssessment] = useState(false);
-  const [currentView, setCurrentView] = useState('overview'); // overview, assessment, dailyContent, notifications
+  const [currentView, setCurrentView] = useState('overview'); // overview, sevenDayProgram, notifications, day1PreTest
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -81,6 +65,38 @@ export default function CaregiverDashboard() {
     fetchDashboardData();
     loadHealthTips();
   }, []);
+
+  const refreshProgramStatus = async (caregiverIdentifier) => {
+    if (!caregiverIdentifier) return;
+    try {
+      const statusResponse = await fetch(`/api/caregiver/check-program-status?caregiverId=${caregiverIdentifier}&_ts=${Date.now()}`);
+      if (!statusResponse.ok) {
+        console.warn('Program status request failed', statusResponse.status);
+        return;
+      }
+      const statusData = await statusResponse.json();
+      if (statusData?.success && statusData.data) {
+        const mergedProgram = (prevProgram) => ({
+          ...(prevProgram || {}),
+          ...statusData.data,
+          dayModules: statusData.data.dayModules || prevProgram?.dayModules || [],
+          waitTimes: statusData.data.waitTimes || prevProgram?.waitTimes
+        });
+        setProgramData((prev) => mergedProgram(prev));
+        const statusDay0 = statusData.data.dayModules?.find((module) => Number(module.day) === 0);
+        if (statusDay0) {
+          const percentage = typeof statusDay0.progressPercentage === 'number' ? statusDay0.progressPercentage : parseInt(statusDay0.progressPercentage, 10);
+          const statusCoreComplete = Boolean((!Number.isNaN(percentage) && percentage >= 100) || (statusDay0.videoCompleted && statusDay0.audioCompleted));
+          setCoreModuleCompleted(statusCoreComplete);
+        }
+        if (typeof statusData.data.currentDay === 'number') {
+          setCurrentDay(statusData.data.currentDay);
+        }
+      }
+    } catch (statusError) {
+      console.error('Failed to refresh program status:', statusError);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -115,14 +131,14 @@ export default function CaregiverDashboard() {
         setProgramData(data.program);
         
         // Check core module completion status - Day 0 is complete only when both video AND audio are completed
-        const day0Module = data.program?.dayModules?.[0];
+        const day0Module = data.program?.dayModules?.find((module) => Number(module.day) === 0);
         const coreModuleStatus = day0Module ? 
           (day0Module.videoCompleted && day0Module.audioCompleted) : false;
         setCoreModuleCompleted(coreModuleStatus);
         
         // Determine initial view based on program state
         if (!data.program) {
-          setCurrentView('assessment');
+          setCurrentView('overview');
         } else {
           // Default to 7-day program view for all users with a program
           setCurrentView('sevenDayProgram');
@@ -132,6 +148,9 @@ export default function CaregiverDashboard() {
         if (data.program?.currentDay) {
           setCurrentDay(data.program.currentDay);
         }
+
+        // Pull the latest program status so overview matches the 7-day tab
+        await refreshProgramStatus(userId);
       } else {
         console.error('API Error:', data);
         setError(data.error || 'Failed to load dashboard data');
@@ -164,12 +183,6 @@ export default function CaregiverDashboard() {
       }
     ];
     setHealthTips(tips);
-  };
-
-  const handleAssessmentComplete = (assessmentData) => {
-    setProgramData(assessmentData.program);
-    // After completing assessment, go to 7-day program view
-    setCurrentView('sevenDayProgram');
   };
 
   const handleStartDay1 = () => {
@@ -269,29 +282,62 @@ export default function CaregiverDashboard() {
     });
   };
 
-  // Helper function to check if all content has been viewed
-  const hasViewedAllContent = () => {
-    if (!programData || !programData.dayModules) return false;
-    
-    // Check if all available days have been completed
-    const availableDays = programData.dayModules.filter(module => module.adminPermissionGranted);
-    const completedDays = programData.dayModules.filter(module => module.progressPercentage === 100);
-    
-    // All available content must be completed
-    return availableDays.length > 0 && completedDays.length === availableDays.length;
+  const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
   };
 
-  // Helper function to check if assessment can be retaken
-  const canRetakeAssessment = () => {
-    if (!programData || !programData.zaritBurdenAssessment) return true; // First time taking
-    
-    const lastAssessmentDate = new Date(programData.zaritBurdenAssessment.completedAt);
-    const now = new Date();
-    const daysSinceLastAssessment = (now - lastAssessmentDate) / (1000 * 60 * 60 * 24);
-    
-    // Allow retaking if all content has been viewed AND it's been at least 7 days
-    return hasViewedAllContent() && daysSinceLastAssessment >= 7;
+  const dayModules = programData?.dayModules || [];
+  const normalizedCurrentDay = Number(programData?.currentDay ?? 0);
+  const coreModule = dayModules.find((module) => Number(module.day) === 0) || null;
+  const regularDayModules = dayModules.filter((module) => Number(module.day) > 0);
+  const completedDayCount = regularDayModules.filter((module) => module.progressPercentage === 100).length;
+  const unlockedDayCount = regularDayModules.filter((module) => module.adminPermissionGranted).length;
+  const lockedDayCount = Math.max(regularDayModules.length - unlockedDayCount, 0);
+  const currentDayModule = regularDayModules.find((module) => Number(module.day) === normalizedCurrentDay) || null;
+  const nextLockedDay = regularDayModules
+    .filter((module) => !module.adminPermissionGranted)
+    .sort((a, b) => Number(a.day) - Number(b.day))[0];
+  const totalAvailableSessions = regularDayModules.length + (coreModule ? 1 : 0);
+  const completedSessionCount = completedDayCount + (coreModuleCompleted ? 1 : 0);
+  const getDayModuleProgress = (module) => {
+    if (!module) return 0;
+    const percentage = typeof module.progressPercentage === 'number'
+      ? module.progressPercentage
+      : parseInt(module.progressPercentage, 10);
+    if (!Number.isNaN(percentage) && percentage >= 0) {
+      return percentage;
+    }
+    if (Number(module.day) === 0) {
+      let progress = 0;
+      if (module.videoCompleted) progress += 50;
+      if (module.audioCompleted) progress += 50;
+      return progress;
+    }
+    return 0;
   };
+  const overviewStatusMessage = (() => {
+    if (!programData) return 'Program content will appear here once your caregiver program is assigned.';
+    if (!coreModuleCompleted) return 'Complete the Core Module to unlock Day 1 of the program.';
+    if (coreModuleCompleted && completedDayCount === 0) {
+      return 'Great work completing Day 0! Day 1 content unlocks automatically based on your countdown.';
+    }
+    if (currentDayModule && currentDayModule.progressPercentage < 100) {
+      return `Continue with Day ${currentDayModule.day} to unlock upcoming content.`;
+    }
+    if (lockedDayCount > 0 && nextLockedDay) {
+      return `Day ${nextLockedDay.day} will unlock automatically after the countdown finishes.`;
+    }
+    if (completedDayCount === regularDayModules.length) {
+      return 'Great job! You have completed all available program days.';
+    }
+    return 'Start the next available day to keep your progress on track.';
+  })();
 
   if (loading) {
     return (
@@ -399,7 +445,6 @@ export default function CaregiverDashboard() {
             <Button
               variant={currentView === 'overview' ? 'contained' : 'outlined'}
               onClick={() => setCurrentView('overview')}
-              disabled={!programData}
               startIcon={<FaChartLine />}
             >
               Overview
@@ -417,19 +462,6 @@ export default function CaregiverDashboard() {
               }}
             >
               7-Day Program
-            </Button>
-            <Button
-              variant={currentView === 'assessment' ? 'contained' : 'outlined'}
-              onClick={() => setCurrentView('assessment')}
-              disabled={!canRetakeAssessment()}
-              startIcon={<FaUserCircle />}
-              title={
-                programData && programData.zaritBurdenAssessment && !canRetakeAssessment()
-                  ? 'Complete all program content before retaking the assessment'
-                  : ''
-              }
-            >
-              Assessment
             </Button>
             <Button
               variant={currentView === 'notifications' ? 'contained' : 'outlined'}
@@ -450,43 +482,6 @@ export default function CaregiverDashboard() {
           />
         )}
 
-        {currentView === 'assessment' && (
-          <>
-            {canRetakeAssessment() ? (
-              <ZaritBurdenAssessment
-                caregiverId={caregiverData?._id}
-                onComplete={handleAssessmentComplete}
-              />
-            ) : (
-              <Card sx={{ p: 3, textAlign: 'center', maxWidth: 600, mx: 'auto', mt: 4 }}>
-                <Typography variant="h5" gutterBottom color="primary">
-                  🔒 Assessment Locked
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  You have already completed the Zarit Burden Assessment. To maintain the 
-                  integrity of your care program, you can only retake this assessment after:
-                </Typography>
-                <Box sx={{ textAlign: 'left', mx: 'auto', maxWidth: 400 }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    ✅ Viewing all available program content
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    ⏰ Waiting at least 7 days since your last assessment
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ mt: 2, fontStyle: 'italic' }}>
-                  Current status: {hasViewedAllContent() ? '✅ All content viewed' : '❌ Complete remaining program content'}
-                </Typography>
-                {programData?.zaritBurdenAssessment?.completedAt && (
-                  <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                    Last assessment: {formatDate(programData.zaritBurdenAssessment.completedAt)}
-                  </Typography>
-                )}
-              </Card>
-            )}
-          </>
-        )}
-
         {/* Day 1 Pre-Test Assessment */}
         {currentView === 'day1PreTest' && (
           <ZaritBurdenAssessmentPreTest
@@ -504,23 +499,55 @@ export default function CaregiverDashboard() {
                   <Typography variant="h5" gutterBottom>
                     Program Overview
                   </Typography>
-                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    {overviewStatusMessage}
+                  </Typography>
+
                   <Grid container spacing={3}>
-                    <Grid item xs={12} sm={6}>
-                      <Box sx={{ textAlign: 'center' }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                         <Typography variant="h4" color="primary">
-                          {programData.currentDay}
+                          {programData.currentDay ?? 0}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Current Day
                         </Typography>
                       </Box>
                     </Grid>
-                    
-                    <Grid item xs={12} sm={6}>
-                      <Box sx={{ textAlign: 'center' }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                         <Typography variant="h4" color="success.main">
-                          {Math.round(programData.overallProgress)}%
+                          {completedSessionCount}/{totalAvailableSessions || 1}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Sessions Completed
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="h4" color="info.main">
+                          {unlockedDayCount}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Program Days Unlocked
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="h4" color="error.main">
+                          {lockedDayCount}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Locked Days
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="h4" color="success.dark">
+                          {Math.round(programData.overallProgress || 0)}%
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Overall Progress
@@ -541,109 +568,75 @@ export default function CaregiverDashboard() {
                   </Typography>
                   
                   <Grid container spacing={2}>
-                    {/* Day 0 - Core Module Card */}
-                    <Grid item xs={12} sm={6} md={4} lg={3}>
-                      <Card 
-                        variant="outlined"
-                        sx={{ 
-                          bgcolor: coreModuleCompleted ? 'success.light' : 'background.paper',
-                          border: programData.currentDay === 0 ? 2 : 1,
-                          borderColor: programData.currentDay === 0 ? 'primary.main' : 'divider'
-                        }}
-                      >
-                        <CardContent sx={{ p: 2 }}>
-                          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {coreModuleCompleted ? <FaCheckCircle color="green" /> : <FaPlayCircle />}
-                            Day 0 - Core Module
-                          </Typography>
-                          
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={(() => {
-                              const day0Module = programData.dayModules?.[0];
-                              if (!day0Module) return 0;
-                              // Calculate progress: video (50%) + audio (50%)
-                              let progress = 0;
-                              if (day0Module.videoCompleted) progress += 50;
-                              if (day0Module.audioCompleted) progress += 50;
-                              return progress;
-                            })()}
-                            sx={{ mb: 1, height: 8, borderRadius: 4 }}
-                          />
-                          
-                          <Typography variant="body2" color="text.secondary">
-                            {(() => {
-                              const day0Module = programData.dayModules?.[0];
-                              if (!day0Module) return '0% Complete';
-                              // Calculate progress: video (50%) + audio (50%)
-                              let progress = 0;
-                              if (day0Module.videoCompleted) progress += 50;
-                              if (day0Module.audioCompleted) progress += 50;
-                              return `${progress}% Complete`;
-                            })()}
-                          </Typography>
-                          
-                          {programData.currentDay === 0 && (
-                            <Chip 
-                              label="Current" 
-                              color="primary" 
-                              size="small" 
-                              sx={{ mt: 1 }}
-                            />
-                          )}
-                          {coreModuleCompleted && (
-                            <Chip 
-                              label="Completed" 
-                              color="success" 
-                              size="small" 
-                              sx={{ mt: 1 }}
-                            />
-                          )}
-                        </CardContent>
-                      </Card>
-                    </Grid>
-
-                    {/* Regular Day 1-7 Cards - Filter out Day 0 to prevent duplication */}
                     {programData.dayModules
-                      ?.filter(dayModule => dayModule.day !== 0)
-                      ?.sort((a, b) => a.day - b.day)  // Sort by day number to ensure proper order
-                      ?.map((dayModule) => (
-                      <Grid item xs={12} sm={6} md={4} lg={3} key={dayModule.day}>
-                        <Card 
-                          variant="outlined"
-                          sx={{ 
-                            bgcolor: dayModule.progressPercentage === 100 ? 'success.light' : 'background.paper',
-                            border: dayModule.day === programData.currentDay ? 2 : 1,
-                            borderColor: dayModule.day === programData.currentDay ? 'primary.main' : 'divider'
-                          }}
-                        >
-                          <CardContent sx={{ p: 2 }}>
-                            <Typography variant="h6" gutterBottom>
-                              Day {dayModule.day}
-                            </Typography>
-                            
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={dayModule.progressPercentage}
-                              sx={{ mb: 1, height: 8, borderRadius: 4 }}
-                            />
-                            
-                            <Typography variant="body2" color="text.secondary">
-                              {dayModule.progressPercentage}% Complete
-                            </Typography>
-                            
-                            {dayModule.day === programData.currentDay && (
-                              <Chip 
-                                label="Current" 
-                                color="primary" 
-                                size="small" 
-                                sx={{ mt: 1 }}
-                              />
-                            )}
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
+                      ?.filter(dayModule => typeof dayModule.day !== 'undefined')
+                      ?.sort((a, b) => Number(a.day) - Number(b.day))
+                      ?.map((dayModule) => {
+                        const dayProgress = getDayModuleProgress(dayModule);
+                        const dayNumber = Number(dayModule.day);
+                        const isUnlocked = dayModule.adminPermissionGranted ?? dayNumber === 0;
+                        const isLocked = !isUnlocked;
+                        const isCompleted = dayProgress === 100;
+                        const isCurrent = dayNumber === normalizedCurrentDay;
+                        const statusLabel = isLocked
+                          ? 'Locked'
+                          : isCompleted
+                            ? 'Completed'
+                            : isCurrent
+                              ? 'In Progress'
+                              : 'Ready';
+                        const statusColor = isLocked
+                          ? 'default'
+                          : isCompleted
+                            ? 'success'
+                            : isCurrent
+                              ? 'primary'
+                              : 'info';
+                        return (
+                          <Grid item xs={12} sm={6} md={4} lg={3} key={dayModule.day}>
+                            <Card 
+                              variant="outlined"
+                              sx={{ 
+                                bgcolor: dayProgress === 100
+                                  ? 'success.light'
+                                  : (!isUnlocked ? 'grey.100' : 'background.paper'),
+                                border: isCurrent ? 2 : 1,
+                                borderColor: isCurrent ? 'primary.main' : 'divider',
+                                opacity: isUnlocked ? 1 : 0.7
+                              }}
+                            >
+                              <CardContent sx={{ p: 2 }}>
+                                <Typography variant="h6" gutterBottom>
+                                  Day {dayModule.day}
+                                </Typography>
+                                
+                                <LinearProgress 
+                                  variant="determinate" 
+                                  value={dayProgress}
+                                  sx={{ mb: 1, height: 8, borderRadius: 4 }}
+                                />
+                                
+                                <Typography variant="body2" color="text.secondary">
+                                  {dayProgress}% Complete
+                                </Typography>
+                                
+                                <Chip
+                                  label={statusLabel}
+                                  color={statusColor}
+                                  variant={isLocked ? 'outlined' : 'filled'}
+                                  size="small"
+                                  sx={{ mt: 1 }}
+                                />
+                                {!isUnlocked && dayModule.scheduledUnlockAt && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                                    Unlocks at {formatDateTime(dayModule.scheduledUnlockAt)}
+                                  </Typography>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        );
+                      })}
                   </Grid>
                 </CardContent>
               </Card>
@@ -726,19 +719,17 @@ export default function CaregiverDashboard() {
           </Grid>
         )}
 
-        {/* Welcome message for new users */}
-        {!programData && currentView === 'assessment' && (
+        {currentView === 'overview' && !programData && (
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h5" gutterBottom>
-                Welcome to the Caregiver Support Program!
+                Program Overview
               </Typography>
               <Typography variant="body1" paragraph>
-                We're glad you're here. To provide you with the most personalized support, 
-                we'll start with a brief assessment to understand your current caregiving situation.
+                {overviewStatusMessage}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                This assessment will help us tailor the 7-day program content to your specific needs.
+                If you believe this is an error, please contact your program administrator so they can assign the 7-day caregiver journey to your account.
               </Typography>
             </CardContent>
           </Card>

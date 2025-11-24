@@ -1389,6 +1389,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
   // Hover states
   const [hoveredDay, setHoveredDay] = useState(null);
+  const [countdownLookup, setCountdownLookup] = useState({});
   const [videoButtonHovered, setVideoButtonHovered] = useState(false);
   const [tasksButtonHovered, setTasksButtonHovered] = useState(false);
 
@@ -1587,6 +1588,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       if (data.success) {
         // Enhanced program data with dynamic content
         const enhancedData = { ...data.data };
+        const countdownMap = {};
+        if (data.data.waitTimes?.countdowns) {
+          data.data.waitTimes.countdowns.forEach(entry => {
+            countdownMap[entry.day] = entry;
+          });
+        }
+        setCountdownLookup(countdownMap);
         
         // Fetch dynamic day content for each available day
         if (enhancedData.dayModules && enhancedData.dayModules.length > 0) {
@@ -1627,9 +1635,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 });
                 
                 // Calculate ACTUAL progress based on task responses vs content tasks
-                const contentTasks = (contentData.tasks || []).filter(t => t.taskType !== 'reminder');
+                const contentTasks = (contentData.tasks || []).filter(
+                  t => t.taskType !== 'reminder' && t.taskType !== 'dynamic-test'
+                );
                 const uniqueCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
-                const dayHasDynamicTest = Boolean(contentData.hasTest || baseModule.dynamicTest || baseModule.dynamicTestCompleted);
+                const dayHasDynamicTest = Boolean(contentData.hasTest);
                 const dynamicTestCompleted = Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt);
                 const totalTasks = contentTasks.length + (dayHasDynamicTest ? 1 : 0);
                 const completedTasksCount = uniqueCompletedTaskIds.size + (dayHasDynamicTest && dynamicTestCompleted ? 1 : 0);
@@ -1645,7 +1655,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   ...baseModule,
                   dayName: contentData.dayName || `Day ${dayModule.day}`,
                   hasTest: dayHasDynamicTest,
-                  tasks: contentData.tasks || [],
+                  tasks: contentTasks,
                   totalTasks,
                   levelLabel: contentData.levelLabel || '',
                   // USE CALCULATED PROGRESS instead of database value
@@ -1677,14 +1687,18 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 const fallbackHasTest = Boolean(baseModule.dynamicTest || baseModule.dynamicTestCompleted);
                 const fallbackCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
                 const fallbackTaskCount = Array.isArray(baseModule.tasks)
-                  ? baseModule.tasks.filter(task => task.taskType !== 'reminder').length
+                  ? baseModule.tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test').length
                   : 0;
                 const fallbackTotalTasks = fallbackTaskCount + (fallbackHasTest ? 1 : 0);
                 const fallbackCompletedCount = fallbackCompletedTaskIds.size + (fallbackHasTest && Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt) ? 1 : 0);
                 
+                const sanitizedTasks = Array.isArray(baseModule.tasks)
+                  ? baseModule.tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test')
+                  : [];
+
                 return {
                   ...baseModule,
-                  tasks: [],
+                  tasks: sanitizedTasks,
                   totalTasks: fallbackTotalTasks,
                   hasTest: fallbackHasTest,
                   // Preserve ALL progress data even when no content
@@ -1710,14 +1724,18 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               const fallbackHasTest = Boolean(baseModule.dynamicTest || baseModule.dynamicTestCompleted);
               const fallbackCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
               const fallbackTaskCount = Array.isArray(baseModule.tasks)
-                ? baseModule.tasks.filter(task => task.taskType !== 'reminder').length
+                ? baseModule.tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test').length
                 : 0;
               const fallbackTotalTasks = fallbackTaskCount + (fallbackHasTest ? 1 : 0);
               const fallbackCompletedCount = fallbackCompletedTaskIds.size + (fallbackHasTest && Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt) ? 1 : 0);
               
+              const sanitizedTasks = Array.isArray(baseModule.tasks)
+                ? baseModule.tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test')
+                : [];
+
               return {
                 ...baseModule,
-                tasks: [],
+                tasks: sanitizedTasks,
                 totalTasks: fallbackTotalTasks,
                 hasTest: fallbackHasTest,
                 // Preserve ALL progress data even on error
@@ -2065,6 +2083,18 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     return `${hours}h ${minutes}m remaining`;
   };
 
+  const formatCountdownMeta = (meta) => {
+    if (!meta) return null;
+    if (meta.minutesRemaining <= 0) return 'Available now';
+    if (meta.hoursRemaining >= 24) {
+      const days = Math.ceil(meta.hoursRemaining / 24);
+      return `${days} day${days > 1 ? 's' : ''} remaining`;
+    }
+    const hours = Math.floor(meta.minutesRemaining / 60);
+    const minutes = meta.minutesRemaining % 60;
+    return `${hours}h ${minutes}m remaining`;
+  };
+
   const getBurdenLevelInfo = (level) => {
     switch (level?.toLowerCase()) {
       case 'mild':
@@ -2229,7 +2259,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           const isCompleted = dayModule.progressPercentage === 100;
           const isCurrent = dayModule.day === programData.currentDay;
           const isSelected = dayModule.day === selectedDay;
-          const timeRemaining = getTimeRemaining(dayModule.scheduledUnlockAt);
+          const countdownMeta = countdownLookup?.[dayModule.day] || null;
+          const timeRemaining = countdownMeta
+            ? formatCountdownMeta(countdownMeta)
+            : getTimeRemaining(dayModule.scheduledUnlockAt);
           
           return (
             <button
@@ -2703,7 +2736,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
                 {/* Dynamic Tasks: Show completed tasks, then ONE active task at a time */}
                 {selectedDayData.tasks && selectedDayData.tasks.length > 0 && !isDynamicTestPending && (() => {
-                  const allTasks = selectedDayData.tasks.filter(t => t.taskType !== 'reminder');
+                  const allTasks = selectedDayData.tasks.filter(
+                    t => t.taskType !== 'reminder' && t.taskType !== 'dynamic-test'
+                  );
                   const taskResponses = selectedDayData.taskResponses || [];
                   const completedTaskIds = taskResponses.map(r => r.taskId);
                   const completedCount = completedTaskIds.length;

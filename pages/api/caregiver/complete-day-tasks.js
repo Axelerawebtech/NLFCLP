@@ -1,5 +1,6 @@
 import dbConnect from '../../../lib/mongodb';
 import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
+import ProgramConfig from '../../../models/ProgramConfig';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -47,8 +48,44 @@ export default async function handler(req, res) {
     // Update progress for this day module
     program.updateDayProgress(day);
 
-    // Check if next day should be unlocked
-    program.checkDayUnlock();
+    let scheduledUnlockAt = null;
+    let autoUnlockedDay = null;
+
+    if (dayModule.progressPercentage === 100) {
+      const nextDay = day + 1;
+      if (nextDay <= 7) {
+        const config = await ProgramConfig.findOne({
+          configType: 'caregiver-specific',
+          caregiverId: caregiver._id
+        }) || await ProgramConfig.findOne({ configType: 'global' });
+
+        const resolveWaitTime = () => {
+          if (day === 0) {
+            return program.customWaitTimes?.day0ToDay1
+              ?? config?.waitTimes?.day0ToDay1
+              ?? 24;
+          }
+          return program.customWaitTimes?.betweenDays
+            ?? config?.waitTimes?.betweenDays
+            ?? 24;
+        };
+
+        const waitTimeHours = resolveWaitTime();
+        const nextDayModule = program.dayModules.find(module => module.day === nextDay);
+
+        if (nextDayModule && !nextDayModule.adminPermissionGranted) {
+          if (waitTimeHours <= 0) {
+            program.unlockDay(nextDay, 'automatic');
+            autoUnlockedDay = nextDay;
+          } else {
+            const baseTime = dayModule.completedAt || new Date();
+            const unlockTime = new Date(baseTime.getTime() + waitTimeHours * 60 * 60 * 1000);
+            nextDayModule.scheduledUnlockAt = unlockTime;
+            scheduledUnlockAt = unlockTime;
+          }
+        }
+      }
+    }
 
     // Update current day if this day is completed
     if (dayModule.progressPercentage === 100) {
@@ -79,11 +116,13 @@ export default async function handler(req, res) {
         day: dayModule.day,
         progressPercentage: dayModule.progressPercentage,
         tasksCompleted: dayModule.tasksCompleted,
-        completedAt: dayModule.completedAt
+        completedAt: dayModule.completedAt,
+        scheduledUnlockAt
       },
       program: {
         currentDay: program.currentDay,
-        overallProgress: program.overallProgress
+        overallProgress: program.overallProgress,
+        autoUnlockedDay
       }
     });
 

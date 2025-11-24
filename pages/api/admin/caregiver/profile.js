@@ -38,20 +38,24 @@ export default async function handler(req, res) {
         console.log('zaritBurdenAssessment data:', JSON.stringify(program.zaritBurdenAssessment, null, 2));
       }
       
-      // Try to fetch caregiver-specific config; fall back to global if needed
+      // Try to fetch caregiver-specific config alongside global defaults
       let customConfig = null;
+      let globalConfig = null;
       let effectiveConfig = null;
       try {
-        customConfig = await ProgramConfig.findOne({
-          configType: 'caregiver-specific',
-          caregiverId
-        });
-        if (customConfig) {
-          effectiveConfig = customConfig;
-        } else {
-          effectiveConfig = await ProgramConfig.findOne({ configType: 'global' });
-        }
+        const [custom, global] = await Promise.all([
+          ProgramConfig.findOne({
+            configType: 'caregiver-specific',
+            caregiverId
+          }),
+          ProgramConfig.findOne({ configType: 'global' })
+        ]);
+
+        customConfig = custom;
+        globalConfig = global;
+        effectiveConfig = customConfig || globalConfig;
         console.log('Custom config found:', customConfig ? 'Yes' : 'No');
+        console.log('Global config found:', globalConfig ? 'Yes' : 'No');
       } catch (configError) {
         console.log('ProgramConfig lookup failed:', configError.message);
       }
@@ -239,7 +243,9 @@ export default async function handler(req, res) {
           );
 
           // Load tasks (persisted or from config) for accurate counts
-          let tasks = Array.isArray(module.tasks) ? [...module.tasks] : [];
+          let tasks = Array.isArray(module.tasks)
+            ? module.tasks.filter(task => task?.taskType !== 'dynamic-test')
+            : [];
           if ((!tasks || tasks.length === 0) && effectiveConfig) {
             tasks = await resolveTasksFromConfig({
               config: effectiveConfig,
@@ -378,7 +384,11 @@ export default async function handler(req, res) {
           } : null,
           assessments: assessmentData,
           customConfig,
-          statistics
+          statistics,
+          waitTimeDefaults: {
+            global: globalConfig?.waitTimes || { day0ToDay1: 24, betweenDays: 24 },
+            caregiverOverrides: program?.customWaitTimes || null
+          }
         }
       });
     } catch (error) {
@@ -395,7 +405,7 @@ export default async function handler(req, res) {
 }
 
 const LANGUAGE_PRIORITY = ['english', 'kannada', 'hindi'];
-const NON_ACTIONABLE_TASK_TYPES = new Set(['reminder']);
+const NON_ACTIONABLE_TASK_TYPES = new Set(['reminder', 'dynamic-test']);
 
 async function resolveTasksFromConfig({ config, dayNumber, language, burdenLevel, contentLevel }) {
   const dayConfig = findDayConfig(config, dayNumber, language);
@@ -406,7 +416,7 @@ async function resolveTasksFromConfig({ config, dayNumber, language, burdenLevel
   if (!levelBlock?.tasks?.length) return [];
 
   return levelBlock.tasks
-    .filter(task => task.enabled)
+    .filter(task => task.enabled && task.taskType !== 'dynamic-test')
     .map(task => ({
       taskId: task.taskId,
       taskOrder: task.taskOrder,
@@ -739,7 +749,7 @@ function findDayConfig(config, dayNumber, language) {
 
 function determineContentLevelKey(dayConfig, { contentLevel, burdenLevel }) {
   if (!dayConfig) return contentLevel || 'default';
-  if (dayConfig.hasTest && dayConfig.testConfig?.scoreRanges?.length) {
+  if (hasActiveDynamicTestConfig(dayConfig) && dayConfig.testConfig?.scoreRanges?.length) {
     if (contentLevel) return contentLevel;
     if (burdenLevel) {
       const match = dayConfig.testConfig.scoreRanges.find(range =>
@@ -757,10 +767,15 @@ function determineContentLevelKey(dayConfig, { contentLevel, burdenLevel }) {
   return contentLevel || 'default';
 }
 
+function hasActiveDynamicTestConfig(dayConfig) {
+  if (!dayConfig?.hasTest) return false;
+  const questions = dayConfig?.testConfig?.questions;
+  return Array.isArray(questions) && questions.length > 0;
+}
+
 function buildDynamicTestTaskMeta({ dayModule, dayConfig }) {
-  const hasConfiguredTest = Boolean(dayConfig?.hasTest);
-  const hasRecordedTest = Boolean(dayModule?.dynamicTest || dayModule?.dynamicTestCompleted);
-  if (!hasConfiguredTest && !hasRecordedTest) {
+  const hasConfiguredTest = hasActiveDynamicTestConfig(dayConfig);
+  if (!hasConfiguredTest) {
     return null;
   }
 

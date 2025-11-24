@@ -1,5 +1,5 @@
 import dbConnect from '../../../../lib/mongodb';
-import CaregiverProgram from '../../../../models/CaregiverProgram';
+import CaregiverProgram from '../../../../models/CaregiverProgramEnhanced';
 
 export default async function handler(req, res) {
   await dbConnect();

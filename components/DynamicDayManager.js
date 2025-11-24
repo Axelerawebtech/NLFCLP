@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, Reorder, AnimatePresence } from 'framer-motion';
 
+const DEFAULT_TEST_OPTION_LABELS = {
+  english: ['Never', 'Rarely', 'Sometimes', 'Often', 'Always'],
+  kannada: ['ಎಂದಿಗೂ ಇಲ್ಲ', 'ಅಪರೂಪವಾಗಿ', 'ಕೆಲವೊಮ್ಮೆ', 'ಹೆಚ್ಚು ಬಾರಿ', 'ಯಾವಾಗಲೂ'],
+  hindi: ['कभी नहीं', 'कभी कभार', 'कभी-कभी', 'अक्सर', 'हमेशा']
+};
+
+const getDefaultOptionLabels = (language = 'english') => {
+  return DEFAULT_TEST_OPTION_LABELS[language] || DEFAULT_TEST_OPTION_LABELS.english;
+};
+
 /**
  * DynamicDayManager Component
  * 
@@ -24,6 +34,12 @@ export default function DynamicDayManager() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [showTestConfig, setShowTestConfig] = useState(false);
+  const [globalWaitTimes, setGlobalWaitTimes] = useState({ day0ToDay1: 24, betweenDays: 24 });
+  const [loadingGlobalWaits, setLoadingGlobalWaits] = useState(false);
+  const [savingGlobalWaits, setSavingGlobalWaits] = useState(false);
+  const [waitTimesMessage, setWaitTimesMessage] = useState('');
+  const [pendingTestConfig, setPendingTestConfig] = useState(null);
+  const [hasUnsavedTestConfig, setHasUnsavedTestConfig] = useState(false);
 
   const languages = [
     { code: 'english', label: 'English', flag: '🇺🇸' },
@@ -58,6 +74,73 @@ export default function DynamicDayManager() {
     fetchDays();
   }, [selectedLanguage]);
 
+  useEffect(() => {
+    fetchGlobalWaitTimes();
+  }, []);
+
+  const fetchGlobalWaitTimes = async () => {
+    try {
+      setLoadingGlobalWaits(true);
+      const res = await fetch('/api/admin/program/config');
+      const data = await res.json();
+      if (data.success && data.config?.waitTimes) {
+        setGlobalWaitTimes({
+          day0ToDay1: data.config.waitTimes.day0ToDay1 ?? 24,
+          betweenDays: data.config.waitTimes.betweenDays ?? 24
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load global wait times:', err);
+    } finally {
+      setLoadingGlobalWaits(false);
+    }
+  };
+
+  const handleTestConfigChange = (updatedConfig, markDirty = true) => {
+    setDayConfig(prev => ({
+      ...prev,
+      testConfig: updatedConfig
+    }));
+
+    if (markDirty) {
+      setPendingTestConfig(updatedConfig ? JSON.parse(JSON.stringify(updatedConfig)) : null);
+      setHasUnsavedTestConfig(true);
+    }
+  };
+
+  const handleUpdateGlobalWaitTimes = async () => {
+    try {
+      setSavingGlobalWaits(true);
+      setWaitTimesMessage('');
+      const waitTimesPayload = {
+        day0ToDay1: Number(globalWaitTimes.day0ToDay1) || 0,
+        betweenDays: Number(globalWaitTimes.betweenDays) || 0
+      };
+
+      const res = await fetch('/api/admin/program/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          configType: 'global',
+          waitTimes: waitTimesPayload
+        })
+      });
+
+      if (!res.ok) {
+        const payload = await res.json();
+        throw new Error(payload.message || 'Failed to update global wait times');
+      }
+
+      setWaitTimesMessage('✅ Global wait times updated');
+      setTimeout(() => setWaitTimesMessage(''), 4000);
+    } catch (err) {
+      console.error('Failed to update global wait times:', err);
+      setWaitTimesMessage(err.message || 'Failed to update wait times');
+    } finally {
+      setSavingGlobalWaits(false);
+    }
+  };
+
   const fetchDays = async () => {
     try {
       setLoading(true);
@@ -78,7 +161,7 @@ export default function DynamicDayManager() {
   };
 
   // Load specific day configuration for current language
-  const loadDayConfig = async (dayNum) => {
+  const loadDayConfig = async (dayNum, preserveTestConfig = false) => {
     try {
       setLoading(true);
       setError('');
@@ -86,10 +169,11 @@ export default function DynamicDayManager() {
       const data = await res.json();
       
       if (data.success) {
+        let mergedConfig;
         // Check if this is a new day (not yet configured)
         if (data.isNew || !data.dayConfig) {
           // Create new empty configuration
-          setDayConfig({
+          mergedConfig = {
             dayNumber: dayNum,
             language: selectedLanguage,
             dayName: '',
@@ -101,12 +185,12 @@ export default function DynamicDayManager() {
               tasks: []
             }],
             enabled: true
-          });
+          };
           setSelectedLevel('default');
           console.log(`✨ Creating new configuration for Day ${dayNum} (${selectedLanguage})`);
         } else {
           // Load existing configuration
-          setDayConfig(data.dayConfig);
+          mergedConfig = data.dayConfig;
           
           // Set default level
           if (data.dayConfig.hasTest && data.dayConfig.testConfig?.scoreRanges?.length > 0) {
@@ -116,6 +200,23 @@ export default function DynamicDayManager() {
           }
           console.log(`✅ Loaded configuration for Day ${dayNum} (${selectedLanguage})`);
         }
+
+        if (preserveTestConfig && hasUnsavedTestConfig) {
+          const clonedPending = pendingTestConfig
+            ? JSON.parse(JSON.stringify(pendingTestConfig))
+            : null;
+          mergedConfig = {
+            ...mergedConfig,
+            hasTest: Boolean(clonedPending),
+            testConfig: clonedPending
+          };
+          setPendingTestConfig(clonedPending);
+        } else {
+          setPendingTestConfig(null);
+          setHasUnsavedTestConfig(false);
+        }
+
+        setDayConfig(mergedConfig);
       } else {
         setError(data.error || 'Failed to load day configuration');
       }
@@ -149,6 +250,8 @@ export default function DynamicDayManager() {
       
       if (data.success) {
         alert(`✅ Day ${selectedDay} (${selectedLanguage}) saved successfully!`);
+        setPendingTestConfig(null);
+        setHasUnsavedTestConfig(false);
         await fetchDays();
       } else {
         setError(data.error);
@@ -168,7 +271,7 @@ export default function DynamicDayManager() {
       
       if (hasTest) {
         // Initialize test config with 3 default levels
-        updated.testConfig = {
+        const defaultTestConfig = {
           testName: '',
           testType: 'custom',
           questions: [],
@@ -196,6 +299,7 @@ export default function DynamicDayManager() {
             }
           ]
         };
+        updated.testConfig = defaultTestConfig;
 
         // Create content by level structure
         updated.contentByLevel = updated.testConfig.scoreRanges.map(range => ({
@@ -205,6 +309,8 @@ export default function DynamicDayManager() {
         }));
 
         setSelectedLevel('mild');
+        setPendingTestConfig(JSON.parse(JSON.stringify(defaultTestConfig)));
+        setHasUnsavedTestConfig(true);
       } else {
         // Reset to default level
         updated.testConfig = null;
@@ -214,6 +320,8 @@ export default function DynamicDayManager() {
           tasks: []
         }];
         setSelectedLevel('default');
+        setPendingTestConfig(null);
+        setHasUnsavedTestConfig(true);
       }
       
       return updated;
@@ -277,7 +385,7 @@ export default function DynamicDayManager() {
       }
       
       if (data.success) {
-        await loadDayConfig(selectedDay);
+        await loadDayConfig(selectedDay, true);
         await fetchDays(); // Refresh days list
         setShowAddTask(false);
         console.log('✅ Task added successfully');
@@ -306,7 +414,7 @@ export default function DynamicDayManager() {
       const data = await res.json();
       
       if (data.success) {
-        await loadDayConfig(selectedDay);
+        await loadDayConfig(selectedDay, true);
       } else {
         alert(data.error);
       }
@@ -354,7 +462,7 @@ export default function DynamicDayManager() {
     } catch (err) {
       console.error('Failed to save reordered tasks:', err);
       // Reload to get correct state
-      await loadDayConfig(selectedDay);
+      await loadDayConfig(selectedDay, true);
     }
   };
 
@@ -401,6 +509,120 @@ export default function DynamicDayManager() {
           ))}
         </div>
       </div>
+
+        {/* Global Wait Time Configuration */}
+        <div style={{
+          marginBottom: '24px',
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '20px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: '#111827' }}>
+                ⏱️ Global Wait Times
+              </h3>
+              <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '14px' }}>
+                Controls how long we wait before unlocking the next day for all caregivers (unless overridden per caregiver).
+              </p>
+            </div>
+            {waitTimesMessage && (
+              <span style={{ color: waitTimesMessage.startsWith('✅') ? '#059669' : '#b91c1c', fontWeight: 600 }}>
+                {waitTimesMessage}
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
+                Day 0 ➜ Day 1 (hours)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={globalWaitTimes.day0ToDay1 ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setGlobalWaitTimes(prev => ({
+                    ...prev,
+                    day0ToDay1: value === '' ? '' : Math.max(0, parseInt(value, 10) || 0)
+                  }));
+                }}
+                disabled={loadingGlobalWaits}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '2px solid #d1d5db',
+                  fontSize: '15px',
+                  backgroundColor: loadingGlobalWaits ? '#f3f4f6' : 'white'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
+                Between Days 1-9 (hours)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={globalWaitTimes.betweenDays ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setGlobalWaitTimes(prev => ({
+                    ...prev,
+                    betweenDays: value === '' ? '' : Math.max(0, parseInt(value, 10) || 0)
+                  }));
+                }}
+                disabled={loadingGlobalWaits}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '2px solid #d1d5db',
+                  fontSize: '15px',
+                  backgroundColor: loadingGlobalWaits ? '#f3f4f6' : 'white'
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleUpdateGlobalWaitTimes}
+              disabled={savingGlobalWaits || loadingGlobalWaits}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: savingGlobalWaits || loadingGlobalWaits ? '#9ca3af' : '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 600,
+                cursor: savingGlobalWaits || loadingGlobalWaits ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {savingGlobalWaits ? 'Saving...' : 'Update Wait Times'}
+            </button>
+            <button
+              onClick={fetchGlobalWaitTimes}
+              disabled={savingGlobalWaits}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: 'transparent',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                color: '#374151',
+                fontWeight: 600,
+                cursor: savingGlobalWaits ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Refresh Values
+            </button>
+          </div>
+        </div>
 
       <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '20px', color: '#111827' }}>
         🗓️ Dynamic Day Content Manager
@@ -577,10 +799,8 @@ export default function DynamicDayManager() {
                           <TestConfigEditor
                             testConfig={dayConfig.testConfig}
                             selectedLanguage={selectedLanguage}
-                            onChange={(updatedConfig) => setDayConfig(prev => ({
-                              ...prev,
-                              testConfig: updatedConfig
-                            }))}
+                            hasUnsavedChanges={hasUnsavedTestConfig}
+                            onChange={handleTestConfigChange}
                           />
                         </motion.div>
                       )}
@@ -770,7 +990,7 @@ export default function DynamicDayManager() {
                   const data = await res.json();
 
                   if (data.success) {
-                    await loadDayConfig(selectedDay);
+                    await loadDayConfig(selectedDay, true);
                     setEditingTask(null);
                   }
 
@@ -2874,21 +3094,22 @@ function getTypeColor(type) {
 }
 
 // Test Configuration Editor Component
-function TestConfigEditor({ testConfig, selectedLanguage, onChange }) {
+function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = false, onChange }) {
   const [showQuestions, setShowQuestions] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
   
+  const buildDefaultOptions = () => {
+    return getDefaultOptionLabels(selectedLanguage).map((label, idx) => ({
+      optionText: label,
+      score: idx
+    }));
+  };
+
   const addQuestion = () => {
     const newQuestion = {
       id: (testConfig.questions?.length || 0) + 1,
       questionText: '',
-      options: [
-        { optionText: '', score: 0 },
-        { optionText: '', score: 1 },
-        { optionText: '', score: 2 },
-        { optionText: '', score: 3 },
-        { optionText: '', score: 4 }
-      ],
+      options: buildDefaultOptions(),
       enabled: true
     };
     
@@ -2927,9 +3148,12 @@ function TestConfigEditor({ testConfig, selectedLanguage, onChange }) {
 
   const addOption = (questionIndex) => {
     const updated = [...testConfig.questions];
+    const nextIndex = updated[questionIndex].options.length;
+    const defaultLabels = getDefaultOptionLabels(selectedLanguage);
+    const fallbackLabel = defaultLabels[nextIndex] || `Option ${nextIndex + 1}`;
     updated[questionIndex].options.push({
-      optionText: '',
-      score: updated[questionIndex].options.length
+      optionText: fallbackLabel,
+      score: nextIndex
     });
     onChange({
       ...testConfig,
@@ -2940,6 +3164,15 @@ function TestConfigEditor({ testConfig, selectedLanguage, onChange }) {
   const deleteOption = (questionIndex, optionIndex) => {
     const updated = [...testConfig.questions];
     updated[questionIndex].options.splice(optionIndex, 1);
+    onChange({
+      ...testConfig,
+      questions: updated
+    });
+  };
+
+  const applyDefaultOptions = (questionIndex) => {
+    const updated = [...testConfig.questions];
+    updated[questionIndex].options = buildDefaultOptions();
     onChange({
       ...testConfig,
       questions: updated
@@ -2983,6 +3216,20 @@ function TestConfigEditor({ testConfig, selectedLanguage, onChange }) {
 
   return (
     <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+      {hasUnsavedChanges && (
+        <div style={{
+          marginBottom: '12px',
+          padding: '10px 14px',
+          backgroundColor: '#fef3c7',
+          border: '1px solid #fcd34d',
+          borderRadius: '6px',
+          color: '#92400e',
+          fontSize: '13px',
+          fontWeight: 600
+        }}>
+          ⚠️ Unsaved question changes. Click "Save Day Configuration" to persist.
+        </div>
+      )}
       
       {/* Questions Section */}
       <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: 'white', borderRadius: '8px', border: '2px solid #bfdbfe' }}>
@@ -3045,22 +3292,38 @@ function TestConfigEditor({ testConfig, selectedLanguage, onChange }) {
               />
 
               <div style={{ marginLeft: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                   <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>Options:</span>
-                  <button
-                    onClick={() => addOption(qIndex)}
-                    style={{
-                      padding: '4px 10px',
-                      backgroundColor: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    + Add Option
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => applyDefaultOptions(qIndex)}
+                      style={{
+                        padding: '4px 10px',
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ⚡ Prefill Defaults ({selectedLanguage})
+                    </button>
+                    <button
+                      onClick={() => addOption(qIndex)}
+                      style={{
+                        padding: '4px 10px',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + Add Option
+                    </button>
+                  </div>
                 </div>
 
                 {question.options?.map((option, oIndex) => (
