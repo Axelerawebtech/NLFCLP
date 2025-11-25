@@ -74,6 +74,8 @@ export default function DynamicDayManager() {
     fetchDays();
   }, [selectedLanguage]);
 
+  //update
+
   useEffect(() => {
     fetchGlobalWaitTimes();
   }, []);
