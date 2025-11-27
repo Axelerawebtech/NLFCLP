@@ -84,7 +84,17 @@ export default async function handler(req, res) {
       });
 
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error('❌ Error adding task:', error);
+      console.error('📋 Error details:', {
+        message: error.message,
+        stack: error.stack,
+        request: {
+          dayNumber: req.body.dayNumber,
+          language: req.body.language,
+          levelKey: req.body.levelKey,
+          taskType: req.body.task?.taskType
+        }
+      });
       res.status(500).json({ 
         success: false,
         error: 'Failed to add task',

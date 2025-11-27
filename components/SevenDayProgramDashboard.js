@@ -1025,11 +1025,15 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     <div style={{ marginTop: '24px', textAlign: 'center' }}>
                       <button
                         onClick={() => {
-                          const activity = task.content.activities[selectedActivity];
+                          const activity = task.content.activities?.[selectedActivity];
+                          if (!activity) {
+                            console.error('Activity not found at index:', selectedActivity);
+                            return;
+                          }
                           handleTaskResponse(task.taskId, 'activity-selector', {
                             responseText: activity.activityName || `Activity ${selectedActivity + 1}`,
                             selectedActivity: activity.activityName,
-                            activityDescription: activity.activityDescription,
+                            activityDescription: activity.activityDescription || '',
                             completed: true
                           });
                         }}

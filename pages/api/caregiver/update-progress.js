@@ -197,11 +197,20 @@ export default async function handler(req, res) {
         dayModule.taskResponses = [];
       }
       
-      // Count unique completed tasks from taskResponses
-      const uniqueCompletedTaskIds = [...new Set(dayModule.taskResponses.map(r => r.taskId))];
+      // Count unique completed tasks from taskResponses (filter out null/undefined taskIds)
+      const uniqueCompletedTaskIds = [...new Set(
+        dayModule.taskResponses
+          .filter(r => r.taskId) // Only include responses with valid taskIds
+          .map(r => r.taskId)
+      )];
       
       // Get the day's tasks - they should be stored in dayModule.tasks
       let allTasks = Array.isArray(dayModule.tasks) ? dayModule.tasks : [];
+      
+      console.log(`📊 Day ${day} Progress Calculation:`);
+      console.log(`   - Task responses: ${dayModule.taskResponses.length}`);
+      console.log(`   - Unique completed task IDs: ${uniqueCompletedTaskIds.length}`, uniqueCompletedTaskIds);
+      console.log(`   - Tasks in dayModule: ${allTasks.length}`);
 
       const backfillTasksFromConfig = async ({ forceReplace = false } = {}) => {
         try {
@@ -289,6 +298,9 @@ export default async function handler(req, res) {
       }
       
       if (totalTasks > 0) {
+        // Ensure completed count doesn't exceed total (prevent >100%)
+        completedTasksCount = Math.min(completedTasksCount, totalTasks);
+        
         // Calculate percentage based on completed tasks
         progress = Math.min(100, Math.round((completedTasksCount / totalTasks) * 100));
         console.log(`✅ Day ${day}: Calculated progress as ${progress}% (${completedTasksCount}/${totalTasks} tasks)`);

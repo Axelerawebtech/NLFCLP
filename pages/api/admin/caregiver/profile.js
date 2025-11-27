@@ -189,11 +189,12 @@ export default async function handler(req, res) {
       }
       
       // Calculate detailed statistics
+      // Don't use program.overallProgress directly - recalculate it from actual day progress
       let statistics = {
         totalDays: 8,
         completedDays: 0,
         currentDay: program?.currentDay || 0,
-        overallProgress: program?.overallProgress || 0,
+        overallProgress: 0, // Will be recalculated below from actual day progress
         burdenLevel: program?.burdenLevel || 'Not assessed',
         burdenTestScore: program?.burdenTestScore || null,
         daysProgress: [],
@@ -336,6 +337,17 @@ export default async function handler(req, res) {
             }))
           };
         }));
+        
+        // Recalculate overall progress from actual day progress values
+        if (statistics.daysProgress.length > 0) {
+          const totalProgress = statistics.daysProgress.reduce((sum, day) => sum + (day.progressPercentage || 0), 0);
+          statistics.overallProgress = Math.round(totalProgress / statistics.totalDays);
+          
+          // Update completed days count based on calculated progress
+          statistics.completedDays = statistics.daysProgress.filter(d => d.progressPercentage === 100).length;
+          
+          console.log(`📊 Recalculated overall progress: ${statistics.overallProgress}% (${totalProgress} total from ${statistics.totalDays} days)`);
+        }
       }
       
       return res.status(200).json({

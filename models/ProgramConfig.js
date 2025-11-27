@@ -176,7 +176,7 @@ const ProgramConfigSchema = new mongoose.Schema({
         testName: { type: String },
         testType: { 
           type: String, 
-          enum: ['burden-assessment', 'mood-check', 'stress-level', 'custom'],
+          enum: ['burden-assessment', 'stress-assessment', 'mood-check', 'stress-level', 'custom'],
           default: 'custom'
         },
         questions: [{

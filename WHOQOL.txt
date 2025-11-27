@@ -1,0 +1,236 @@
+1 (G1) How would you rate your quality of life?
+options:
+1 Very poor 
+2 Poor 
+3 Neither poor nor good
+4 Good 
+5 Very good
+
+2 How satisfied are you with your health?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+3 To what extent do you feel that (physical) pain prevents you from doing what you need to do?
+options:
+1 Not at all
+2 A little
+3 A moderate amount
+4 Very much
+5 An extreme amount
+
+4 How much do you need any medical treatment to function in your daily life?
+options:
+1 Not at all
+2 A little
+3 A moderate amount
+4 Very much
+5 An extreme amount
+
+5 How much do you enjoy life?
+options:
+1 Not at all
+2 A little
+3 A moderate amount
+4 Very much
+5 An extreme amount
+
+6 To what extent do you feel your life to be meaningful?
+options:
+1 Not at all
+2 A little
+3 A moderate amount
+4 Very much
+5 An extreme amount
+
+7 How well are you able to concentrate?
+options:
+1 Not at all
+2 A little
+3 A moderate amount
+4 Very much
+5 An extreme amount
+
+8 How safe do you feel in your daily life?
+options:
+1 Not at all
+2 A little
+3 A moderate amount
+4 Very much
+5 An extreme amount
+
+9 How healthy is your physical environment?
+options:
+1 Not at all
+2 A little
+3 A moderate amount
+4 Very much
+5 An extreme amount
+
+10 Do you have enough energy for everyday
+life?
+
+options:
+1 Not at all
+2 A little
+3 Moderately
+4 Mostly
+5 Completely
+
+11 Are you able to accept your bodily appearance?
+
+options:
+1 Not at all
+2 A little
+3 Moderately
+4 Mostly
+5 Completely
+
+12 Have you enough money to meet your needs?
+
+options:
+1 Not at all
+2 A little
+3 Moderately
+4 Mostly
+5 Completely
+
+13 How available to you is the information that
+you need in your day-to-day life?
+
+options:
+1 Not at all
+2 A little
+3 Moderately
+4 Mostly
+5 Completely
+
+14 To what extent do you have the opportunity
+for leisure activities?
+
+options:
+1 Not at all
+2 A little
+3 Moderately
+4 Mostly
+5 Completely
+
+15 How well are you able to get around?
+
+options:
+1 Very poor 
+2 Poor 
+3 Neither poor nor good
+4 Good 
+5 Very good
+
+16 How satisfied are you with your sleep?
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+17 How satisfied are you with your ability to
+perform your daily living activities?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+18 How satisfied are you with your capacity for
+work?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+19 How satisfied are you with yourself?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+20 How satisfied are you with your personal
+relationships?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+21 How satisfied are you with your sex life?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+22 How satisfied are you with the support you
+get from your friends?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+23 How satisfied are you with the conditions of
+your living place?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+24 How satisfied are you with your access to
+health services?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+25 How satisfied are you with your transport?
+
+options:
+1 Very dissatisfied
+2 Dissatisfied
+3 Neither satisfied nor dissatisfied
+4 Satisfied
+5 Very satisfied
+
+26 How often do you have negative feelings
+such as blue mood, despair, anxiety,
+depression?
+
+options:
+1 Never
+2 Seldom
+3 Quite often
+4 SaVery often
+5 Always
+
