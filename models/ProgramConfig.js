@@ -1,5 +1,127 @@
 import mongoose from 'mongoose';
 
+const dynamicDayTaskStructureSchema = new mongoose.Schema({
+  taskId: { type: String, required: true },
+  taskType: {
+    type: String,
+    required: true,
+    enum: [
+      'video',
+      'motivation-message',
+      'quick-assessment',
+      'reminder',
+      'interactive-field',
+      'greeting-message',
+      'activity-selector',
+      'calming-video',
+      'reflection-prompt',
+      'feeling-check',
+      'audio-message',
+      'healthcare-tip',
+      'task-checklist',
+      'visual-cue'
+    ]
+  },
+  taskOrder: { type: Number, required: true },
+  title: { type: String, default: '' },
+  description: { type: String, default: '' },
+  content: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
+  enabled: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now }
+}, { _id: false });
+
+const dynamicDayLevelStructureSchema = new mongoose.Schema({
+  levelKey: { type: String, required: true },
+  levelLabel: { type: String, default: '' },
+  tasks: [dynamicDayTaskStructureSchema]
+}, { _id: false });
+
+const dynamicDayStructureSchema = new mongoose.Schema({
+  dayNumber: { type: Number, required: true },
+  baseLanguage: {
+    type: String,
+    enum: ['english', 'kannada', 'hindi'],
+    default: 'english'
+  },
+  dayName: { type: String, default: '' },
+  hasTest: { type: Boolean, default: false },
+  enabled: { type: Boolean, default: true },
+  testStructure: {
+    testName: { type: String, default: '' },
+    testType: {
+      type: String,
+      enum: ['burden-assessment', 'mood-check', 'stress-level', 'stress-assessment', 'quality-of-life', 'custom'],
+      default: 'custom'
+    },
+    questionSequence: [{
+      questionId: { type: Number, required: true },
+      questionText: { type: String, default: '' },
+      enabled: { type: Boolean, default: true },
+      options: [{
+        optionKey: { type: String, required: true },
+        optionText: { type: String, default: '' },
+        score: { type: Number, default: 0 }
+      }]
+    }],
+    scoreRanges: [{
+      levelKey: { type: String, required: true },
+      rangeName: { type: String },
+      label: { type: String, default: '' },
+      minScore: { type: Number },
+      maxScore: { type: Number }
+    }]
+  },
+  contentLevels: [dynamicDayLevelStructureSchema],
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, { _id: false });
+
+const dynamicDayTaskTranslationSchema = new mongoose.Schema({
+  taskId: { type: String, required: true },
+  title: { type: String, default: '' },
+  description: { type: String, default: '' },
+  contentOverrides: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  }
+}, { _id: false });
+
+const dynamicDayLevelTranslationSchema = new mongoose.Schema({
+  levelKey: { type: String, required: true },
+  levelLabel: { type: String, default: '' },
+  tasks: [dynamicDayTaskTranslationSchema]
+}, { _id: false });
+
+const dynamicDayTranslationSchema = new mongoose.Schema({
+  dayNumber: { type: Number, required: true },
+  language: {
+    type: String,
+    enum: ['english', 'kannada', 'hindi'],
+    required: true
+  },
+  dayName: { type: String, default: '' },
+  testContent: {
+    testName: { type: String, default: '' },
+    questions: [{
+      questionId: { type: Number, required: true },
+      questionText: { type: String, default: '' },
+      options: [{
+        optionKey: { type: String, required: true },
+        optionText: { type: String, default: '' }
+      }]
+    }],
+    scoreRanges: [{
+      levelKey: { type: String, required: true },
+      label: { type: String, default: '' }
+    }]
+  },
+  levelContent: [dynamicDayLevelTranslationSchema],
+  updatedAt: { type: Date, default: Date.now }
+}, { _id: false });
+
 // Global program configuration schema
 const ProgramConfigSchema = new mongoose.Schema({
   configType: {
@@ -156,6 +278,9 @@ const ProgramConfigSchema = new mongoose.Schema({
     day0ToDay1: { type: Number, default: 24 }, // hours
     betweenDays: { type: Number, default: 24 }, // hours between subsequent days
   },
+  // Unified dynamic day structure + translations (in-flight migration)
+  dynamicDayStructures: [dynamicDayStructureSchema],
+  dynamicDayTranslations: [dynamicDayTranslationSchema],
   
   // NEW DYNAMIC DAY CONFIGURATION SYSTEM
   // Supports flexible content structure with tests and ordered tasks
@@ -176,7 +301,7 @@ const ProgramConfigSchema = new mongoose.Schema({
         testName: { type: String },
         testType: { 
           type: String, 
-          enum: ['burden-assessment', 'mood-check', 'stress-level', 'custom'],
+          enum: ['burden-assessment', 'mood-check', 'stress-level', 'stress-assessment', 'quality-of-life', 'custom'],
           default: 'custom'
         },
         questions: [{

@@ -1,6 +1,11 @@
 import dbConnect from '../../../lib/mongodb';
 import ProgramConfig from '../../../models/ProgramConfig';
 import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
+import {
+  getStructureForDay,
+  getTranslationForDay,
+  composeDayConfig
+} from '../../../lib/dynamicDayUtils';
 
 /**
  * API Route: /api/caregiver/dynamic-day-content
@@ -68,11 +73,25 @@ export default async function handler(req, res) {
     const dynamicTestAssignedLevel = dayModule?.dynamicTest?.assignedLevel;
     const dynamicTestCompleted = Boolean(dayModule?.dynamicTestCompleted || dayModule?.dynamicTest?.completedAt);
 
-    // Find day configuration for specific language
-    const dayConfig = config.dynamicDays?.find(
-      d => d.dayNumber === dayNumber && d.language === lang
-    );
-    
+    const useUnified = Array.isArray(config.dynamicDayStructures) && config.dynamicDayStructures.length > 0;
+    let dayConfig;
+
+    if (useUnified) {
+      const structure = getStructureForDay(config, dayNumber);
+      if (structure) {
+        const translation = getTranslationForDay(config, dayNumber, lang);
+        dayConfig = composeDayConfig(structure, translation);
+      } else {
+        dayConfig = config.dynamicDays?.find(
+          d => d.dayNumber === dayNumber && d.language === lang
+        );
+      }
+    } else {
+      dayConfig = config.dynamicDays?.find(
+        d => d.dayNumber === dayNumber && d.language === lang
+      );
+    }
+
     if (!dayConfig) {
       return res.status(404).json({ 
         success: false,

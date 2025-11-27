@@ -6,6 +6,7 @@ import InlineBurdenAssessment from './InlineBurdenAssessment';
 import DailyAssessment from './DailyAssessment';
 import NotificationManager from './NotificationManager';
 import ReminderDisplayCard from './ReminderDisplayCard';
+import { getTaskDefaultTitle } from '../utils/taskMetadata';
 
 // Reflection Prompt Slider Component
 function ReflectionPromptSlider({ question }) {
@@ -120,6 +121,17 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       'task-checklist': '✅'
     };
     return icons[taskType] || '📄';
+  };
+
+  const normalizeTaskForDisplay = (task) => {
+    if (!task || typeof task !== 'object') return task;
+    const trimmedTitle = typeof task.title === 'string' ? task.title.trim() : '';
+    const trimmedDescription = typeof task.description === 'string' ? task.description.trim() : '';
+    return {
+      ...task,
+      title: trimmedTitle || getTaskDefaultTitle(task.taskType),
+      description: trimmedDescription
+    };
   };
 
   // Render dynamic task based on type
@@ -1635,9 +1647,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 });
                 
                 // Calculate ACTUAL progress based on task responses vs content tasks
-                const contentTasks = (contentData.tasks || []).filter(
+                const visibleTasks = (contentData.tasks || []).filter(
                   t => t.taskType !== 'reminder' && t.taskType !== 'dynamic-test'
                 );
+                const contentTasks = visibleTasks.map(normalizeTaskForDisplay);
                 const uniqueCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
                 const dayHasDynamicTest = Boolean(contentData.hasTest);
                 const dynamicTestCompleted = Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt);
@@ -1686,15 +1699,14 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
                 const fallbackHasTest = Boolean(baseModule.dynamicTest || baseModule.dynamicTestCompleted);
                 const fallbackCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
-                const fallbackTaskCount = Array.isArray(baseModule.tasks)
-                  ? baseModule.tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test').length
-                  : 0;
+                const sanitizedTasks = Array.isArray(baseModule.tasks)
+                  ? baseModule.tasks
+                      .filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test')
+                      .map(normalizeTaskForDisplay)
+                  : [];
+                const fallbackTaskCount = sanitizedTasks.length;
                 const fallbackTotalTasks = fallbackTaskCount + (fallbackHasTest ? 1 : 0);
                 const fallbackCompletedCount = fallbackCompletedTaskIds.size + (fallbackHasTest && Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt) ? 1 : 0);
-                
-                const sanitizedTasks = Array.isArray(baseModule.tasks)
-                  ? baseModule.tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test')
-                  : [];
 
                 return {
                   ...baseModule,
@@ -1723,16 +1735,15 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               const baseModule = dayModule.toObject ? dayModule.toObject() : dayModule;
               const fallbackHasTest = Boolean(baseModule.dynamicTest || baseModule.dynamicTestCompleted);
               const fallbackCompletedTaskIds = new Set((baseModule.taskResponses || []).map(r => r.taskId));
-              const fallbackTaskCount = Array.isArray(baseModule.tasks)
-                ? baseModule.tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test').length
-                : 0;
+              const sanitizedTasks = Array.isArray(baseModule.tasks)
+                ? baseModule.tasks
+                    .filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test')
+                    .map(normalizeTaskForDisplay)
+                : [];
+              const fallbackTaskCount = sanitizedTasks.length;
               const fallbackTotalTasks = fallbackTaskCount + (fallbackHasTest ? 1 : 0);
               const fallbackCompletedCount = fallbackCompletedTaskIds.size + (fallbackHasTest && Boolean(baseModule.dynamicTestCompleted || baseModule.dynamicTest?.completedAt) ? 1 : 0);
               
-              const sanitizedTasks = Array.isArray(baseModule.tasks)
-                ? baseModule.tasks.filter(task => task.taskType !== 'reminder' && task.taskType !== 'dynamic-test')
-                : [];
-
               return {
                 ...baseModule,
                 tasks: sanitizedTasks,

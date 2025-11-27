@@ -140,3 +140,22 @@ Verify both caregiver and patient completed onboarding and appear in admin dashb
 
 ## 📱 Mobile Testing
 All dashboards are responsive and work on mobile devices. Test on different screen sizes to verify UI adapts properly.
+
+## 🛠️ Dynamic Day Migration
+
+Use the migration helper once to backfill the shared dynamic-day structures from legacy language-specific configs:
+
+```bash
+# Preview the changes without writing to MongoDB
+node scripts/migrate-dynamic-day-structures.js --dry-run
+
+# Run the actual migration
+node scripts/migrate-dynamic-day-structures.js
+
+# Rebuild for a single ProgramConfig document
+node scripts/migrate-dynamic-day-structures.js --config <programConfigId>
+```
+
+Optional flags:
+- `--force` rebuilds existing structures and translations.
+- `--force-structures` or `--force-translations` target only one side.

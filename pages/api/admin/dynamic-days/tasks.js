@@ -1,5 +1,60 @@
 import dbConnect from '../../../../lib/mongodb';
 import ProgramConfig from '../../../../models/ProgramConfig';
+import {
+  getStructureForDay,
+  getTranslationForDay,
+  composeDayConfig,
+  syncLegacyDynamicDay,
+  sanitizeDynamicDayStructures
+} from '../../../../lib/dynamicDayUtils';
+
+const ensureLevelExists = (structure, levelKey) => {
+  if (!structure.contentLevels) {
+    structure.contentLevels = [];
+  }
+  let level = structure.contentLevels.find(entry => entry.levelKey === levelKey);
+  if (!level) {
+    level = { levelKey, levelLabel: levelKey, tasks: [] };
+    structure.contentLevels.push(level);
+  }
+  return level;
+};
+
+const ensureTranslationLevel = (translation, levelKey, fallbackLabel = '') => {
+  if (!translation.levelContent) {
+    translation.levelContent = [];
+  }
+  let level = translation.levelContent.find(entry => entry.levelKey === levelKey);
+  if (!level) {
+    level = { levelKey, levelLabel: fallbackLabel, tasks: [] };
+    translation.levelContent.push(level);
+  }
+  return level;
+};
+
+const ensureTranslationEntry = (configDoc, dayNumber, language) => {
+  const normalized = language?.toLowerCase() || 'english';
+  if (!configDoc.dynamicDayTranslations) {
+    configDoc.dynamicDayTranslations = [];
+  }
+  let entry = configDoc.dynamicDayTranslations.find(
+    record => record.dayNumber === dayNumber && record.language === normalized
+  );
+  if (!entry) {
+    entry = {
+      dayNumber,
+      language: normalized,
+      dayName: '',
+      testContent: null,
+      levelContent: [],
+      updatedAt: new Date()
+    };
+    configDoc.dynamicDayTranslations.push(entry);
+  }
+  return entry;
+};
+
+const generateTaskId = () => `task_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
 /**
  * API Route: /api/admin/dynamic-days/tasks
@@ -38,43 +93,49 @@ export default async function handler(req, res) {
         });
       }
 
-      const dayConfig = config.dynamicDays?.find(
-        d => d.dayNumber === dayNumber && d.language === language
-      );
-      if (!dayConfig) {
-        return res.status(404).json({ 
+      const structure = getStructureForDay(config, dayNumber);
+      if (!structure) {
+        return res.status(404).json({
           success: false,
-          error: `Day ${dayNumber} (${language}) not found` 
+          error: `Day ${dayNumber} not found`
         });
       }
 
-      const levelConfig = dayConfig.contentByLevel?.find(l => l.levelKey === levelKey);
-      if (!levelConfig) {
-        return res.status(404).json({ 
-          success: false,
-          error: `Level ${levelKey} not found in day ${dayNumber}` 
-        });
-      }
-
-      // Generate task ID and order
-      const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const maxOrder = levelConfig.tasks?.length > 0 
-        ? Math.max(...levelConfig.tasks.map(t => t.taskOrder)) 
-        : 0;
-
+      const level = ensureLevelExists(structure, levelKey);
+      const maxOrder = level.tasks?.length > 0 ? Math.max(...level.tasks.map(t => t.taskOrder)) : 0;
+      const taskId = task.taskId || generateTaskId();
       const newTask = {
-        ...task,
         taskId,
+        taskType: task.taskType,
         taskOrder: maxOrder + 1,
+        title: task.title || '',
+        description: task.description || '',
+        content: task.content || {},
+        enabled: task.enabled !== false,
         createdAt: new Date()
       };
 
-      if (!levelConfig.tasks) {
-        levelConfig.tasks = [];
+      if (!Array.isArray(level.tasks)) {
+        level.tasks = [];
       }
-      levelConfig.tasks.push(newTask);
+      level.tasks.push(newTask);
 
-      config.markModified('dynamicDays');
+      const translation = ensureTranslationEntry(config, dayNumber, language);
+      const translationLevel = ensureTranslationLevel(translation, levelKey, level.levelLabel || levelKey);
+      translationLevel.tasks.push({
+        taskId,
+        title: task.title || '',
+        description: task.description || '',
+        contentOverrides: task.content || {}
+      });
+      translation.updatedAt = new Date();
+
+      config.markModified('dynamicDayStructures');
+      config.markModified('dynamicDayTranslations');
+
+      const mergedConfig = composeDayConfig(structure, translation);
+      syncLegacyDynamicDay(config, { dayNumber, language, dayConfig: mergedConfig });
+      sanitizeDynamicDayStructures(config);
       await config.save();
 
       res.status(200).json({ 
@@ -112,25 +173,19 @@ export default async function handler(req, res) {
         });
       }
 
-      const dayConfig = config.dynamicDays?.find(
-        d => d.dayNumber === dayNumber && d.language === language
-      );
-      if (!dayConfig) {
+      const structure = getStructureForDay(config, dayNumber);
+      if (!structure) {
         return res.status(404).json({ 
           success: false,
-          error: `Day ${dayNumber} (${language}) not found` 
+          error: `Day ${dayNumber} not found` 
         });
       }
 
-      const levelConfig = dayConfig.contentByLevel?.find(l => l.levelKey === levelKey);
-      if (!levelConfig || !levelConfig.tasks) {
-        return res.status(404).json({ 
-          success: false,
-          error: `Level ${levelKey} not found` 
-        });
+      const level = ensureLevelExists(structure, levelKey);
+      if (!level.tasks) {
+        level.tasks = [];
       }
-
-      const taskIndex = levelConfig.tasks.findIndex(t => t.taskId === taskId);
+      const taskIndex = level.tasks.findIndex(t => t.taskId === taskId);
       if (taskIndex === -1) {
         return res.status(404).json({ 
           success: false,
@@ -139,42 +194,63 @@ export default async function handler(req, res) {
       }
 
       if (reorder) {
-        // Reorder tasks
         const { newOrder } = reorder;
-        const task = levelConfig.tasks[taskIndex];
+        const task = level.tasks[taskIndex];
         const oldOrder = task.taskOrder;
-
         if (newOrder !== oldOrder) {
-          // Update orders
-          levelConfig.tasks.forEach(t => {
+          level.tasks.forEach(t => {
             if (newOrder > oldOrder) {
-              // Moving down
               if (t.taskOrder > oldOrder && t.taskOrder <= newOrder) {
                 t.taskOrder--;
               }
-            } else {
-              // Moving up
-              if (t.taskOrder >= newOrder && t.taskOrder < oldOrder) {
-                t.taskOrder++;
-              }
+            } else if (t.taskOrder >= newOrder && t.taskOrder < oldOrder) {
+              t.taskOrder++;
             }
           });
-
           task.taskOrder = newOrder;
-          levelConfig.tasks.sort((a, b) => a.taskOrder - b.taskOrder);
+          level.tasks.sort((a, b) => a.taskOrder - b.taskOrder);
         }
       } else if (updates) {
-        // Update task content
-        Object.assign(levelConfig.tasks[taskIndex], updates);
+        const taskRecord = level.tasks[taskIndex];
+        if (updates.title !== undefined) taskRecord.title = updates.title;
+        if (updates.description !== undefined) taskRecord.description = updates.description;
+        if (updates.content !== undefined) taskRecord.content = updates.content;
+        if (updates.enabled !== undefined) taskRecord.enabled = updates.enabled;
       }
 
-      config.markModified('dynamicDays');
+      const translation = ensureTranslationEntry(config, dayNumber, language);
+      const translationLevel = ensureTranslationLevel(translation, levelKey, level.levelLabel || levelKey);
+      if (!translationLevel.tasks) {
+        translationLevel.tasks = [];
+      }
+      let translationTask = translationLevel.tasks.find(t => t.taskId === taskId);
+      if (!translationTask) {
+        translationTask = {
+          taskId,
+          title: level.tasks[taskIndex].title,
+          description: level.tasks[taskIndex].description,
+          contentOverrides: level.tasks[taskIndex].content || {}
+        };
+        translationLevel.tasks.push(translationTask);
+      }
+
+      if (updates?.title !== undefined) translationTask.title = updates.title;
+      if (updates?.description !== undefined) translationTask.description = updates.description;
+      if (updates?.content !== undefined) translationTask.contentOverrides = updates.content;
+      translation.updatedAt = new Date();
+
+      config.markModified('dynamicDayStructures');
+      config.markModified('dynamicDayTranslations');
+
+      const mergedConfig = composeDayConfig(structure, translation);
+      syncLegacyDynamicDay(config, { dayNumber, language, dayConfig: mergedConfig });
+      sanitizeDynamicDayStructures(config);
       await config.save();
 
       res.status(200).json({ 
         success: true, 
         message: 'Task updated successfully',
-        task: levelConfig.tasks[taskIndex]
+        task: level.tasks[taskIndex]
       });
 
     } catch (error) {
@@ -206,25 +282,20 @@ export default async function handler(req, res) {
         });
       }
 
-      const dayConfig = config.dynamicDays?.find(
-        d => d.dayNumber === parseInt(dayNumber) && d.language === language
-      );
-      if (!dayConfig) {
+      const numericDay = parseInt(dayNumber, 10);
+      const structure = getStructureForDay(config, numericDay);
+      if (!structure) {
         return res.status(404).json({ 
           success: false,
-          error: `Day ${dayNumber} (${language}) not found` 
+          error: `Day ${dayNumber} not found` 
         });
       }
 
-      const levelConfig = dayConfig.contentByLevel?.find(l => l.levelKey === levelKey);
-      if (!levelConfig || !levelConfig.tasks) {
-        return res.status(404).json({ 
-          success: false,
-          error: `Level ${levelKey} not found` 
-        });
+      const level = ensureLevelExists(structure, levelKey);
+      if (!level.tasks) {
+        level.tasks = [];
       }
-
-      const taskIndex = levelConfig.tasks.findIndex(t => t.taskId === taskId);
+      const taskIndex = level.tasks.findIndex(t => t.taskId === taskId);
       if (taskIndex === -1) {
         return res.status(404).json({ 
           success: false,
@@ -232,19 +303,34 @@ export default async function handler(req, res) {
         });
       }
 
-      const deletedOrder = levelConfig.tasks[taskIndex].taskOrder;
-      
-      // Remove task
-      levelConfig.tasks.splice(taskIndex, 1);
-      
-      // Reorder remaining tasks
-      levelConfig.tasks.forEach(t => {
+      const deletedOrder = level.tasks[taskIndex].taskOrder;
+      level.tasks.splice(taskIndex, 1);
+      level.tasks.forEach(t => {
         if (t.taskOrder > deletedOrder) {
           t.taskOrder--;
         }
       });
 
-      config.markModified('dynamicDays');
+      // Remove translation entries for this task across languages
+      if (Array.isArray(config.dynamicDayTranslations)) {
+        config.dynamicDayTranslations.forEach(entry => {
+          if (entry.dayNumber === numericDay && Array.isArray(entry.levelContent)) {
+            entry.levelContent.forEach(lvl => {
+              if (lvl.levelKey === levelKey && Array.isArray(lvl.tasks)) {
+                lvl.tasks = lvl.tasks.filter(t => t.taskId !== taskId);
+              }
+            });
+          }
+        });
+      }
+
+      config.markModified('dynamicDayStructures');
+      config.markModified('dynamicDayTranslations');
+
+      const translation = getTranslationForDay(config, numericDay, language);
+      const mergedConfig = composeDayConfig(structure, translation);
+      syncLegacyDynamicDay(config, { dayNumber: numericDay, language, dayConfig: mergedConfig });
+      sanitizeDynamicDayStructures(config);
       await config.save();
 
       res.status(200).json({ 

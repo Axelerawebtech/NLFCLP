@@ -1,6 +1,12 @@
 import dbConnect from '../../../lib/mongodb';
 import ProgramConfig from '../../../models/ProgramConfig';
-import CaregiverProgram from '../../../models/CaregiverProgram';
+import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
+import Caregiver from '../../../models/Caregiver';
+import {
+  getStructureForDay,
+  getTranslationForDay,
+  composeDayConfig
+} from '../../../lib/dynamicDayUtils';
 
 /**
  * API Route: /api/caregiver/check-reminders
@@ -34,8 +40,20 @@ export default async function handler(req, res) {
 
     const dayNumber = parseInt(day);
 
-    // Get caregiver program to check last notification times
-    let caregiverProgram = await CaregiverProgram.findOne({ caregiverId });
+    // Resolve caregiver and associated program (supports string IDs and Mongo ObjectIds)
+    let caregiverDoc = await Caregiver.findOne({ caregiverId });
+    if (!caregiverDoc && /^[0-9a-fA-F]{24}$/.test(caregiverId)) {
+      caregiverDoc = await Caregiver.findById(caregiverId);
+    }
+
+    if (!caregiverDoc) {
+      return res.status(404).json({
+        success: false,
+        error: 'Caregiver not found'
+      });
+    }
+
+    let caregiverProgram = await CaregiverProgram.findOne({ caregiverId: caregiverDoc._id });
     if (!caregiverProgram) {
       return res.json({ success: true, reminders: [] });
     }
@@ -46,7 +64,7 @@ export default async function handler(req, res) {
     }
 
     // Get language preference
-    const language = caregiverProgram.language || 'english';
+    const preferredLanguages = buildLanguagePreferenceOrder(caregiverProgram.language);
 
     // Get global config
     const config = await ProgramConfig.findOne({ configType: 'global' });
@@ -54,12 +72,14 @@ export default async function handler(req, res) {
       return res.json({ success: true, reminders: [] });
     }
 
-    // Find day configuration
-    const dayConfig = config.dynamicDays?.find(
-      d => d.dayNumber === dayNumber && d.language === language
-    );
+    // Find day configuration (supports unified dynamic day structures)
+    const dayConfig = resolveDayConfig({
+      config,
+      dayNumber,
+      preferredLanguages
+    });
     
-    if (!dayConfig || !dayConfig.enabled) {
+    if (!dayConfig || dayConfig.enabled === false) {
       return res.json({ success: true, reminders: [] });
     }
 
@@ -246,4 +266,66 @@ function checkReminderSchedule(content, lastNotifTime, now) {
   }
 
   return false;
+}
+
+const LANGUAGE_PRIORITY = ['english', 'kannada', 'hindi'];
+const LANGUAGE_ALIASES = {
+  en: 'english',
+  english: 'english',
+  hi: 'hindi',
+  hindi: 'hindi',
+  kn: 'kannada',
+  kannada: 'kannada'
+};
+
+function buildLanguagePreferenceOrder(language) {
+  if (typeof language === 'string') {
+    const normalized = language.toLowerCase();
+    const canonical = LANGUAGE_ALIASES[normalized];
+    if (canonical) {
+      return [canonical, ...LANGUAGE_PRIORITY.filter(lang => lang !== canonical)];
+    }
+  }
+  return [...LANGUAGE_PRIORITY];
+}
+
+function hasUnifiedDynamicDayStructures(config) {
+  return Array.isArray(config?.dynamicDayStructures) && config.dynamicDayStructures.length > 0;
+}
+
+function resolveDayConfig({ config, dayNumber, preferredLanguages = [] }) {
+  if (!config) return null;
+
+  if (!preferredLanguages.length) {
+    preferredLanguages = [...LANGUAGE_PRIORITY];
+  }
+
+  if (hasUnifiedDynamicDayStructures(config)) {
+    const structure = getStructureForDay(config, dayNumber);
+    if (!structure) return null;
+
+    let translation = null;
+    for (const lang of preferredLanguages) {
+      const candidate = getTranslationForDay(config, dayNumber, lang);
+      if (candidate) {
+        translation = candidate;
+        break;
+      }
+    }
+
+    return composeDayConfig(structure, translation);
+  }
+
+  if (!config.dynamicDays?.length) {
+    return null;
+  }
+
+  for (const lang of preferredLanguages) {
+    const match = config.dynamicDays.find(entry => entry.dayNumber === dayNumber && entry.language === lang);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
 }

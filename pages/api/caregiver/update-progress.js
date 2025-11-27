@@ -1,6 +1,11 @@
 import dbConnect from '../../../lib/mongodb';
 import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
 import ProgramConfig from '../../../models/ProgramConfig';
+import {
+  getStructureForDay,
+  getTranslationForDay,
+  composeDayConfig
+} from '../../../lib/dynamicDayUtils';
 
 export default async function handler(req, res) {
   await dbConnect();
@@ -70,21 +75,52 @@ export default async function handler(req, res) {
         return cachedProgramConfig;
       };
 
+      const resolveUnifiedDayConfig = (configDoc) => {
+        const structure = getStructureForDay(configDoc, day);
+        if (!structure) return null;
+
+        let translation = null;
+        let resolvedLanguage = structure.baseLanguage || preferredLanguages[0] || 'english';
+        for (const lang of preferredLanguages) {
+          const candidate = getTranslationForDay(configDoc, day, lang);
+          if (candidate) {
+            translation = candidate;
+            resolvedLanguage = lang;
+            break;
+          }
+        }
+
+        const merged = composeDayConfig(structure, translation);
+        if (!merged) return null;
+        return { ...merged, language: resolvedLanguage };
+      };
+
+      const resolveLegacyDayConfig = (configDoc) => {
+        if (!configDoc?.dynamicDays?.length) return null;
+        for (const lang of preferredLanguages) {
+          const match = configDoc.dynamicDays.find(entry => entry.dayNumber === day && entry.language === lang);
+          if (match) {
+            return match;
+          }
+        }
+        return null;
+      };
+
       const getDayConfig = async () => {
         if (cachedDayConfig !== undefined) return cachedDayConfig;
         const config = await loadProgramConfig();
-        if (!config?.dynamicDays?.length) {
+        if (!config) {
           cachedDayConfig = null;
           return cachedDayConfig;
         }
-        for (const lang of preferredLanguages) {
-          const match = config.dynamicDays.find(entry => entry.dayNumber === day && entry.language === lang);
-          if (match) {
-            cachedDayConfig = match;
-            return cachedDayConfig;
-          }
+
+        const hasUnifiedStructures = Array.isArray(config.dynamicDayStructures) && config.dynamicDayStructures.length > 0;
+        if (hasUnifiedStructures) {
+          cachedDayConfig = resolveUnifiedDayConfig(config);
+          return cachedDayConfig;
         }
-        cachedDayConfig = null;
+
+        cachedDayConfig = resolveLegacyDayConfig(config);
         return cachedDayConfig;
       };
 
