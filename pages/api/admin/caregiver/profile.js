@@ -270,6 +270,7 @@ export default async function handler(req, res) {
           } = classifyTasks(tasks);
 
           let totalTasks = normalizedTasks.length;
+          const hasVideoTask = normalizedTasks.some(task => VIDEO_TASK_TYPES.has(task.taskType));
 
           const rawResponses = Array.isArray(module.taskResponses) ? module.taskResponses : [];
           const latestResponses = buildLatestResponseMap(rawResponses);
@@ -304,11 +305,24 @@ export default async function handler(req, res) {
           const calculatedProgress = totalTasks > 0
             ? Math.min(100, Math.round((progressCompletedCount / totalTasks) * 100))
             : module.progressPercentage || 0;
+
+          const hasLegacyVideo = Boolean(
+            module.day === 0 ||
+            (videoTitleDisplay && videoTitleDisplay !== 'Not assigned') ||
+            module.videoWatched ||
+            module.videoCompleted ||
+            (module.videoProgress && module.videoProgress > 0)
+          );
+          const hasVideoContent = hasVideoTask || hasLegacyVideo;
+          const normalizedVideoProgress = hasVideoContent
+            ? Math.max(0, Math.min(100, module.videoProgress || 0))
+            : null;
           
           return {
             day: module.day,
             progressPercentage: calculatedProgress, // Use calculated progress instead of database value
-            videoProgress: module.videoProgress || 0,
+            videoProgress: normalizedVideoProgress,
+            hasVideoContent,
             videoWatched: module.videoWatched,
             audioCompleted: module.audioCompleted || false,
             audioCompletedAt: module.audioCompletedAt,
@@ -406,6 +420,7 @@ export default async function handler(req, res) {
 
 const LANGUAGE_PRIORITY = ['english', 'kannada', 'hindi'];
 const NON_ACTIONABLE_TASK_TYPES = new Set(['reminder', 'dynamic-test']);
+const VIDEO_TASK_TYPES = new Set(['video', 'calming-video']);
 
 async function resolveTasksFromConfig({ config, dayNumber, language, burdenLevel, contentLevel }) {
   const dayConfig = findDayConfig(config, dayNumber, language);

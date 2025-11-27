@@ -125,16 +125,28 @@ export default async function handler(req, res) {
     }
 
     // Get content for the level
-    const levelConfig = dayConfig.contentByLevel?.find(l => l.levelKey === levelKey);
-    
+    let levelConfig = dayConfig.contentByLevel?.find(l => l.levelKey === levelKey);
+    let fallbackLevelUsed = false;
+
     if (!levelConfig) {
-      return res.status(404).json({ 
-        success: false,
-        error: `Content for level ${levelKey} not found`,
-        dayNumber,
-        levelKey,
-        availableLevels: dayConfig.contentByLevel?.map(l => l.levelKey)
-      });
+      if (Array.isArray(dayConfig.contentByLevel) && dayConfig.contentByLevel.length > 0) {
+        // Fall back to the first configured level so the assessment can still be shown
+        levelConfig = dayConfig.contentByLevel[0];
+        levelKey = levelConfig?.levelKey || levelKey || 'default';
+        fallbackLevelUsed = true;
+        console.warn('[dynamic-day-content] Missing content level, using fallback', {
+          dayNumber,
+          requestedLevel: levelKey,
+          fallbackLevel: levelConfig?.levelKey
+        });
+      } else {
+        // No level content configured at all; proceed with empty tasks but keep the test available
+        levelConfig = { tasks: [], levelLabel: '' };
+        levelKey = levelKey || 'default';
+        console.warn('[dynamic-day-content] No content levels configured for day, returning test-only payload', {
+          dayNumber
+        });
+      }
     }
 
     // Filter enabled tasks and sort by order
@@ -214,6 +226,10 @@ export default async function handler(req, res) {
         scoreRanges: dayConfig.testConfig.scoreRanges || []
       };
       response.testReadOnly = dynamicTestCompleted;
+    }
+
+    if (fallbackLevelUsed) {
+      response.fallbackLevelUsed = true;
     }
 
     res.status(200).json(response);

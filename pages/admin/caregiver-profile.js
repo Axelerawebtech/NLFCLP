@@ -482,12 +482,68 @@ export default function CaregiverProfile() {
     }
   };
 
-  const openResetDialog = (day) => {
-    setResetDayData({ day });
+  const getAssessmentMeta = (dayInfo = {}) => {
+    if (!dayInfo || typeof dayInfo !== 'object') {
+      return {
+        hasConfiguredAssessment: false,
+        hasAssessmentResults: false,
+        dynamicTestName: null
+      };
+    }
+
+    const dynamicTaskTitle = Array.isArray(dayInfo.tasks)
+      ? dayInfo.tasks.find(task => task?.taskType === 'dynamic-test')?.title
+      : null;
+
+    const dynamicTestName = dayInfo.dynamicTest?.testName
+      || dynamicTaskTitle
+      || (dayInfo.hasDynamicTest ? 'assessment' : null);
+
+    const hasConfiguredAssessment = Boolean(
+      dayInfo.hasDynamicTest ||
+      dynamicTaskTitle ||
+      dayInfo.dynamicTest
+    );
+
+    const hasAssessmentResults = Boolean(
+      dayInfo.dynamicTestCompleted ||
+      dayInfo.dynamicTest?.completedAt ||
+      (Array.isArray(dayInfo.dynamicTest?.answers) && dayInfo.dynamicTest.answers.length > 0) ||
+      typeof dayInfo.dynamicTest?.totalScore === 'number'
+    );
+
+    return {
+      hasConfiguredAssessment,
+      hasAssessmentResults,
+      dynamicTestName
+    };
+  };
+
+  const openResetDialog = (dayInfo) => {
+    const defaultPayload = {
+      day: typeof dayInfo === 'number' ? dayInfo : null,
+      hasDynamicTest: false,
+      canResetAssessment: false,
+      dynamicTestName: null
+    };
+
+    if (dayInfo && typeof dayInfo === 'object') {
+      const assessmentMeta = getAssessmentMeta(dayInfo);
+
+      setResetDayData({
+        day: dayInfo.day,
+        hasDynamicTest: assessmentMeta.hasConfiguredAssessment,
+        canResetAssessment: assessmentMeta.hasAssessmentResults,
+        dynamicTestName: assessmentMeta.dynamicTestName
+      });
+    } else {
+      setResetDayData(defaultPayload);
+    }
+
     setResetDialog(true);
   };
 
-  const handleResetDayProgress = async (resetBurdenTest = false) => {
+  const handleResetDayProgress = async ({ resetAssessment = false } = {}) => {
     if (!resetDayData) return;
 
     try {
@@ -499,7 +555,8 @@ export default function CaregiverProfile() {
         body: JSON.stringify({
           caregiverId: id,
           day: resetDayData.day,
-          resetBurdenTest
+          resetDynamicTest: Boolean(resetAssessment),
+          resetBurdenTest: Boolean(resetAssessment && resetDayData.day === 1)
         }),
       });
 
@@ -851,7 +908,13 @@ export default function CaregiverProfile() {
                   <h3 style={styles.sectionTitle}>7-Day Program Progress</h3>
                   
                   <div>
-                    {statistics.daysProgress.map((day) => (
+                    {statistics.daysProgress.map((day) => {
+                      const hasVideoContent = Boolean(day.videoUrl || day.videoTitle || day.videoWatched !== undefined);
+                      const showVideoProgress = hasVideoContent && typeof day.videoProgress === 'number';
+                      const assessmentMeta = getAssessmentMeta(day);
+                      const shouldShowResetButton = day.progressPercentage > 0 || assessmentMeta.hasAssessmentResults;
+
+                      return (
                       <div key={day.day} style={styles.dayCard}>
                         <div style={styles.dayHeader}>
                           <div style={{ flex: 1 }}>
@@ -880,7 +943,7 @@ export default function CaregiverProfile() {
                             </div>
                             
                             {/* Video Watch Progress */}
-                            {day.videoProgress !== undefined && (
+                            {showVideoProgress && (
                               <div style={{ textAlign: 'center' }}>
                                 <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#7c3aed', margin: 0 }}>
                                   {Math.round(day.videoProgress)}%
@@ -923,9 +986,9 @@ export default function CaregiverProfile() {
                             )}
                             
                             {/* Reset Progress Button */}
-                            {day.progressPercentage > 0 && (
+                            {shouldShowResetButton && (
                               <button
-                                onClick={() => openResetDialog(day.day)}
+                                onClick={() => openResetDialog(day)}
                                 style={{ 
                                   ...styles.button, 
                                   backgroundColor: '#f59e0b',
@@ -957,12 +1020,14 @@ export default function CaregiverProfile() {
                         
                         {/* Day Details */}
                         <div style={styles.dayDetailGrid}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span style={day.videoWatched ? styles.checkIcon : styles.crossIcon}>
-                              {day.videoWatched ? '✅' : '⭕'}
-                            </span>
-                            <span style={{ color: '#6b7280' }}>Video</span>
-                          </div>
+                          {hasVideoContent && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span style={day.videoWatched ? styles.checkIcon : styles.crossIcon}>
+                                {day.videoWatched ? '✅' : '⭕'}
+                              </span>
+                              <span style={{ color: '#6b7280' }}>Video</span>
+                            </div>
+                          )}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                             <span style={day.tasksCompleted ? styles.checkIcon : styles.crossIcon}>
                               {day.tasksCompleted ? '✅' : '⭕'}
@@ -1037,7 +1102,8 @@ export default function CaregiverProfile() {
                           </div>
                         )}
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
               )}
@@ -1851,13 +1917,13 @@ export default function CaregiverProfile() {
                 <p style={{ fontSize: '0.875rem', color: '#374151', marginBottom: '0.5rem' }}>
                   • Progress percentage will be set to 0%
                 </p>
-                {resetDayData?.day === 1 && (
+                {resetDayData?.hasDynamicTest && (
                   <>
                     <p style={{ fontSize: '0.875rem', color: '#dc2626', marginBottom: '0.5rem', fontWeight: '600' }}>
-                      • Optionally reset burden test results
+                      • Optionally reset {resetDayData?.dynamicTestName || 'assessment'} results
                     </p>
                     <p style={{ fontSize: '0.75rem', color: '#6b7280', paddingLeft: '1rem' }}>
-                      (If you reset the burden test, the caregiver will need to retake it)
+                      (If you reset the {resetDayData?.dynamicTestName || 'assessment'}, the caregiver will need to retake it)
                     </p>
                   </>
                 )}
@@ -1868,9 +1934,9 @@ export default function CaregiverProfile() {
               </p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {resetDayData?.day === 1 && (
+                {resetDayData?.canResetAssessment && (
                   <button
-                    onClick={() => handleResetDayProgress(true)}
+                    onClick={() => handleResetDayProgress({ resetAssessment: true })}
                     style={{ 
                       ...styles.button, 
                       width: '100%',
@@ -1881,11 +1947,11 @@ export default function CaregiverProfile() {
                     onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
                     onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
                   >
-                    🗑️ Reset Including Burden Test
+                    🗑️ Reset Including {resetDayData?.dynamicTestName || 'Assessment'}
                   </button>
                 )}
                 <button
-                  onClick={() => handleResetDayProgress(false)}
+                  onClick={() => handleResetDayProgress({ resetAssessment: false })}
                   style={{ 
                     ...styles.button, 
                     width: '100%',

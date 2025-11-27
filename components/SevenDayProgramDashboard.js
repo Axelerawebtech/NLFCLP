@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
@@ -74,6 +74,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [quickResponses, setQuickResponses] = useState({}); // { taskId: { qIdx: responseValue } }
   const [submittingQuick, setSubmittingQuick] = useState({});
   const [showTestReview, setShowTestReview] = useState(false);
+  const [activeSubmission, setActiveSubmission] = useState(null);
+  const submissionCounterRef = useRef(0);
   
   // Task-specific state for different task types (using taskId as key)
   const [interactiveFieldState, setInteractiveFieldState] = useState({}); // { taskId: { problemText, solutionText } }
@@ -132,6 +134,38 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       title: trimmedTitle || getTaskDefaultTitle(task.taskType),
       description: trimmedDescription
     };
+  };
+
+  const taskSubmissionMessages = {
+    'quick-assessment': 'Hang tight! We’re preparing your next coaching tip…',
+    'interactive-field': 'Reflecting and tailoring your guidance…',
+    'activity-selector': 'Saving your choice and loading new ideas…',
+    'task-checklist': 'Marking progress and unlocking what’s next…',
+    'feeling-check': 'Capturing how you feel to personalize the next step…',
+    'motivation-message': 'Recording your acknowledgement…',
+    'greeting-message': 'Warming up the next task for you…',
+    'reflection-prompt': 'Saving your reflection and loading the next prompt…'
+  };
+
+  const getTaskSubmissionMessage = (taskType) => {
+    if (!taskType) return 'Saving your task progress…';
+    return taskSubmissionMessages[taskType] || 'Saving your task progress…';
+  };
+
+  const showSubmissionToast = (payload = {}) => {
+    submissionCounterRef.current += 1;
+    setActiveSubmission({
+      icon: '✨',
+      hint: 'We’re preparing your next task…',
+      ...payload
+    });
+  };
+
+  const hideSubmissionToast = () => {
+    submissionCounterRef.current = Math.max(submissionCounterRef.current - 1, 0);
+    if (submissionCounterRef.current === 0) {
+      setActiveSubmission(null);
+    }
   };
 
   // Render dynamic task based on type
@@ -209,7 +243,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     handleTaskResponse(task.taskId, task.taskType, {
                       responseText: 'Video watched',
                       videoUrl: task.content.videoUrl,
-                      completed: true
+                      completed: true,
+                      submissionMessage: 'Marking your video as complete and loading the next activity…'
                     });
                   }}
                 />
@@ -314,7 +349,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     <button
                       onClick={() => handleTaskResponse(task.taskId, task.taskType, {
                         responseText: 'Message acknowledged',
-                        completed: true
+                        completed: true,
+                        submissionMessage: 'Saving your acknowledgement…'
                       })}
                       style={{
                         padding: '14px 32px',
@@ -476,7 +512,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       onClick={() => handleTaskResponse(task.taskId, 'reflection-prompt', {
                         responseText: `${sliderValue}% - ${task.content.reflectionQuestion}`,
                         sliderValue: sliderValue,
-                        completed: true
+                        completed: true,
+                        submissionMessage: 'Saving your reflection…'
                       })}
                       style={{
                         padding: '14px 32px',
@@ -522,7 +559,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   handleTaskResponse(task.taskId, task.taskType, {
                     responseText: 'Audio listened',
                     audioUrl: task.content.audioUrl,
-                    completed: true
+                    completed: true,
+                    submissionMessage: 'Saving your listening progress…'
                   });
                 }}
               />
@@ -564,7 +602,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               problem: problemText,
               solution: solutionText,
               fieldType,
-              completed: true
+              completed: true,
+              submissionMessage: 'Saving your reflection…'
             });
             return;
           }
@@ -578,7 +617,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               responseText: `Rating: ${fieldState.rating}/5`,
               rating: fieldState.rating,
               fieldType,
-              completed: true
+              completed: true,
+              submissionMessage: 'Recording your rating…'
             });
             return;
           }
@@ -593,7 +633,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               responseText: `Mood: ${selectedMood?.label || fieldState.mood}`,
               mood: selectedMood?.label || fieldState.mood,
               fieldType,
-              completed: true
+              completed: true,
+              submissionMessage: 'Recording how you feel…'
             });
             return;
           }
@@ -607,7 +648,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             responseText: textValue,
             value: textValue,
             fieldType,
-            completed: true
+            completed: true,
+            submissionMessage: 'Saving your response…'
           });
         };
 
@@ -1339,7 +1381,17 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       return;
                     }
 
+                    const submissionTitle = 'Submitting your quick check-in';
+                    const submissionMessage = 'Syncing your responses and preparing the next task…';
+
                     try {
+                      showSubmissionToast({
+                        type: 'task',
+                        title: submissionTitle,
+                        message: submissionMessage,
+                        hint: 'We’ll surface the next activity as soon as it loads.',
+                        icon: '📝'
+                      });
                       setSubmittingQuick(prev => ({ ...prev, [task.taskId]: true }));
                       
                       // Save to daily-assessment API for record keeping
@@ -1362,7 +1414,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                         responses: responsesObj,
                         questionTexts: questionTexts,
                         totalQuestions: Object.keys(responsesObj).length,
-                        completed: true
+                        completed: true,
+                        submissionMessage,
+                        suppressSubmissionToast: true
                       });
 
                       alert('✅ Quick assessment saved');
@@ -1371,6 +1425,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       alert('Error submitting quick assessment');
                     } finally {
                       setSubmittingQuick(prev => ({ ...prev, [task.taskId]: false }));
+                      hideSubmissionToast();
                     }
                   }}
                   style={{ padding: '10px 18px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
@@ -1589,6 +1644,67 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       padding: '24px',
       textAlign: 'center',
       color: '#dc2626'
+    },
+    submissionOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(2, 6, 23, 0.65)',
+      backdropFilter: 'blur(10px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2500,
+      padding: '24px'
+    },
+    submissionCard: {
+      position: 'relative',
+      background: 'linear-gradient(135deg, rgba(37,99,235,0.95), rgba(99,102,241,0.95))',
+      color: 'white',
+      borderRadius: '24px',
+      padding: '40px 32px',
+      width: '100%',
+      maxWidth: '420px',
+      textAlign: 'center',
+      boxShadow: '0 30px 80px rgba(15,23,42,0.55)',
+      overflow: 'hidden'
+    },
+    submissionGlow: {
+      position: 'absolute',
+      inset: 0,
+      background: 'radial-gradient(circle at top, rgba(255,255,255,0.25), transparent 55%)',
+      pointerEvents: 'none'
+    },
+    submissionIcon: {
+      fontSize: '32px',
+      marginBottom: '12px'
+    },
+    submissionSpinner: {
+      width: '70px',
+      height: '70px',
+      margin: '0 auto 20px auto',
+      borderRadius: '50%',
+      border: '5px solid rgba(255,255,255,0.25)',
+      borderTopColor: '#facc15',
+      animation: 'submissionSpin 0.9s linear infinite'
+    },
+    submissionTitle: {
+      fontSize: '20px',
+      fontWeight: 700,
+      margin: '0 0 8px 0'
+    },
+    submissionMessage: {
+      fontSize: '15px',
+      color: 'rgba(255,255,255,0.95)',
+      margin: 0,
+      lineHeight: 1.6
+    },
+    submissionHint: {
+      fontSize: '13px',
+      color: 'rgba(255,255,255,0.75)',
+      marginTop: '16px'
     }
   };
 
@@ -1845,6 +1961,14 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   };
 
   const handleVideoComplete = async (day) => {
+    showSubmissionToast({
+      type: 'video',
+      title: 'Marking video as complete',
+      message: 'Updating your progress and loading your next activity…',
+      icon: '🎬',
+      hint: 'Please keep this tab open while we fetch your new tasks.'
+    });
+
     try {
       const response = await fetch('/api/caregiver/update-progress', {
         method: 'POST',
@@ -1874,25 +1998,25 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             console.log('✅ Setting showAssessment to true for Day 0');
             setShowAssessment(true);
             
-            // Delay the program status fetch slightly to ensure showAssessment state is set first
-            setTimeout(() => {
-              console.log('📡 Fetching program status after assessment state set');
-              fetchProgramStatus();
-            }, 100);
+            // Ensure state updates flush before refreshing data
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            console.log('📡 Fetching program status after assessment state set');
+            await fetchProgramStatus();
           } else {
             console.log('❌ Day 0 assessment already completed, not showing');
-            // Still fetch program status for other days
-            fetchProgramStatus();
+            await fetchProgramStatus();
           }
         } else {
           // For other days, fetch immediately
-          fetchProgramStatus();
+          await fetchProgramStatus();
         }
       } else {
         console.error('Failed to update video progress:', response.status);
       }
     } catch (err) {
       console.error('Failed to update video progress:', err);
+    } finally {
+      hideSubmissionToast();
     }
   };
 
@@ -1923,6 +2047,24 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   };
 
   const handleTaskResponse = async (taskId, taskType, responseData) => {
+    const {
+      suppressSubmissionToast,
+      submissionMessage,
+      ...taskResponseData
+    } = responseData || {};
+
+    const shouldShowToast = suppressSubmissionToast !== true;
+
+    if (shouldShowToast) {
+      showSubmissionToast({
+        type: 'task',
+        title: 'Saving your response',
+        message: submissionMessage || getTaskSubmissionMessage(taskType),
+        hint: 'We’ll reveal your next step as soon as it’s ready.',
+        icon: '🌀'
+      });
+    }
+
     try {
       console.log(`🚀 Calling update-progress API for Day ${selectedDay}, Task: ${taskType} (${taskId})`);
       
@@ -1932,7 +2074,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         taskResponse: {
           taskId,
           taskType,
-          ...responseData,
+          ...taskResponseData,
           completedAt: new Date().toISOString()
         }
       };
@@ -1950,13 +2092,17 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       if (response.ok) {
         const data = await response.json();
         console.log(`✅ ${taskType} response saved. Server returned:`, data);
-        fetchProgramStatus(); // Refresh to show updated responses
+        await fetchProgramStatus(); // Refresh to show updated responses
       } else {
         const errorData = await response.text();
         console.error('❌ Failed to save task response:', response.status, errorData);
       }
     } catch (err) {
       console.error('❌ Failed to save task response:', err);
+    } finally {
+      if (shouldShowToast) {
+        hideSubmissionToast();
+      }
     }
   };
 
@@ -2003,6 +2149,15 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         }
       }
       
+      // Show submission overlay for test submit
+      showSubmissionToast({
+        type: 'test',
+        title: wasRetake ? 'Updating your assessment' : 'Submitting your assessment',
+        message: 'Personalizing today’s plan and loading your next tasks…',
+        hint: 'Hang tight while we refresh today’s personalized content.',
+        icon: '🧠'
+      });
+
       // Submit test results to API
       const response = await fetch('/api/caregiver/submit-dynamic-test', {
         method: 'POST',
@@ -2041,6 +2196,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       alert('Failed to submit test. Please try again.');
     } finally {
       setSubmittingTest(false);
+      hideSubmissionToast();
     }
   };
 
@@ -2191,6 +2347,27 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     <div style={styles.container}>
       {/* Notification Manager for Reminders */}
       <NotificationManager caregiverId={caregiverId} day={selectedDay} />
+
+      {/* Submission overlay (shown when any task/test submission is in progress) */}
+      {activeSubmission && (
+        <div 
+          style={styles.submissionOverlay}
+          role="alertdialog"
+          aria-live="assertive"
+          aria-busy="true"
+          aria-modal="true"
+        >
+          <div style={styles.submissionCard}>
+            <div style={styles.submissionGlow}></div>
+            <style>{`@keyframes submissionSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            <div style={styles.submissionIcon}>{activeSubmission.icon || '✨'}</div>
+            <div style={styles.submissionSpinner} />
+            <h3 style={styles.submissionTitle}>{activeSubmission.title || 'Hang tight…'}</h3>
+            <p style={styles.submissionMessage}>{activeSubmission.message || 'Preparing your next task…'}</p>
+            <p style={styles.submissionHint}>{activeSubmission.hint || 'This usually takes just a moment.'}</p>
+          </div>
+        </div>
+      )}
 
       {/* Progress Overview */}
       <div style={styles.headerCard}>
@@ -3419,7 +3596,17 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                                       return;
                                     }
 
+                                    const submissionTitle = 'Submitting your quick check-in';
+                                    const submissionMessage = 'Syncing your responses and preparing the next task…';
+
                                     try {
+                                      showSubmissionToast({
+                                        type: 'task',
+                                        title: submissionTitle,
+                                        message: submissionMessage,
+                                        hint: 'We’ll surface the next activity as soon as it loads.',
+                                        icon: '📝'
+                                      });
                                       setSubmittingQuick(prev => ({ ...prev, [task.taskId]: true }));
                                       const res = await fetch('/api/caregiver/daily-assessment', {
                                         method: 'POST',
@@ -3447,6 +3634,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                                       alert('Error submitting quick assessment');
                                     } finally {
                                       setSubmittingQuick(prev => ({ ...prev, [task.taskId]: false }));
+                                      hideSubmissionToast();
                                     }
                                   }}
                                   disabled={submittingQuick[task.taskId]}

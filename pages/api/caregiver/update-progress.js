@@ -205,6 +205,35 @@ export default async function handler(req, res) {
           dayModule.taskResponses.push(responseObj);
         }
 
+        const isVideoTask = normalizedTaskType === 'video' || normalizedTaskType === 'calming-video';
+        if (isVideoTask) {
+          const payloadProgress = typeof taskResponse.videoProgress === 'number'
+            ? Math.max(0, Math.min(100, Math.round(taskResponse.videoProgress)))
+            : null;
+
+          if (payloadProgress !== null) {
+            const previousProgress = dayModule.videoProgress || 0;
+            dayModule.videoProgress = Math.max(previousProgress, payloadProgress);
+            if (payloadProgress > 0 && !dayModule.videoStartedAt) {
+              dayModule.videoStartedAt = responseObj.completedAt || new Date();
+            }
+            if (payloadProgress >= 100) {
+              dayModule.videoWatched = true;
+              dayModule.videoCompleted = true;
+              dayModule.videoCompletedAt = responseObj.completedAt || dayModule.videoCompletedAt || new Date();
+            }
+          }
+
+          if (responseObj.completed) {
+            dayModule.videoWatched = true;
+            dayModule.videoCompleted = true;
+            dayModule.videoCompletedAt = responseObj.completedAt || dayModule.videoCompletedAt || new Date();
+            dayModule.videoProgress = 100;
+          } else if (!dayModule.videoWatched) {
+            dayModule.videoWatched = true;
+          }
+        }
+
         recordDailyTaskResponse(program, day, {
           taskId: responseObj.taskId,
           taskType: normalizedTaskType,

@@ -21,7 +21,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { caregiverId, day, resetBurdenTest = false } = req.body;
+    const {
+      caregiverId,
+      day,
+      resetBurdenTest = false,
+      resetDynamicTest = false
+    } = req.body;
 
     if (!caregiverId || day === undefined) {
       return res.status(400).json({ 
@@ -88,8 +93,22 @@ export default async function handler(req, res) {
       dailyTasksChanged = true;
     }
 
+    const shouldResetDynamicAssessment = Boolean(resetDynamicTest || (day === 1 && resetBurdenTest));
+
+    if (shouldResetDynamicAssessment) {
+      dayModule.dynamicTestCompleted = false;
+      dayModule.dynamicTest = null;
+      dayModule.contentLevel = null;
+      dayModule.burdenTestCompleted = false;
+
+      // Also clear any cached test results in taskResponses
+      if (Array.isArray(dayModule.taskResponses)) {
+        dayModule.taskResponses = dayModule.taskResponses.filter(resp => resp?.taskType !== 'dynamic-test');
+      }
+    }
+
     // Special handling for Day 1 - burden test reset
-    if (day === 1 && resetBurdenTest) {
+    if (day === 1 && shouldResetDynamicAssessment) {
       dayModule.burdenTestCompleted = false;
       dayModule.burdenLevel = null;
       dayModule.burdenScore = null;
@@ -131,19 +150,19 @@ export default async function handler(req, res) {
     await program.save({ validateBeforeSave: false });
 
     console.log(`✅ Day ${day} progress reset for caregiver:`, caregiverId, {
-      resetBurdenTest: day === 1 ? resetBurdenTest : 'N/A'
+      resetAssessment: shouldResetDynamicAssessment
     });
 
     res.status(200).json({
       success: true,
-      message: `Day ${day} progress has been reset successfully${day === 1 && resetBurdenTest ? ' (including burden test)' : ''}`,
+      message: `Day ${day} progress has been reset successfully${shouldResetDynamicAssessment ? ' (including assessment)' : ''}`,
       data: {
         day,
-        resetBurdenTest: day === 1 ? resetBurdenTest : false,
+        resetDynamicTest: shouldResetDynamicAssessment,
         progressPercentage: 0,
         videoWatched: false,
         audioCompleted: false,
-        burdenTestCompleted: day === 1 ? (resetBurdenTest ? false : dayModule.burdenTestCompleted) : undefined
+        burdenTestCompleted: day === 1 ? !shouldResetDynamicAssessment && dayModule.burdenTestCompleted : undefined
       }
     });
 

@@ -28,6 +28,23 @@ export default function CoreModuleEmbedded({
   const [hasShownCompletionOnce, setHasShownCompletionOnce] = useState(completed); // Track if completion was already shown
   const [videoJustCompleted, setVideoJustCompleted] = useState(false); // Track if video was just completed in this session
 
+  const persistVideoProgress = async (payload = {}) => {
+    if (!caregiverId) return;
+    try {
+      await fetch('/api/caregiver/update-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caregiverId,
+          day: 0,
+          ...payload
+        })
+      });
+    } catch (error) {
+      console.error('Failed to persist Day 0 video progress:', error);
+    }
+  };
+
   // Update hasShownCompletionOnce when completed prop changes
   useEffect(() => {
     if (completed) {
@@ -45,7 +62,12 @@ export default function CoreModuleEmbedded({
     progressPercentage: completed ? 100 : 0
   };
 
-  const handleVideoComplete = () => {
+  const handleVideoComplete = async () => {
+    await persistVideoProgress({
+      videoProgress: 100,
+      videoWatched: true,
+      videoCompleted: true
+    });
     // Only show completion dialog if this is the first time completing
     if (!hasShownCompletionOnce) {
       setVideoJustCompleted(true); // Mark video as just completed
@@ -54,6 +76,11 @@ export default function CoreModuleEmbedded({
       onComplete?.();
     }
     // If it's a re-watch, don't show dialog or call onComplete again
+  };
+
+  const handleVideoProgressUpdate = async (progressPercent) => {
+    if (!Number.isFinite(progressPercent)) return;
+    await persistVideoProgress({ videoProgress: Math.round(progressPercent) });
   };
 
   const handleCompletionConfirm = () => {
@@ -122,6 +149,7 @@ export default function CoreModuleEmbedded({
                 dayModule={coreModuleData}
                 burdenLevel={null} // Core module doesn't have burden levels
                 onVideoComplete={handleVideoComplete}
+                onProgressUpdate={handleVideoProgressUpdate}
                 showCompletionDialog={false} // Disable internal completion dialog
                 className="core-module-video"
               />
