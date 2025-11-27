@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getTranslation } from '../utils/translations';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
 import InlineBurdenAssessment from './InlineBurdenAssessment';
@@ -62,6 +63,7 @@ function ReflectionPromptSlider({ question }) {
 
 export default function SevenDayProgramDashboard({ caregiverId }) {
   const { currentLanguage } = useLanguage();
+  const t = (key) => getTranslation(currentLanguage, key);
   const [programData, setProgramData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(0); // Default to Day 0 for new caregivers
@@ -136,10 +138,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
         <div>
           <h5 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>
-            {getTaskIcon(task.taskType)} {task.title}
+            {getTaskIcon(task.taskType)} {getLocalizedText(task.title)}
           </h5>
           {task.description && (
-            <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>{task.description}</p>
+            <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>{getLocalizedText(task.description)}</p>
           )}
         </div>
       </div>
@@ -325,7 +327,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
                       }}
                     >
-                      Continue ➜
+                      {t('continue')} ➜
                     </button>
                   </div>
                 </div>
@@ -2074,29 +2076,31 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     const unlock = new Date(scheduledUnlockAt);
     const diff = unlock - now;
     
-    if (diff <= 0) return 'Available now';
+    if (diff <= 0) return t('availableNow');
     
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     
     if (hours > 24) {
       const days = Math.floor(hours / 24);
-      return `${days} day${days > 1 ? 's' : ''} remaining`;
+      const key = days > 1 ? 'daysRemaining' : 'dayRemaining';
+      return t(key).replace('{count}', days);
     }
     
-    return `${hours}h ${minutes}m remaining`;
+    return `${hours}h ${minutes}m ${t('remaining')}`;
   };
 
   const formatCountdownMeta = (meta) => {
     if (!meta) return null;
-    if (meta.minutesRemaining <= 0) return 'Available now';
+    if (meta.minutesRemaining <= 0) return t('availableNow');
     if (meta.hoursRemaining >= 24) {
       const days = Math.ceil(meta.hoursRemaining / 24);
-      return `${days} day${days > 1 ? 's' : ''} remaining`;
+      const key = days > 1 ? 'daysRemaining' : 'dayRemaining';
+      return t(key).replace('{count}', days);
     }
     const hours = Math.floor(meta.minutesRemaining / 60);
     const minutes = meta.minutesRemaining % 60;
-    return `${hours}h ${minutes}m remaining`;
+    return `${hours}h ${minutes}m ${t('remaining')}`;
   };
 
   const getBurdenLevelInfo = (level) => {
@@ -2106,7 +2110,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           backgroundColor: '#dcfce7', 
           color: '#166534', 
           borderColor: '#86efac', 
-          text: 'Mild Burden',
+          text: t('mildBurden'),
           emoji: '😊'
         };
       case 'moderate':
@@ -2114,7 +2118,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           backgroundColor: '#fef3c7', 
           color: '#92400e', 
           borderColor: '#fde68a', 
-          text: 'Moderate Burden',
+          text: t('moderateBurden'),
           emoji: '😐'
         };
       case 'severe':
@@ -2122,7 +2126,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           backgroundColor: '#fee2e2', 
           color: '#991b1b', 
           borderColor: '#fecaca', 
-          text: 'Severe Burden',
+          text: t('severeBurden'),
           emoji: '😟'
         };
       default:
@@ -2130,14 +2134,18 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           backgroundColor: '#f3f4f6', 
           color: '#1f2937', 
           borderColor: '#d1d5db', 
-          text: 'Not Assessed',
+          text: t('notAssessed'),
           emoji: '❓'
         };
     }
   };
 
   const formatLevelName = (level) => {
-    if (!level || typeof level !== 'string') return 'Personalized';
+    if (!level || typeof level !== 'string') return t('personalized');
+    const levelKey = level.toLowerCase();
+    if (levelKey === 'mild') return t('mild');
+    if (levelKey === 'moderate') return t('moderate');
+    if (levelKey === 'severe') return t('severe');
     return level.charAt(0).toUpperCase() + level.slice(1);
   };
 
@@ -2189,12 +2197,12 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       <div style={styles.headerCard}>
         <div style={styles.headerFlex}>
           <div>
-            <h2 style={styles.title}>7-Day Caregiver Support Program</h2>
-            <p style={styles.subtitle}>Your journey to better caregiving</p>
+            <h2 style={styles.title}>{t('sevenDayCaregiverSupportProgram')}</h2>
+            <p style={styles.subtitle}>{t('yourJourneyToBetterCaregiving')}</p>
           </div>
           <div style={styles.progressBox}>
             <p style={styles.progressText}>{Math.round(programData.overallProgress || 0)}%</p>
-            <p style={styles.progressLabel}>Complete</p>
+            <p style={styles.progressLabel}>{t('complete')}</p>
           </div>
         </div>
         
@@ -2218,13 +2226,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         }}>
           <div>
             <p style={{ fontSize: '14px', fontWeight: '600', margin: 0, marginBottom: '4px' }}>
-              Your Burden Assessment Result:
+              {t('yourBurdenAssessmentResult')}
             </p>
             <p style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>
               {burdenInfo.text}
             </p>
             <p style={{ fontSize: '12px', marginTop: '8px', opacity: 0.8, margin: 0 }}>
-              Your program content has been personalized based on this assessment
+              {t('programPersonalized')}
             </p>
           </div>
           <div style={{ fontSize: '32px' }}>{burdenInfo.emoji}</div>
@@ -2292,7 +2300,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               {/* Day Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <span style={{ fontSize: '18px', fontWeight: '700', color: '#111827' }}>
-                  Day {dayModule.day}
+                  {t('day')} {dayModule.day}
                 </span>
                 <span style={{ fontSize: '20px' }}>
                   {isCompleted ? '✅' : !isUnlocked ? '🔒' : isCurrent ? '▶️' : '📝'}
@@ -2338,7 +2346,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical'
               }}>
-                {getLocalizedText(dayModule.videoTitle, 'Module Content')}
+                {getLocalizedText(dayModule.videoTitle, t('moduleContent'))}
               </p>
               
               {/* Time Remaining */}
@@ -2365,18 +2373,18 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '16px' }}>
               <div>
                 <h3 style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: '700', color: '#111827', margin: 0, marginBottom: '4px' }}>
-                  Day {selectedDay}: {getLocalizedText(selectedDayData.videoTitle, 'Program Content')}
+                  {t('day')} {selectedDay}: {getLocalizedText(selectedDayData.videoTitle, t('programContent'))}
                 </h3>
                 <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
                   {selectedDayData.progressPercentage === 100 
-                    ? '✅ Completed' 
-                    : `${selectedDayData.progressPercentage || 0}% Complete`}
+                    ? `✅ ${t('completed')}` 
+                    : `${selectedDayData.progressPercentage || 0}% ${t('complete')}`}
                 </p>
               </div>
               
               {selectedDayData.completedAt && (
                 <div style={{ fontSize: '13px', color: '#6b7280' }}>
-                  Completed: {new Date(selectedDayData.completedAt).toLocaleDateString()}
+                  {t('completed')}: {new Date(selectedDayData.completedAt).toLocaleDateString()}
                 </div>
               )}
             </div>
@@ -2508,7 +2516,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 {/* Phase 3: Tasks (if video watched and tasks exist) */}
                 {(selectedDayData.burdenTestCompleted || programData.burdenTestCompleted) && selectedDayData.videoCompleted && selectedDayData.taskResponses && selectedDayData.taskResponses.length > 0 && (
                   <div>
-                    <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
+                    <h4 style={styles.sectionTitle}>📝 {t('dailyTasks')}</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {selectedDayData.taskResponses.map((task, idx) => (
                         <div key={idx} style={{
@@ -2549,10 +2557,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     marginTop: '24px'
                   }}>
                     <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '18px' }}>
-                      🎉 Day 1 Complete!
+                      🎉 {t('day')} 1 {t('complete')}!
                     </p>
                     <p style={{ margin: '8px 0 0 0', color: '#166534', fontSize: '14px' }}>
-                      Great job! Day 2 will unlock in 24 hours.
+                      {t('greatJob')} {t('dayWillUnlockIn').replace('{day}', 2).replace('{hours}', 24)}
                     </p>
                   </div>
                 )}
@@ -2580,23 +2588,23 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     }}>
                       <div style={{ flex: 1 }}>
                         <p style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 600, color: '#3f6212' }}>
-                          Assessment Complete
+                          {t('assessmentComplete')}
                         </p>
                         <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#1a2e05' }}>
-                          You are on the {personalizedLevelLabel} plan
+                          {t('youAreOnThe')} {personalizedLevelLabel} {t('plan')}
                         </h4>
                         {selectedDayTestResult?.totalScore !== undefined && (
                           <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#3f6212' }}>
-                            Score: <strong>{selectedDayTestResult.totalScore}</strong>
+                            {t('score')}: <strong>{selectedDayTestResult.totalScore}</strong>
                           </p>
                         )}
                         {testCompletedAt && (
                           <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#3f6212' }}>
-                            Finished on {testCompletedAt.toLocaleString()}
+                            {t('finishedOn')} {testCompletedAt.toLocaleString()}
                           </p>
                         )}
                         <p style={{ margin: 0, fontSize: '13px', color: '#3f6212' }}>
-                          Today's tasks are unlocked and tailored to this level. Work through them one at a time below.
+                          {t('todaysTasksUnlocked')}
                         </p>
                       </div>
                       <div style={{ minWidth: isMobile ? '100%' : '240px' }}>
@@ -2624,10 +2632,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                             boxShadow: '0 4px 10px rgba(132, 204, 22, 0.35)'
                           }}
                         >
-                          {showTestReview ? 'Hide assessment' : 'Review or edit answers'}
+                          {showTestReview ? t('hideAssessment') : t('reviewOrEditAnswers')}
                         </button>
                         <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#4d7c0f' }}>
-                          Need to make changes? Update your responses anytime—tasks will refresh instantly.
+                          {t('needToMakeChanges')}
                         </p>
                       </div>
                     </div>
@@ -2752,16 +2760,16 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   return (
                     <div style={{ marginBottom: '24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                        <h4 style={styles.sectionTitle}>📝 Day {selectedDay} Tasks</h4>
+                        <h4 style={styles.sectionTitle}>📝 {t('dayTasks').replace('{day}', selectedDay)}</h4>
                         <div style={{ fontSize: '14px', fontWeight: '600', color: '#2563eb' }}>
-                          {completedCount} / {totalCount} completed
+                          {completedCount} / {totalCount} {t('completed').toLowerCase()}
                         </div>
                       </div>
 
                       {/* Completed tasks */}
                       {taskResponses.length > 0 && (
                         <div style={{ marginBottom: '20px' }}>
-                          <h5 style={{ margin: '0 0 10px 0', fontSize: '15px', color: '#10b981' }}>✅ Completed</h5>
+                          <h5 style={{ margin: '0 0 10px 0', fontSize: '15px', color: '#10b981' }}>✅ {t('completed')}</h5>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {taskResponses.map((resp, rIdx) => {
                               const task = allTasks.find(t => t.taskId === resp.taskId) || {};
@@ -2770,7 +2778,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <span style={{ fontSize: '20px' }}>{getTaskIcon(task.taskType)}</span>
                                     <div style={{ flex: 1 }}>
-                                      <strong style={{ fontSize: '15px', color: '#166534' }}>{task.title || resp.taskId}</strong>
+                                      <strong style={{ fontSize: '15px', color: '#166534' }}>{getLocalizedText(task.title) || resp.taskId}</strong>
                                       {resp.responseText && <div style={{ marginTop: '4px', fontSize: '13px', color: '#166534' }}>{resp.responseText}</div>}
                                       {resp.selectedItems && Array.isArray(resp.selectedItems) && resp.selectedItems.length > 0 && (
                                         <div style={{ marginTop: '4px', fontSize: '13px', color: '#166534' }}>{resp.selectedItems.join(', ')}</div>
@@ -2788,13 +2796,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       {/* Next active task (ONE at a time) */}
                       {nextTask ? (
                         <div>
-                          <h5 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#2563eb' }}>👉 Current Task</h5>
+                          <h5 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#2563eb' }}>👉 {t('currentTask')}</h5>
                           {renderDynamicTask(nextTask, 0)}
                         </div>
                       ) : (
                         <div style={{ padding: '20px', backgroundColor: '#dcfce7', border: '2px solid #86efac', borderRadius: '12px', textAlign: 'center' }}>
-                          <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '16px' }}>🎉 All tasks completed for Day {selectedDay}!</p>
-                          <p style={{ margin: '8px 0 0 0', color: '#166534', fontSize: '14px' }}>Great job! Next day will unlock after the configured wait time.</p>
+                          <p style={{ margin: 0, color: '#166534', fontWeight: '600', fontSize: '16px' }}>🎉 {t('allTasksCompleted').replace('{day}', selectedDay)}</p>
+                          <p style={{ margin: '8px 0 0 0', color: '#166534', fontSize: '14px' }}>{t('greatJob')} {t('nextDayWillUnlock')}</p>
                         </div>
                       )}
                     </div>
@@ -3575,7 +3583,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                         onMouseOver={(e) => e.target.style.backgroundColor = '#047857'}
                         onMouseOut={(e) => e.target.style.backgroundColor = '#059669'}
                       >
-                        🎉 Mark Day 0 as Complete & Start Day 1
+                        🎉 {t('markDay0Complete')}
                       </button>
                     )}
                     
@@ -3588,7 +3596,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                         borderRadius: '6px',
                         color: '#374151'
                       }}>
-                        ✅ Day 0 completed on {new Date(selectedDayData.completedAt).toLocaleDateString()}
+                        ✅ {t('dayCompletedOn').replace('{day}', 0).replace('{date}', new Date(selectedDayData.completedAt).toLocaleDateString())}
                       </div>
                     )}
                   </div>
@@ -3598,7 +3606,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             
             {/* Tasks Section - Only unlocked after video is watched */}
             <div>
-              <h4 style={styles.sectionTitle}>📝 Daily Tasks</h4>
+              <h4 style={styles.sectionTitle}>📝 {t('dailyTasks')}</h4>
               
               {/* Show lock message if video not watched */}
               {!selectedDayData.videoCompleted && getLocalizedText(selectedDayData.videoUrl) && (
@@ -3611,10 +3619,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   marginBottom: '16px'
                 }}>
                   <p style={{ margin: 0, fontWeight: '600', marginBottom: '4px' }}>
-                    🔒 Tasks Locked
+                    🔒 {t('tasksLocked')}
                   </p>
                   <p style={{ margin: 0, fontSize: '14px' }}>
-                    Complete watching the video above to unlock daily tasks.
+                    {t('completeWatchingVideo')}
                   </p>
                 </div>
               )}
@@ -3631,7 +3639,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                           </p>
                           {task.completedAt && (
                             <p style={{ fontSize: '12px', color: '#16a34a', margin: '4px 0 0 0' }}>
-                              ✅ Completed {new Date(task.completedAt).toLocaleDateString()}
+                              ✅ {t('completedOn').replace('{date}', new Date(task.completedAt).toLocaleDateString())}
                             </p>
                           )}
                         </div>
@@ -3640,7 +3648,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   ) : (
                     <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '16px' }}>
                       <p style={{ fontSize: '14px', color: '#1e40af', margin: 0 }}>
-                        Complete the tasks for this day to unlock the next module.
+                        {t('completeTasksToUnlock')}
                       </p>
                     </div>
                   )}
@@ -3656,7 +3664,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       onMouseEnter={() => setTasksButtonHovered(true)}
                       onMouseLeave={() => setTasksButtonHovered(false)}
                     >
-                      Mark Tasks as Complete
+                      {t('markTasksAsComplete')}
                     </button>
                   )}
                 </>
@@ -3671,13 +3679,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       {/* Help Section */}
       <div style={styles.infoBox}>
         <h4 style={{ fontWeight: '600', color: '#78350f', marginTop: 0, marginBottom: '8px' }}>
-          💡 Program Information
+          💡 {t('programInformation')}
         </h4>
         <ul style={{ fontSize: '14px', color: '#78350f', lineHeight: '1.8', margin: 0, paddingLeft: '20px' }}>
-          <li>Complete each day's video and tasks to progress</li>
-          <li>New days unlock automatically after the wait period</li>
-          <li>Day 1 includes a burden assessment that personalizes your content</li>
-          <li>Contact support if you need assistance: <strong>Tele-MANAS (14416)</strong></li>
+          <li>{t('completeEachDayVideo')}</li>
+          <li>{t('newDaysUnlock')}</li>
+          <li>{t('day1IncludesAssessment')}</li>
+          <li>{t('contactSupport')}: <strong>{t('teleManas')} (14416)</strong></li>
         </ul>
       </div>
     </div>

@@ -28,6 +28,7 @@ import { FaSignOutAlt, FaSun, FaMoon, FaCalendarAlt, FaChartLine, FaExclamationT
 import { useRouter } from 'next/router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { getTranslation } from '../../utils/translations';
 import ZaritBurdenAssessmentPreTest from '../../components/ZaritBurdenAssessmentPreTest';
 import NotificationSettings from '../../components/NotificationSettings';
 import SevenDayProgramDashboard from '../../components/SevenDayProgramDashboard';
@@ -36,6 +37,7 @@ export default function CaregiverDashboard() {
   const router = useRouter();
   const { isDarkMode, toggleTheme } = useTheme();
   const { currentLanguage, changeLanguage } = useLanguage();
+  const t = (key) => getTranslation(currentLanguage, key);
   
   // Enhanced state management - combining all functionality
   const [caregiverData, setCaregiverData] = useState(null);
@@ -353,7 +355,7 @@ export default function CaregiverDashboard() {
       <AppBar position="static" color="primary">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Caregiver Dashboard
+            {t('caregiverDashboard')}
           </Typography>
           
           {caregiverData && (
@@ -447,7 +449,7 @@ export default function CaregiverDashboard() {
               onClick={() => setCurrentView('overview')}
               startIcon={<FaChartLine />}
             >
-              Overview
+              {t('overview')}
             </Button>
             <Button
               variant={currentView === 'sevenDayProgram' ? 'contained' : 'outlined'}
@@ -461,7 +463,7 @@ export default function CaregiverDashboard() {
                 }
               }}
             >
-              7-Day Program
+              {t('sevenDayProgram')}
             </Button>
             <Button
               variant={currentView === 'notifications' ? 'contained' : 'outlined'}
@@ -469,7 +471,7 @@ export default function CaregiverDashboard() {
               disabled={!day1PreTestCompleted}
               startIcon={<FaBell />}
             >
-              Reminders
+              {t('reminders')}
             </Button>
           </Box>
         </Paper>
@@ -497,7 +499,7 @@ export default function CaregiverDashboard() {
               <Card>
                 <CardContent>
                   <Typography variant="h5" gutterBottom>
-                    Program Overview
+                    {t('programOverview')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     {overviewStatusMessage}
@@ -510,7 +512,7 @@ export default function CaregiverDashboard() {
                           {programData.currentDay ?? 0}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Current Day
+                          {t('currentDay')}
                         </Typography>
                       </Box>
                     </Grid>
@@ -520,7 +522,7 @@ export default function CaregiverDashboard() {
                           {completedSessionCount}/{totalAvailableSessions || 1}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Sessions Completed
+                          {t('sessionsCompleted')}
                         </Typography>
                       </Box>
                     </Grid>
@@ -530,7 +532,7 @@ export default function CaregiverDashboard() {
                           {unlockedDayCount}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Program Days Unlocked
+                          {t('programDaysUnlocked')}
                         </Typography>
                       </Box>
                     </Grid>
@@ -540,7 +542,7 @@ export default function CaregiverDashboard() {
                           {lockedDayCount}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Locked Days
+                          {t('programDaysLocked')}
                         </Typography>
                       </Box>
                     </Grid>
@@ -550,7 +552,7 @@ export default function CaregiverDashboard() {
                           {Math.round(programData.overallProgress || 0)}%
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Overall Progress
+                          {t('overallProgress')}
                         </Typography>
                       </Box>
                     </Grid>
@@ -564,7 +566,7 @@ export default function CaregiverDashboard() {
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    7-Day Program Progress
+                    {t('sevenDayProgramProgress')}
                   </Typography>
                   
                   <Grid container spacing={2}>
@@ -579,12 +581,12 @@ export default function CaregiverDashboard() {
                         const isCompleted = dayProgress === 100;
                         const isCurrent = dayNumber === normalizedCurrentDay;
                         const statusLabel = isLocked
-                          ? 'Locked'
+                          ? t('locked')
                           : isCompleted
-                            ? 'Completed'
+                            ? t('completed')
                             : isCurrent
-                              ? 'In Progress'
-                              : 'Ready';
+                              ? t('inProgress')
+                              : t('ready');
                         const statusColor = isLocked
                           ? 'default'
                           : isCompleted
@@ -607,7 +609,7 @@ export default function CaregiverDashboard() {
                             >
                               <CardContent sx={{ p: 2 }}>
                                 <Typography variant="h6" gutterBottom>
-                                  Day {dayModule.day}
+                                  {t('day')} {dayModule.day}
                                 </Typography>
                                 
                                 <LinearProgress 
@@ -617,7 +619,7 @@ export default function CaregiverDashboard() {
                                 />
                                 
                                 <Typography variant="body2" color="text.secondary">
-                                  {dayProgress}% Complete
+                                  {dayProgress}% {t('complete')}
                                 </Typography>
                                 
                                 <Chip
@@ -629,7 +631,7 @@ export default function CaregiverDashboard() {
                                 />
                                 {!isUnlocked && dayModule.scheduledUnlockAt && (
                                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                                    Unlocks at {formatDateTime(dayModule.scheduledUnlockAt)}
+                                    {t('unlocksAt')} {formatDateTime(dayModule.scheduledUnlockAt)}
                                   </Typography>
                                 )}
                               </CardContent>
@@ -648,7 +650,7 @@ export default function CaregiverDashboard() {
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FaLightbulb />
-                    Daily Health Tips
+                    {t('dailyHealthTips')}
                   </Typography>
                   
                   {healthTips.map((tip) => (
@@ -670,7 +672,7 @@ export default function CaregiverDashboard() {
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Recent Activity
+                    {t('recentActivity')}
                   </Typography>
                   
                   {programData.dailyTasks?.length > 0 ? (
@@ -692,7 +694,7 @@ export default function CaregiverDashboard() {
                           <Grid container alignItems="center" spacing={2}>
                             <Grid item xs={12} sm={6}>
                               <Typography variant="body2" fontWeight="bold">
-                                Day {task.day} Completed
+                                {t('day')} {task.day} {t('completed')}
                               </Typography>
                               <Typography variant="caption" color="text.secondary">
                                 {formatDate(task.completedAt)}
@@ -701,7 +703,7 @@ export default function CaregiverDashboard() {
                             <Grid item xs={12} sm={6}>
                               {task.task1 !== null && (
                                 <Typography variant="body2">
-                                  Break taken: {task.task1 ? '✅ Yes' : '❌ No'}
+                                  {t('breakTaken')}: {task.task1 ? `✅ ${t('yes')}` : `❌ ${t('no')}`}
                                 </Typography>
                               )}
                             </Grid>
@@ -710,7 +712,7 @@ export default function CaregiverDashboard() {
                       ))
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No recent activity to display.
+                      {t('noRecentActivity')}
                     </Typography>
                   )}
                 </CardContent>
@@ -723,13 +725,13 @@ export default function CaregiverDashboard() {
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h5" gutterBottom>
-                Program Overview
+                {t('programOverview')}
               </Typography>
               <Typography variant="body1" paragraph>
                 {overviewStatusMessage}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                If you believe this is an error, please contact your program administrator so they can assign the 7-day caregiver journey to your account.
+                {t('contactAdministrator')}
               </Typography>
             </CardContent>
           </Card>
@@ -747,10 +749,10 @@ export default function CaregiverDashboard() {
         {currentView === 'notifications' && !day1PreTestCompleted && (
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="h6" gutterBottom>
-              Reminder Notifications Not Yet Available
+              {t('reminderNotificationsNotAvailable')}
             </Typography>
             <Typography variant="body2">
-              Complete the Day 1 assessment to unlock personalized reminder notifications based on your care level.
+              {t('completeDay1Assessment')}
             </Typography>
           </Alert>
         )}

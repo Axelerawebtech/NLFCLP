@@ -36,19 +36,31 @@ export default function Home() {
 
   const t = (key) => getTranslation(currentLanguage, key);
 
+  // Helper for card styles
+  const cardStyle = {
+    backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 1)' : 'rgba(255, 255, 255, 1)',
+      boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)'
+    }
+  };
+
+  const textColor = isDarkMode ? '#f1f5f9' : '#1e40af';
+
   const features = [
     {
-      icon: <FaUserMd style={{ fontSize: '3rem', color: '#2563eb' }} />,
+      icon: <FaUserMd style={{ fontSize: '3rem', color: isDarkMode ? '#60a5fa' : '#2563eb' }} />,
       title: t('expertCaregivers') || 'Expert Caregivers',
       description: t('expertCaregiversDesc') || 'Connect with trained caregivers who provide emotional support and guidance'
     },
     {
-      icon: <FaHeart style={{ fontSize: '3rem', color: '#ef4444' }} />,
+      icon: <FaHeart style={{ fontSize: '3rem', color: isDarkMode ? '#f87171' : '#ef4444' }} />,
       title: t('sevenDayProgram') || '7-Day Program',
       description: t('sevenDayProgramDesc') || 'Comprehensive stress management and emotional support program'
     },
     {
-      icon: <FaUsers style={{ fontSize: '3rem', color: '#10b981' }} />,
+      icon: <FaUsers style={{ fontSize: '3rem', color: isDarkMode ? '#34d399' : '#10b981' }} />,
       title: t('patientSupport') || 'Patient Support',
       description: t('patientSupportDesc') || 'Personalized care and progress tracking for better outcomes'
     }
@@ -59,8 +71,11 @@ export default function Home() {
       component="main"
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #cabe38ff 0%, #9a9e53ff 100%)',
-        position: 'relative'
+        background: isDarkMode
+          ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
+          : 'linear-gradient(135deg, #efef46ff 0%, #ffcc02ff 100%)',
+        position: 'relative',
+        transition: 'background 0.3s ease'
       }}>
       {/* Corner Logos */}
       <Box sx={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
@@ -95,8 +110,9 @@ export default function Home() {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(10px)',
+        transition: 'background-color 0.3s ease'
       }}>
         <Box sx={{
           display: 'flex',
@@ -108,10 +124,11 @@ export default function Home() {
             onClick={toggleTheme}
             sx={{
               color: 'white',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.1)',
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              }
+                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.2)',
+              },
+              transition: 'all 0.3s ease'
             }}
           >
             {isDarkMode ? <FaSun /> : <FaMoon />}
@@ -130,10 +147,11 @@ export default function Home() {
             <Typography
               variant="h1"
               sx={{
-                color: 'white',
+                color: isDarkMode ? '#f1f5f9' : 'white',
                 mb: 3,
                 fontWeight: 800,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                transition: 'color 0.3s ease'
               }}
             >
               {t('mainTitle') || 'Cancer Care Support- Nurse-Led Family Caregiver Program (NLFCP)'}
@@ -141,11 +159,12 @@ export default function Home() {
             <Typography
               variant="h4"
               sx={{
-                color: 'rgba(255, 255, 255, 0.9)',
+                color: isDarkMode ? 'rgba(241, 245, 249, 0.9)' : 'rgba(255, 255, 255, 0.9)',
                 mb: 4,
                 fontWeight: 300,
                 maxWidth: 600,
-                mx: 'auto'
+                mx: 'auto',
+                transition: 'color 0.3s ease'
               }}
             >
               {t('mainSubtitle') || 'Connecting patients with caregivers for emotional support and stress management'}
@@ -162,19 +181,20 @@ export default function Home() {
                   startIcon={<FaQrcode />}
                   onClick={() => setShowQR(!showQR)}
                   sx={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.2)' : 'rgba(255, 255, 255, 0.2)',
                     color: 'white',
                     px: 4,
                     py: 2,
                     fontSize: '1.1rem',
                     backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    border: isDarkMode ? '1px solid rgba(96, 165, 250, 0.3)' : '1px solid rgba(255, 255, 255, 0.3)',
                     '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                    }
+                      backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.3)' : 'rgba(255, 255, 255, 0.3)',
+                    },
+                    transition: 'all 0.3s ease'
                   }}
                 >
-                  {showQR ? 'Hide QR Code' : 'Show QR Code'}
+                  {showQR ? t('hideQRCode') : t('showQRCode')}
                 </Button>
               </motion.div>
 
@@ -188,15 +208,16 @@ export default function Home() {
                   onClick={() => window.open('/admin/login', '_blank')}
                   sx={{
                     color: 'white',
-                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    borderColor: isDarkMode ? 'rgba(96, 165, 250, 0.5)' : 'rgba(255, 255, 255, 0.5)',
                     px: 4,
                     py: 2,
                     fontSize: '1.1rem',
                     '&:hover': {
-                      borderColor: 'white',
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      borderColor: isDarkMode ? '#60a5fa' : 'white',
+                      backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.1)' : 'rgba(255, 255, 255, 0.1)',
                     },
-                    mr: 2
+                    mr: 2,
+                    transition: 'all 0.3s ease'
                   }}
                 >
                   {t('adminLogin') || 'Admin Login'}
@@ -212,14 +233,15 @@ export default function Home() {
                   size="large"
                   onClick={() => router.push('/login')}
                   sx={{
-                    backgroundColor: 'white',
-                    color: '#764ba2',
+                    backgroundColor: isDarkMode ? '#60a5fa' : 'white',
+                    color: isDarkMode ? '#0f172a' : '#764ba2',
                     px: 4,
                     py: 2,
                     fontSize: '1.1rem',
                     '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    }
+                      backgroundColor: isDarkMode ? '#3b82f6' : 'rgba(255, 255, 255, 0.9)',
+                    },
+                    transition: 'all 0.3s ease'
                   }}
                 >
                   {t('userLogin') || 'User Login'}
@@ -241,12 +263,13 @@ export default function Home() {
                 maxWidth: 400,
                 mx: 'auto',
                 p: 4,
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                 backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
+                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)',
+                transition: 'all 0.3s ease'
               }}>
-                <Typography variant="h5" sx={{ mb: 3, color: '#1e293b' }}>
-                  Scan to Get Started
+                <Typography variant="h5" sx={{ mb: 3, color: isDarkMode ? '#f1f5f9' : '#1e293b', transition: 'color 0.3s ease' }}>
+                  {t('scanToGetStarted')}
                 </Typography>
                 <Box sx={{
                   display: 'flex',
@@ -259,7 +282,7 @@ export default function Home() {
                   <QRCode value={qrValue} size={200} />
                 </Box>
                 <Typography variant="body2" color="text.secondary">
-                  Scan this QR code to begin your onboarding journey
+                  {t('scanQRCode')}
                 </Typography>
               </Card>
             </Box>
@@ -278,13 +301,14 @@ export default function Home() {
                 alignItems: 'center',
                 gap: 1,
                 p: 1.5,
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
                 borderRadius: '12px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 '&:hover': {
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+
                 }
               }}>
                 <Box sx={{
@@ -294,14 +318,15 @@ export default function Home() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: '#f0f9ff',
-                  color: '#3b82f6',
-                  fontSize: '1.3rem'
+                  backgroundColor: '#f0fdf4',
+                  color: isDarkMode ? '#60a5fa' : '#3b82f6',
+                  fontSize: '1.3rem',
+                  transition: 'all 0.3s ease'
                 }}>
                   🧠
                 </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
-                  Assessment
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: isDarkMode ? '#60a5fa' : '#1e40af', transition: 'color 0.3s ease' }}>
+                  {t('assessment')}
                 </Typography>
               </Card>
             </motion.div>
@@ -312,17 +337,20 @@ export default function Home() {
               whileTap={{ scale: 0.98 }}
             >
               <Card sx={{
+                ...cardStyle,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,
                 p: 1.5,
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 borderRadius: '12px',
                 cursor: 'pointer',
+                  transition: 'all 0.2s',
                 '&:hover': {
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 1)',
-                }
+                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+
+                },
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
               }}>
                 <Box sx={{
                   width: 36,
@@ -331,14 +359,15 @@ export default function Home() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: '#fef2f2',
-                  color: '#ef4444',
-                  fontSize: '1.3rem'
+                  backgroundColor: '#f0fdf4',
+                  color: isDarkMode ? '#f87171' : '#ef4444',
+                  fontSize: '1.3rem',
+                  transition: 'all 0.3s ease'
                 }}>
                   🎥
                 </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
-                  Learning Modules
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: isDarkMode ? '#60a5fa' : '#1e40af', transition: 'color 0.3s ease'}}>
+                  {t('learningModules')}
                 </Typography>
               </Card>
             </motion.div>
@@ -353,13 +382,16 @@ export default function Home() {
                 alignItems: 'center',
                 gap: 1,
                 p: 1.5,
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                
                 borderRadius: '12px',
                 cursor: 'pointer',
+                  transition: 'all 0.2s',
                 '&:hover': {
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 1)',
-                }
+                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+
+                },
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
               }}>
                 <Box sx={{
                   width: 36,
@@ -375,7 +407,7 @@ export default function Home() {
                   💬
                 </Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
-                  Nurse Chat
+                  {t('nurseChat')}
                 </Typography>
               </Card>
             </motion.div>
@@ -415,13 +447,16 @@ export default function Home() {
                 alignItems: 'center',
                 gap: 1,
                 p: 1.5,
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                
                 borderRadius: '12px',
-                cursor: 'pointer',
+               cursor: 'pointer',
+                  transition: 'all 0.2s',
                 '&:hover': {
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 1)',
-                }
+                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+
+                },
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
               }}>
                 <Box sx={{
                   width: 36,
@@ -437,7 +472,7 @@ export default function Home() {
                   📅
                 </Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
-                  Reminders
+                  {t('reminders')}
                 </Typography>
               </Card>
             </motion.div>
@@ -452,13 +487,16 @@ export default function Home() {
                 alignItems: 'center',
                 gap: 1,
                 p: 1.5,
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                
                 borderRadius: '12px',
-                cursor: 'pointer',
+               cursor: 'pointer',
+                  transition: 'all 0.2s',
                 '&:hover': {
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 1)',
-                }
+                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+
+                },
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
               }}>
                 <Box sx={{
                   width: 36,
@@ -474,7 +512,7 @@ export default function Home() {
                   📈
                 </Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
-                  Progress
+                  {t('progress')}
                 </Typography>
               </Card>
             </motion.div>
@@ -543,14 +581,18 @@ export default function Home() {
                   alignItems: 'center',
                   gap: 1,
                   p: 1.5,
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  border:1,
                   borderRadius: '12px',
                   cursor: 'pointer',
                   textDecoration: 'none',
-                  '&:hover': {
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    backgroundColor: 'rgba(255, 255, 255, 1)',
-                  }
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                '&:hover': {
+                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+
+                },
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
                 }}>
                 <Box sx={{
                   width: 36,
@@ -566,9 +608,9 @@ export default function Home() {
                   🔗
                 </Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  TELE-MANAS
+                  {t('teleManas')}
                 </Typography>
-                <Typography variant="caption" sx={{ ml: 'auto', color: '#4b5563' }}>
+                <Typography variant="caption" sx={{ ml: 'auto', color: '#b1b3b6ff' }}>
                   1800-89-14416
                 </Typography>
               </Button>
@@ -614,14 +656,14 @@ export default function Home() {
                 size="large"
                 onClick={() => router.push('/onboarding')}
                 sx={{
-                  backgroundColor: '#ef4444',
+                  backgroundColor: '#f46f0aff',
                   color: 'white',
                   px: 6,
                   py: 2,
                   fontSize: '1.2rem',
                   fontWeight: 600,
                   '&:hover': {
-                    backgroundColor: '#dc2626',
+                    backgroundColor: '#eddc9fff',
                   }
                 }}
               >

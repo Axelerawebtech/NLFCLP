@@ -90,7 +90,8 @@ export default function UserLogin() {
         : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      transition: 'background 0.3s ease'
     }}>
       {/* Theme Toggle and Language Selector */}
       <Box sx={{
@@ -107,10 +108,11 @@ export default function UserLogin() {
           onClick={toggleTheme}
           sx={{
             color: 'white',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.1)',
             '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            }
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.2)',
+            },
+            transition: 'all 0.3s ease'
           }}
         >
           {isDarkMode ? <FaSun /> : <FaMoon />}
@@ -125,9 +127,11 @@ export default function UserLogin() {
         >
           <Card sx={{
             p: 4,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
+            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)',
+            transition: 'all 0.3s ease',
+            color: isDarkMode ? '#f1f5f9' : '#0f172a'
           }}>
             <CardContent>
               <Box textAlign="center" sx={{ mb: 4 }}>
@@ -138,7 +142,7 @@ export default function UserLogin() {
                 >
                   <FaSignInAlt style={{
                     fontSize: '4rem',
-                    color: '#2563eb',
+                    color: isDarkMode ? '#60a5fa' : '#2563eb',
                     marginBottom: '1rem'
                   }} />
                 </motion.div>
@@ -146,11 +150,14 @@ export default function UserLogin() {
                   variant="h3"
                   sx={{
                     fontWeight: 700,
-                    background: 'linear-gradient(45deg, #2563eb, #7c3aed)',
+                    background: isDarkMode 
+                      ? 'linear-gradient(45deg, #60a5fa, #a78bfa)'
+                      : 'linear-gradient(45deg, #2563eb, #7c3aed)',
                     backgroundClip: 'text',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
-                    mb: 1
+                    mb: 1,
+                    transition: 'all 0.3s ease'
                   }}
                 >
                   {getTranslation(currentLanguage, 'userLogin')}
@@ -227,16 +234,20 @@ export default function UserLogin() {
                     placeholder={getTranslation(currentLanguage, 'enterUniqueId')}
                     required
                     sx={{
+                      '& .MuiInputLabel-root': {
+                        color: isDarkMode ? '#cbd5e1' : 'rgba(0, 0, 0, 0.6)',
+                      },
                       '& .MuiOutlinedInput-root': {
-                        backgroundColor: isAutoFilled ? 'rgba(37, 99, 235, 0.05)' : 'transparent',
+                        color: isDarkMode ? '#f1f5f9' : '#0f172a',
+                        backgroundColor: isAutoFilled ? (isDarkMode ? 'rgba(96, 165, 250, 0.1)' : 'rgba(37, 99, 235, 0.05)') : 'transparent',
                         '& fieldset': {
-                          borderColor: isAutoFilled ? '#2563eb' : 'rgba(0, 0, 0, 0.23)',
+                          borderColor: isAutoFilled ? (isDarkMode ? '#60a5fa' : '#2563eb') : (isDarkMode ? 'rgba(255, 255, 255, 0.23)' : 'rgba(0, 0, 0, 0.23)'),
                         },
                         '&:hover fieldset': {
-                          borderColor: '#2563eb',
+                          borderColor: isDarkMode ? '#60a5fa' : '#2563eb',
                         },
                         '&.Mui-focused fieldset': {
-                          borderColor: '#2563eb',
+                          borderColor: isDarkMode ? '#60a5fa' : '#2563eb',
                         },
                       },
                     }}
@@ -257,13 +268,18 @@ export default function UserLogin() {
                       py: 2,
                       fontSize: '1.1rem',
                       fontWeight: 600,
-                      background: 'linear-gradient(45deg, #2563eb, #7c3aed)',
+                      background: isDarkMode
+                        ? 'linear-gradient(45deg, #60a5fa, #a78bfa)'
+                        : 'linear-gradient(45deg, #2563eb, #7c3aed)',
                       '&:hover': {
-                        background: 'linear-gradient(45deg, #1d4ed8, #5b21b6)',
+                        background: isDarkMode
+                          ? 'linear-gradient(45deg, #3b82f6, #8b5cf6)'
+                          : 'linear-gradient(45deg, #1d4ed8, #5b21b6)',
                       },
                       '&:disabled': {
-                        background: '#ccc',
-                      }
+                        background: isDarkMode ? '#475569' : '#ccc',
+                      },
+                      transition: 'all 0.3s ease'
                     }}
                   >
                     {loading ? getTranslation(currentLanguage, 'signingIn') : getTranslation(currentLanguage, 'signIn')}
@@ -279,8 +295,8 @@ export default function UserLogin() {
                   variant="outlined"
                   onClick={() => router.push('/onboarding')}
                   sx={{
-                    borderColor: '#2563eb',
-                    color: '#2563eb',
+                    borderColor: isDarkMode ? '#60a5fa' : '#2563eb',
+                    color: isDarkMode ? '#60a5fa' : '#2563eb',
                     '&:hover': {
                       borderColor: '#1d4ed8',
                       backgroundColor: 'rgba(37, 99, 235, 0.04)',
