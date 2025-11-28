@@ -236,7 +236,7 @@ export default function CoreModuleEmbedded({
             Your personalized 7-day program is ready to begin.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Click "Proceed to Day 1" to start your customized daily content based on your assessment.
+            Click &quot;Proceed to Day 1&quot; to start your customized daily content based on your assessment.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>

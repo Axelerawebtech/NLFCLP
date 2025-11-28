@@ -19,6 +19,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Chip,
   DialogActions,
   Alert
 } from '@mui/material';
@@ -416,7 +417,7 @@ export default function PatientDashboard() {
                   </Typography>
                   <Typography variant="h6" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
                     Your caregiver has completed the 7-day program! Take this test to show how well
-                    they've shared their knowledge about emotional support and stress management with you.
+                    they&apos;ve shared their knowledge about emotional support and stress management with you.
                   </Typography>
 
                   <Grid container spacing={3} sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>

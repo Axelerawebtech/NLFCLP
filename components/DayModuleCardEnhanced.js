@@ -33,17 +33,38 @@ export default function DayModuleCardEnhanced({
   onComplete 
 }) {
   const { language, translations } = useLanguage();
-  
-  // Skip rendering for Day 0 - it's handled by CoreModuleEmbedded component
-  if (dayModule.day === 0) {
-    return null;
-  }
-  
   const [currentStep, setCurrentStep] = useState(0); // 0: Assessment, 1: Video, 2: Tasks
   const [showAssessment, setShowAssessment] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const [showTasks, setShowTasks] = useState(false);
   const [completionDialog, setCompletionDialog] = useState(false);
+
+  // Determine content level - use assessment result for Days 1-7
+  const contentLevel = dayModule.contentLevel || 'moderate'; // Default to moderate if assessment not completed
+
+  useEffect(() => {
+    // Skip effect for Day 0
+    if (dayModule.day === 0) return;
+    
+    // Determine which step to show based on completion status for Days 1-7
+    if (!dayModule.dailyAssessment) {
+      setCurrentStep(0); // Start with assessment
+      setShowAssessment(true);
+    } else if (!dayModule.videoCompleted) {
+      setCurrentStep(1); // Move to video
+      setShowVideo(true);
+    } else if (!dayModule.tasksCompleted) {
+      setCurrentStep(2); // Move to tasks
+      setShowTasks(true);
+    } else {
+      setCurrentStep(3); // All completed
+    }
+  }, [dayModule.dailyAssessment, dayModule.videoCompleted, dayModule.tasksCompleted, dayModule.day]);
+  
+  // Skip rendering for Day 0 - it's handled by CoreModuleEmbedded component
+  if (dayModule.day === 0) {
+    return null;
+  }
 
   const persistVideoProgress = async (payload = {}) => {
     if (!caregiverId) return;
@@ -66,25 +87,6 @@ export default function DayModuleCardEnhanced({
     if (!Number.isFinite(progressPercent)) return;
     await persistVideoProgress({ videoProgress: Math.round(progressPercent) });
   };
-
-  // Determine content level - use assessment result for Days 1-7
-  const contentLevel = dayModule.contentLevel || 'moderate'; // Default to moderate if assessment not completed
-
-  useEffect(() => {
-    // Determine which step to show based on completion status for Days 1-7
-    if (!dayModule.dailyAssessment) {
-      setCurrentStep(0); // Start with assessment
-      setShowAssessment(true);
-    } else if (!dayModule.videoCompleted) {
-      setCurrentStep(1); // Move to video
-      setShowVideo(true);
-    } else if (!dayModule.tasksCompleted) {
-      setCurrentStep(2); // Move to tasks
-      setShowTasks(true);
-    } else {
-      setCurrentStep(3); // All completed
-    }
-  }, [dayModule]);
 
   const handleAssessmentComplete = (assessmentData) => {
     setShowAssessment(false);

@@ -530,7 +530,7 @@ export default function Day1Content({ burdenLevel, caregiverId, onComplete }) {
             24/7 mental health support helpline
           </Typography>
           <Typography>
-            Your well-being matters. Don't hesitate to reach out for professional support.
+            Your well-being matters. Don&apos;t hesitate to reach out for professional support.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -554,7 +554,7 @@ export default function Day1Content({ burdenLevel, caregiverId, onComplete }) {
             🎉 You've successfully completed Day 1 of your caregiver support program!
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            You're ready to move on to Day 2 content and continue your journey.
+            You&apos;re ready to move on to Day 2 content and continue your journey.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>

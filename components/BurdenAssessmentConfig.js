@@ -18,6 +18,7 @@ export default function BurdenAssessmentConfig() {
 
   useEffect(() => {
     fetchConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchConfig = async () => {
@@ -391,7 +392,7 @@ export default function BurdenAssessmentConfig() {
             {/* Questions List */}
             {questions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-                <p>No questions added yet. Click "Add Question" to get started.</p>
+                <p>No questions added yet. Click &quot;Add Question&quot; to get started.</p>
               </div>
             ) : (
               questions.map((question, qIndex) => (

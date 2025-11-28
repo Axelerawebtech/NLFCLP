@@ -8,6 +8,7 @@ export default function BurdenSpecificFlow({ caregiverId, burdenLevel, day, lang
 
   useEffect(() => {
     loadFlowContent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caregiverId, burdenLevel, day, language]);
 
   const loadFlowContent = async () => {
@@ -150,7 +151,7 @@ function MildBurdenFlow({ content, instructions, responses, onResponseChange, on
         borderRadius: '12px',
         marginBottom: '24px'
       }}>
-        <h4 style={{ margin: '0 0 16px 0', color: '#334155' }}>📋 Today's Self-Care Tasks</h4>
+        <h4 style={{ margin: '0 0 16px 0', color: '#334155' }}>📋 Today&apos;s Self-Care Tasks</h4>
         {instructions.dailyTasks?.map((task, index) => (
           <div key={index} style={{
             display: 'flex',

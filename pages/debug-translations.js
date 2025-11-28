@@ -28,32 +28,32 @@ export default function DebugTranslations() {
           <Typography variant="h6">Testing Key Translations:</Typography>
           
           <Typography variant="body1" sx={{ mt: 1 }}>
-            <strong>consentFormTitle:</strong> "{getTranslation(currentLanguage, 'consentFormTitle')}"
+            <strong>consentFormTitle:</strong> &quot;{getTranslation(currentLanguage, 'consentFormTitle')}&quot;
           </Typography>
           
           <Typography variant="body1" sx={{ mt: 1 }}>
-            <strong>studyTitle:</strong> "{getTranslation(currentLanguage, 'studyTitle')}"
+            <strong>studyTitle:</strong> &quot;{getTranslation(currentLanguage, 'studyTitle')}&quot;
           </Typography>
           
           <Typography variant="body1" sx={{ mt: 1 }}>
-            <strong>studyPurposeContent:</strong> "{getTranslation(currentLanguage, 'studyPurposeContent')}"
+            <strong>studyPurposeContent:</strong> &quot;{getTranslation(currentLanguage, 'studyPurposeContent')}&quot;
           </Typography>
           
           <Typography variant="body1" sx={{ mt: 1 }}>
-            <strong>principalInvestigator:</strong> "{getTranslation(currentLanguage, 'principalInvestigator')}"
+            <strong>principalInvestigator:</strong> &quot;{getTranslation(currentLanguage, 'principalInvestigator')}&quot;
           </Typography>
 
           <Typography variant="body1" sx={{ mt: 1 }}>
             <strong>Raw translation check:</strong>
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
-            EN consentFormTitle: "{getTranslation('en', 'consentFormTitle')}"
+            EN consentFormTitle: &quot;{getTranslation('en', 'consentFormTitle')}&quot;
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
-            HI consentFormTitle: "{getTranslation('hi', 'consentFormTitle')}"
+            HI consentFormTitle: &quot;{getTranslation('hi', 'consentFormTitle')}&quot;
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
-            KN consentFormTitle: "{getTranslation('kn', 'consentFormTitle')}"
+            KN consentFormTitle: &quot;{getTranslation('kn', 'consentFormTitle')}&quot;
           </Typography>
         </Box>
       </Box>

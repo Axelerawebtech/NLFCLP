@@ -382,8 +382,8 @@ export default function CaregiverDashboard() {
                 Welcome to the Caregiver Support Program!
               </Typography>
               <Typography variant="body1" paragraph>
-                We're glad you're here. To provide you with the most personalized support, 
-                we'll start with a brief assessment to understand your current caregiving situation.
+                We&apos;re glad you&apos;re here. To provide you with the most personalized support, 
+                we&apos;ll start with a brief assessment to understand your current caregiving situation.
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 This assessment will help us tailor the 7-day program content to your specific needs.

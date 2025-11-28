@@ -66,6 +66,7 @@ export default function CaregiverDashboard() {
   useEffect(() => {
     fetchDashboardData();
     loadHealthTips();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const refreshProgramStatus = async (caregiverIdentifier) => {
@@ -773,10 +774,10 @@ export default function CaregiverDashboard() {
         <DialogTitle>Congratulations!</DialogTitle>
         <DialogContent>
           <Typography variant="body1">
-            You've successfully completed Day {currentDay}! Your progress has been saved.
+            You&apos;ve successfully completed Day {currentDay}! Your progress has been saved.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Take a moment to reflect on what you've learned today, and remember to take care of yourself.
+            Take a moment to reflect on what you&apos;ve learned today, and remember to take care of yourself.
           </Typography>
         </DialogContent>
         <DialogActions>

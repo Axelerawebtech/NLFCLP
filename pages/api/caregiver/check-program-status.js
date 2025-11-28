@@ -106,35 +106,35 @@ export default async function handler(req, res) {
       let programModified = false;
       if (Array.isArray(program.dayModules) && program.dayModules.length > 0) {
         const modulesByDay = new Map();
-        program.dayModules.forEach(module => {
-          if (module && typeof module.day === 'number') {
-            modulesByDay.set(module.day, module);
+        program.dayModules.forEach(dayModule => {
+          if (dayModule && typeof dayModule.day === 'number') {
+            modulesByDay.set(dayModule.day, dayModule);
           }
         });
 
         let scheduleChanged = false;
-        for (const module of program.dayModules) {
-          if (!module || module.day === 0 || module.adminPermissionGranted) continue;
-          const previousDay = modulesByDay.get(module.day - 1);
+        for (const dayModule of program.dayModules) {
+          if (!dayModule || dayModule.day === 0 || dayModule.adminPermissionGranted) continue;
+          const previousDay = modulesByDay.get(dayModule.day - 1);
           if (!previousDay?.completedAt) continue;
 
-          const waitHours = module.day === 1
+          const waitHours = dayModule.day === 1
             ? effectiveWaitTimes.day0ToDay1
             : effectiveWaitTimes.betweenDays;
 
           if (waitHours <= 0) {
-            module.adminPermissionGranted = true;
-            module.scheduledUnlockAt = previousDay.completedAt;
-            module.unlockedAt = module.unlockedAt || now;
+            dayModule.adminPermissionGranted = true;
+            dayModule.scheduledUnlockAt = previousDay.completedAt;
+            dayModule.unlockedAt = dayModule.unlockedAt || now;
             scheduleChanged = true;
             continue;
           }
 
           const expectedUnlockAt = new Date(previousDay.completedAt.getTime() + waitHours * 60 * 60 * 1000);
-          const scheduled = module.scheduledUnlockAt ? new Date(module.scheduledUnlockAt) : null;
+          const scheduled = dayModule.scheduledUnlockAt ? new Date(dayModule.scheduledUnlockAt) : null;
 
           if (!scheduled || Math.abs(scheduled.getTime() - expectedUnlockAt.getTime()) > 1000) {
-            module.scheduledUnlockAt = expectedUnlockAt;
+            dayModule.scheduledUnlockAt = expectedUnlockAt;
             scheduleChanged = true;
           }
         }

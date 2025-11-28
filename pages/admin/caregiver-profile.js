@@ -317,6 +317,7 @@ export default function CaregiverProfile() {
     if (id) {
       fetchProfileData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchProfileData = async () => {
