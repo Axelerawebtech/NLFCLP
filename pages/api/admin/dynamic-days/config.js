@@ -1,5 +1,22 @@
 import dbConnect from '../../../../lib/mongodb';
 import ProgramConfig from '../../../../models/ProgramConfig';
+import {
+  buildStructureFromDayConfig,
+  buildTranslationFromDayConfig,
+  upsertStructure,
+  upsertTranslation,
+  composeDayConfig,
+  getStructureForDay,
+  getTranslationForDay,
+  listDayConfigsForLanguage,
+  syncLegacyDynamicDay,
+  sanitizeDynamicDayStructures
+} from '../../../../lib/dynamicDayUtils';
+
+const normalizeLanguage = (language = 'english') => {
+  const normalized = (language || '').toString().trim().toLowerCase();
+  return ['english', 'kannada', 'hindi'].includes(normalized) ? normalized : 'english';
+};
 
 /**
  * API Route: /api/admin/dynamic-days/config
@@ -20,9 +37,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const { day, language } = req.query;
-      
+
       const config = await ProgramConfig.findOne({ configType: 'global' });
-      
+
       if (!config) {
         return res.status(404).json({ 
           success: false,
@@ -30,16 +47,36 @@ export default async function handler(req, res) {
         });
       }
 
-      // If specific day and language requested
+      const useUnified = Array.isArray(config.dynamicDayStructures) && config.dynamicDayStructures.length > 0;
+
+      // Handle specific day fetch
       if (day !== undefined && language) {
-        const dayNumber = parseInt(day);
-        const dayConfig = config.dynamicDays?.find(
+        const dayNumber = parseInt(day, 10);
+        if (Number.isNaN(dayNumber)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid day number'
+          });
+        }
+
+        if (useUnified) {
+          const structure = getStructureForDay(config, dayNumber);
+          if (structure) {
+            const translation = getTranslationForDay(config, dayNumber, language);
+            const dayConfigPayload = composeDayConfig(structure, translation);
+            return res.status(200).json({
+              success: true,
+              dayConfig: { ...dayConfigPayload, language },
+              isNew: false
+            });
+          }
+        }
+
+        const legacyDay = config.dynamicDays?.find(
           d => d.dayNumber === dayNumber && d.language === language
         );
-        
-        if (!dayConfig) {
-          // Return empty template for new day instead of 404
-          return res.status(200).json({ 
+        if (!legacyDay) {
+          return res.status(200).json({
             success: true,
             dayConfig: null,
             isNew: true,
@@ -49,21 +86,37 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
           success: true,
-          dayConfig,
+          dayConfig: legacyDay,
           isNew: false
         });
       }
 
-      // Return all days for specific language
+      // List days for a specific language
       if (language) {
-        const languageDays = config.dynamicDays?.filter(d => d.language === language) || [];
-        return res.status(200).json({
-          success: true,
-          days: languageDays
-        });
+        if (useUnified) {
+          const unifiedDays = listDayConfigsForLanguage(config, language)
+            .map(dayConfigPayload => ({ ...dayConfigPayload, language }));
+          const coveredDayNumbers = new Set(unifiedDays.map(dayEntry => dayEntry.dayNumber));
+          const legacyFallback = (config.dynamicDays || [])
+            .filter(d => d.language === language && !coveredDayNumbers.has(d.dayNumber));
+          return res.status(200).json({ success: true, days: unifiedDays.concat(legacyFallback) });
+        }
+        const legacyDays = config.dynamicDays?.filter(d => d.language === language) || [];
+        return res.status(200).json({ success: true, days: legacyDays });
       }
 
-      // Return all days (all languages)
+      // All days
+      if (useUnified) {
+        const allLanguageDays = ['english', 'kannada', 'hindi'].flatMap(lang => {
+          const unifiedDays = listDayConfigsForLanguage(config, lang).map(dayConfigPayload => ({ ...dayConfigPayload, language: lang }));
+          const coveredDayNumbers = new Set(unifiedDays.map(dayEntry => dayEntry.dayNumber));
+          const legacyFallback = (config.dynamicDays || [])
+            .filter(d => d.language === lang && !coveredDayNumbers.has(d.dayNumber));
+          return unifiedDays.concat(legacyFallback);
+        });
+        return res.status(200).json({ success: true, days: allLanguageDays });
+      }
+
       res.status(200).json({
         success: true,
         days: config.dynamicDays || []
@@ -109,49 +162,45 @@ export default async function handler(req, res) {
         config = new ProgramConfig({ configType: 'global' });
       }
 
-      // Initialize dynamicDays if not exists
-      if (!config.dynamicDays) {
-        config.dynamicDays = [];
-      }
+      const existingStructure = getStructureForDay(config, dayNumber);
+      const normalizedLanguage = normalizeLanguage(language);
+      const baseLanguageForDay = existingStructure?.baseLanguage || normalizedLanguage;
+      const isBaseLanguageUpdate = !existingStructure || normalizedLanguage === baseLanguageForDay;
+      let structurePayload = existingStructure;
 
-      // Find existing day config for this day number AND language
-      const existingIndex = config.dynamicDays.findIndex(
-        d => d.dayNumber === dayNumber && d.language === language
-      );
-      
-      if (existingIndex >= 0) {
-        // Update existing day
-        config.dynamicDays[existingIndex] = {
-          ...dayConfig,
+      if (isBaseLanguageUpdate) {
+        structurePayload = buildStructureFromDayConfig({
+          dayConfig,
           dayNumber,
-          language
-        };
-      } else {
-        // Add new day
-        config.dynamicDays.push({
-          ...dayConfig,
-          dayNumber,
-          language
+          language,
+          existingStructure
         });
+        upsertStructure(config, structurePayload);
       }
 
-      // Sort days by dayNumber, then by language
-      config.dynamicDays.sort((a, b) => {
-        if (a.dayNumber !== b.dayNumber) return a.dayNumber - b.dayNumber;
-        return a.language.localeCompare(b.language);
+      const translationPayload = buildTranslationFromDayConfig({
+        dayConfig,
+        dayNumber,
+        language
       });
 
-      config.markModified('dynamicDays');
+      upsertTranslation(config, translationPayload);
+      syncLegacyDynamicDay(config, { dayNumber, language, dayConfig });
+      sanitizeDynamicDayStructures(config);
       await config.save();
 
-      console.log(`✅ Day ${dayNumber} (${language}) configuration saved`);
+      const mergedResponse = composeDayConfig(structurePayload, translationPayload);
+
+      console.log(
+        isBaseLanguageUpdate
+          ? `✅ Day ${dayNumber} (${language}) base structure saved`
+          : `✅ Day ${dayNumber} (${language}) translation saved`
+      );
 
       res.status(200).json({ 
         success: true, 
         message: `Day ${dayNumber} (${language}) configuration saved successfully`,
-        dayConfig: config.dynamicDays.find(
-          d => d.dayNumber === dayNumber && d.language === language
-        )
+        dayConfig: { ...mergedResponse, language }
       });
 
     } catch (error) {

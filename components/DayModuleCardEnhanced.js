@@ -45,6 +45,28 @@ export default function DayModuleCardEnhanced({
   const [showTasks, setShowTasks] = useState(false);
   const [completionDialog, setCompletionDialog] = useState(false);
 
+  const persistVideoProgress = async (payload = {}) => {
+    if (!caregiverId) return;
+    try {
+      await fetch('/api/caregiver/update-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caregiverId,
+          day: dayModule.day,
+          ...payload
+        })
+      });
+    } catch (error) {
+      console.error(`Failed to persist video progress for Day ${dayModule.day}:`, error);
+    }
+  };
+
+  const handleVideoProgressUpdate = async (progressPercent) => {
+    if (!Number.isFinite(progressPercent)) return;
+    await persistVideoProgress({ videoProgress: Math.round(progressPercent) });
+  };
+
   // Determine content level - use assessment result for Days 1-7
   const contentLevel = dayModule.contentLevel || 'moderate'; // Default to moderate if assessment not completed
 
@@ -72,7 +94,12 @@ export default function DayModuleCardEnhanced({
     onComplete?.(dayModule);
   };
 
-  const handleVideoComplete = () => {
+  const handleVideoComplete = async () => {
+    await persistVideoProgress({
+      videoProgress: 100,
+      videoWatched: true,
+      videoCompleted: true
+    });
     setShowVideo(false);
     if (dayModule.day === 0) {
       // Day 0 is complete after video
@@ -356,6 +383,7 @@ export default function DayModuleCardEnhanced({
             burdenLevel={dayModule.day === 0 ? burdenLevel : contentLevel}
             onVideoComplete={handleVideoComplete}
             onTaskStart={() => setShowVideo(false)}
+            onProgressUpdate={handleVideoProgressUpdate}
           />
         </DialogContent>
       </Dialog>

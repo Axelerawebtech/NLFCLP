@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, Reorder, AnimatePresence } from 'framer-motion';
+import {
+  shouldShowTitleField,
+  shouldShowDescriptionField,
+  isTitleRequired,
+  isDescriptionRequired
+} from '../utils/taskMetadata';
 
 const DEFAULT_TEST_OPTION_LABELS = {
   english: ['Never', 'Rarely', 'Sometimes', 'Often', 'Always'],
@@ -7,8 +13,95 @@ const DEFAULT_TEST_OPTION_LABELS = {
   hindi: ['कभी नहीं', 'कभी कभार', 'कभी-कभी', 'अक्सर', 'हमेशा']
 };
 
+const BASE_LANGUAGE = 'english';
+
+const cloneDeep = (value) => {
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(value);
+    } catch (err) {
+      console.warn('structuredClone failed, falling back to JSON clone:', err);
+    }
+  }
+  return value ? JSON.parse(JSON.stringify(value)) : value;
+};
+
 const getDefaultOptionLabels = (language = 'english') => {
   return DEFAULT_TEST_OPTION_LABELS[language] || DEFAULT_TEST_OPTION_LABELS.english;
+};
+
+const slugifyLevelKey = (text) => {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 60);
+};
+
+const normalizeDayConfigLevels = (config) => {
+  if (!config?.hasTest || !config?.testConfig?.scoreRanges?.length) {
+    return config;
+  }
+
+  const scoreRangesClone = config.testConfig.scoreRanges.map(range => ({ ...range }));
+  const originalContentByLevel = (config.contentByLevel || []).map(level => ({ ...level }));
+  const keyMap = {};
+  const usedKeys = new Set();
+
+  const normalizedScoreRanges = scoreRangesClone.map((range, index) => {
+    const originalKey = range.levelKey;
+    const baseKey = slugifyLevelKey(range.label || range.rangeName || originalKey || `level-${index + 1}`) || `level-${index + 1}`;
+    let normalizedKey = baseKey;
+    let suffix = 2;
+    while (usedKeys.has(normalizedKey)) {
+      normalizedKey = `${baseKey}-${suffix++}`;
+    }
+    usedKeys.add(normalizedKey);
+    if (originalKey) {
+      keyMap[originalKey] = normalizedKey;
+    }
+    return {
+      ...range,
+      levelKey: normalizedKey
+    };
+  });
+
+  const existingLevels = new Map();
+  originalContentByLevel.forEach(level => {
+    const mappedKey = keyMap[level.levelKey] || level.levelKey;
+    existingLevels.set(mappedKey, {
+      ...level,
+      levelKey: mappedKey
+    });
+  });
+
+  const normalizedContentByLevel = normalizedScoreRanges.map(range => {
+    if (existingLevels.has(range.levelKey)) {
+      const existingLevel = existingLevels.get(range.levelKey);
+      return {
+        ...existingLevel,
+        levelKey: range.levelKey,
+        levelLabel: existingLevel.levelLabel || range.label || range.levelKey
+      };
+    }
+    return {
+      levelKey: range.levelKey,
+      levelLabel: range.label || range.levelKey,
+      tasks: []
+    };
+  });
+
+  return {
+    ...config,
+    testConfig: {
+      ...config.testConfig,
+      scoreRanges: normalizedScoreRanges
+    },
+    contentByLevel: normalizedContentByLevel
+  };
 };
 
 /**
@@ -46,6 +139,8 @@ export default function DynamicDayManager() {
     { code: 'kannada', label: 'ಕನ್ನಡ', flag: '🇮🇳' },
     { code: 'hindi', label: 'हिंदी', flag: '🇮🇳' }
   ];
+
+  const isBaseLanguage = selectedLanguage === BASE_LANGUAGE;
 
   const toTitleCase = (text = '') =>
     text.replace(/[-_]/g, ' ')
@@ -99,13 +194,37 @@ export default function DynamicDayManager() {
   };
 
   const handleTestConfigChange = (updatedConfig, markDirty = true) => {
-    setDayConfig(prev => ({
-      ...prev,
-      testConfig: updatedConfig
-    }));
+    let nextSelectedLevel = null;
+    let normalizedPendingCopy = null;
+
+    setDayConfig(prev => {
+      const mergedConfig = normalizeDayConfigLevels({
+        ...prev,
+        hasTest: updatedConfig ? true : prev.hasTest,
+        testConfig: updatedConfig
+      });
+
+      const availableLevels = mergedConfig.contentByLevel?.map(level => level.levelKey) || [];
+      if (mergedConfig.hasTest && availableLevels.length && !availableLevels.includes(selectedLevel)) {
+        nextSelectedLevel = availableLevels[0];
+      }
+      if (!mergedConfig.hasTest) {
+        nextSelectedLevel = 'default';
+      }
+
+      normalizedPendingCopy = mergedConfig.testConfig
+        ? JSON.parse(JSON.stringify(mergedConfig.testConfig))
+        : null;
+
+      return mergedConfig;
+    });
+
+    if (nextSelectedLevel) {
+      setSelectedLevel(nextSelectedLevel);
+    }
 
     if (markDirty) {
-      setPendingTestConfig(updatedConfig ? JSON.parse(JSON.stringify(updatedConfig)) : null);
+      setPendingTestConfig(normalizedPendingCopy);
       setHasUnsavedTestConfig(true);
     }
   };
@@ -172,9 +291,7 @@ export default function DynamicDayManager() {
       
       if (data.success) {
         let mergedConfig;
-        // Check if this is a new day (not yet configured)
         if (data.isNew || !data.dayConfig) {
-          // Create new empty configuration
           mergedConfig = {
             dayNumber: dayNum,
             language: selectedLanguage,
@@ -188,18 +305,9 @@ export default function DynamicDayManager() {
             }],
             enabled: true
           };
-          setSelectedLevel('default');
           console.log(`✨ Creating new configuration for Day ${dayNum} (${selectedLanguage})`);
         } else {
-          // Load existing configuration
           mergedConfig = data.dayConfig;
-          
-          // Set default level
-          if (data.dayConfig.hasTest && data.dayConfig.testConfig?.scoreRanges?.length > 0) {
-            setSelectedLevel(data.dayConfig.testConfig.scoreRanges[0].levelKey);
-          } else {
-            setSelectedLevel('default');
-          }
           console.log(`✅ Loaded configuration for Day ${dayNum} (${selectedLanguage})`);
         }
 
@@ -207,18 +315,47 @@ export default function DynamicDayManager() {
           const clonedPending = pendingTestConfig
             ? JSON.parse(JSON.stringify(pendingTestConfig))
             : null;
-          mergedConfig = {
-            ...mergedConfig,
-            hasTest: Boolean(clonedPending),
-            testConfig: clonedPending
-          };
-          setPendingTestConfig(clonedPending);
+          const userDisabledTest = dayConfig?.hasTest === false;
+          if (clonedPending) {
+            mergedConfig = {
+              ...mergedConfig,
+              hasTest: true,
+              testConfig: clonedPending
+            };
+            setPendingTestConfig(clonedPending);
+          } else if (userDisabledTest) {
+            mergedConfig = {
+              ...mergedConfig,
+              hasTest: false,
+              testConfig: null,
+              contentByLevel: [{
+                levelKey: 'default',
+                levelLabel: 'Default',
+                tasks: []
+              }]
+            };
+            setPendingTestConfig(null);
+          } else {
+            setPendingTestConfig(null);
+            setHasUnsavedTestConfig(false);
+          }
         } else {
           setPendingTestConfig(null);
           setHasUnsavedTestConfig(false);
         }
 
-        setDayConfig(mergedConfig);
+        const normalizedConfig = normalizeDayConfigLevels(mergedConfig);
+        setDayConfig(cloneDeep(normalizedConfig));
+
+        if (normalizedConfig.hasTest && normalizedConfig.contentByLevel?.length) {
+          const availableLevels = normalizedConfig.contentByLevel.map(level => level.levelKey);
+          const preferredLevel = availableLevels.includes(selectedLevel) && preserveTestConfig
+            ? selectedLevel
+            : availableLevels[0];
+          setSelectedLevel(preferredLevel || 'default');
+        } else {
+          setSelectedLevel('default');
+        }
       } else {
         setError(data.error || 'Failed to load day configuration');
       }
@@ -229,6 +366,13 @@ export default function DynamicDayManager() {
       setLoading(false);
     }
   };
+
+  // Reload the currently selected day whenever the language tab changes
+  useEffect(() => {
+    if (selectedDay !== null) {
+      loadDayConfig(selectedDay, true);
+    }
+  }, [selectedLanguage]);
 
   // Save day configuration
   const saveDayConfig = async () => {
@@ -268,6 +412,10 @@ export default function DynamicDayManager() {
 
   // Toggle test configuration
   const toggleHasTest = (hasTest) => {
+    if (!isBaseLanguage) {
+      alert('Test levels can only be configured in the base language (English).');
+      return;
+    }
     setDayConfig(prev => {
       const updated = { ...prev, hasTest };
       
@@ -332,6 +480,10 @@ export default function DynamicDayManager() {
 
   // Add task
   const addTask = async (taskData) => {
+    if (!isBaseLanguage) {
+      alert('Add or duplicate tasks only while editing the English structure.');
+      return { success: false, error: 'Structure locked for translations' };
+    }
     try {
       // First, check if day config exists in database by trying to add the task
       let res = await fetch('/api/admin/dynamic-days/tasks', {
@@ -405,6 +557,10 @@ export default function DynamicDayManager() {
 
   // Delete task
   const deleteTask = async (taskId) => {
+    if (!isBaseLanguage) {
+      alert('Delete tasks only in the English structure tab.');
+      return;
+    }
     if (!confirm('⚠️ Are you sure you want to delete this task?')) return;
 
     try {
@@ -428,6 +584,10 @@ export default function DynamicDayManager() {
 
   // Update task order after reordering
   const handleReorder = async (newOrderedTasks) => {
+    if (!isBaseLanguage) {
+      alert('Reorder tasks in the English structure tab only.');
+      return;
+    }
     // Update local state immediately for smooth UX
     setDayConfig(prev => {
       const updated = { ...prev };
@@ -469,6 +629,67 @@ export default function DynamicDayManager() {
   };
 
   const currentLevelConfig = dayConfig?.contentByLevel?.find(l => l.levelKey === selectedLevel);
+
+  const handleTaskUpdate = async (taskData) => {
+    if (!editingTask) {
+      return { success: false, error: 'No task selected' };
+    }
+
+    if (isBaseLanguage) {
+      try {
+        const res = await fetch('/api/admin/dynamic-days/tasks', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dayNumber: selectedDay,
+            language: selectedLanguage,
+            levelKey: selectedLevel,
+            taskId: editingTask.taskId,
+            updates: taskData
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          await loadDayConfig(selectedDay, true);
+          setEditingTask(null);
+        }
+
+        return data;
+      } catch (err) {
+        console.error('Failed to update task:', err);
+        return { success: false, error: err.message };
+      }
+    }
+
+    setDayConfig(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev };
+      updated.contentByLevel = (prev.contentByLevel || []).map(level => {
+        if (level.levelKey !== selectedLevel) {
+          return level;
+        }
+        return {
+          ...level,
+          tasks: level.tasks.map(task => {
+            if (task.taskId !== editingTask.taskId) {
+              return task;
+            }
+            return {
+              ...task,
+              title: taskData.title,
+              description: taskData.description,
+              content: taskData.content || task.content
+            };
+          })
+        };
+      });
+      return updated;
+    });
+    setEditingTask(null);
+    return { success: true };
+  };
 
   return (
     <div style={{ padding: '0', maxWidth: '1400px', margin: '0 auto' }}>
@@ -676,6 +897,23 @@ export default function DynamicDayManager() {
         </select>
       </motion.div>
 
+      {selectedLanguage && selectedLanguage !== '' && (
+        <div style={{
+          marginBottom: '20px',
+          padding: '16px 20px',
+          borderRadius: '10px',
+          border: `1px solid ${isBaseLanguage ? '#bbf7d0' : '#fde68a'}`,
+          backgroundColor: isBaseLanguage ? '#ecfdf5' : '#fffbeb',
+          color: isBaseLanguage ? '#065f46' : '#92400e',
+          fontSize: '14px',
+          fontWeight: 500
+        }}>
+          {isBaseLanguage
+            ? 'Editing shared structure. Changes here affect every language (task order, tests, media, etc.).'
+            : 'Translation mode. Only adjust text or localized media. Add/delete tasks or change scoring only in English.'}
+        </div>
+      )}
+
       {selectedDay !== null && dayConfig && (
         <AnimatePresence mode="wait">
           <motion.div
@@ -803,6 +1041,7 @@ export default function DynamicDayManager() {
                             selectedLanguage={selectedLanguage}
                             hasUnsavedChanges={hasUnsavedTestConfig}
                             onChange={handleTestConfigChange}
+                            structureLocked={!isBaseLanguage}
                           />
                         </motion.div>
                       )}
@@ -859,16 +1098,23 @@ export default function DynamicDayManager() {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowAddTask(true)}
+                  onClick={() => {
+                    if (!isBaseLanguage) {
+                      alert('Add tasks only while editing the English structure.');
+                      return;
+                    }
+                    setShowAddTask(true);
+                  }}
+                  disabled={!isBaseLanguage}
                   style={{
                     padding: '12px 24px',
-                    backgroundColor: '#10b981',
+                    backgroundColor: !isBaseLanguage ? '#9ca3af' : '#10b981',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
                     fontSize: '14px',
                     fontWeight: '600',
-                    cursor: 'pointer',
+                    cursor: !isBaseLanguage ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px'
@@ -883,7 +1129,7 @@ export default function DynamicDayManager() {
                 <Reorder.Group
                   axis="y"
                   values={currentLevelConfig.tasks.sort((a, b) => a.taskOrder - b.taskOrder)}
-                  onReorder={handleReorder}
+                  onReorder={isBaseLanguage ? handleReorder : () => {}}
                   style={{ listStyle: 'none', padding: 0, margin: 0 }}
                 >
                   {currentLevelConfig.tasks
@@ -892,6 +1138,7 @@ export default function DynamicDayManager() {
                       <Reorder.Item
                         key={task.taskId}
                         value={task}
+                        dragListener={isBaseLanguage}
                         style={{ marginBottom: '12px' }}
                       >
                         <TaskCard
@@ -899,6 +1146,7 @@ export default function DynamicDayManager() {
                           selectedLanguage={selectedLanguage}
                           onEdit={() => setEditingTask(task)}
                           onDelete={() => deleteTask(task.taskId)}
+                          canDelete={isBaseLanguage}
                         />
                       </Reorder.Item>
                     ))}
@@ -963,6 +1211,7 @@ export default function DynamicDayManager() {
         {showAddTask && (
           <TaskEditorModal
             selectedLanguage={selectedLanguage}
+            structureLocked={!isBaseLanguage}
             onSave={addTask}
             onClose={() => setShowAddTask(false)}
           />
@@ -975,33 +1224,8 @@ export default function DynamicDayManager() {
           <TaskEditorModal
             selectedLanguage={selectedLanguage}
             task={editingTask}
-              onSave={async (taskData) => {
-                try {
-                  const res = await fetch('/api/admin/dynamic-days/tasks', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      dayNumber: selectedDay,
-                      language: selectedLanguage,
-                      levelKey: selectedLevel,
-                      taskId: editingTask.taskId,
-                      updates: taskData
-                    })
-                  });
-
-                  const data = await res.json();
-
-                  if (data.success) {
-                    await loadDayConfig(selectedDay, true);
-                    setEditingTask(null);
-                  }
-
-                  return data;
-                } catch (err) {
-                  console.error('Failed to update task:', err);
-                  return { success: false, error: err.message };
-                }
-              }}
+            structureLocked={!isBaseLanguage}
+            onSave={handleTaskUpdate}
             onClose={() => setEditingTask(null)}
           />
         )}
@@ -1030,15 +1254,32 @@ export default function DynamicDayManager() {
 }
 
 // Task Editor Modal Component with Cloudinary Upload
-function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
+function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLocked = false }) {
   const [taskType, setTaskType] = useState(task?.taskType || '');
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
+  const [showTitleField, setShowTitleField] = useState(() =>
+    shouldShowTitleField(task?.taskType || '', task?.title || '')
+  );
+  const [showDescriptionField, setShowDescriptionField] = useState(() =>
+    shouldShowDescriptionField(task?.taskType || '', task?.description || '')
+  );
   const [content, setContent] = useState(task?.content || {});
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [savingTask, setSavingTask] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+
+  const effectiveTaskType = structureLocked && task ? task.taskType : taskType;
+  const titleIsRequired = isTitleRequired(effectiveTaskType);
+  const descriptionIsRequired = isDescriptionRequired(effectiveTaskType);
+
+  const handleTaskTypeChange = (nextType) => {
+    if (structureLocked) return;
+    setTaskType(nextType);
+    setShowTitleField(shouldShowTitleField(nextType, title));
+    setShowDescriptionField(shouldShowDescriptionField(nextType, description));
+  };
 
   const taskTypes = [
     { value: 'video', label: '🎥 Video' },
@@ -1276,69 +1517,80 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
   };
 
   const handleSave = async (closeAfter = true) => {
-    if (!taskType || !title) {
-      alert('⚠️ Please fill in required fields (Task Type and Title)');
+    const normalizedTitle = title.trim();
+    const normalizedDescription = description.trim();
+    const includeTitle = showTitleField || titleIsRequired;
+    const includeDescription = showDescriptionField || descriptionIsRequired;
+    const typeForValidation = effectiveTaskType;
+
+    if (!typeForValidation) {
+      alert('⚠️ Please select a task type');
+      return;
+    }
+
+    if (titleIsRequired && !normalizedTitle) {
+      alert('⚠️ This task type needs a title');
       return;
     }
 
     // Validate content based on task type
-    if (taskType === 'video' || taskType === 'calming-video') {
+    if (typeForValidation === 'video' || typeForValidation === 'calming-video') {
       if (!content.videoUrl) {
         alert('⚠️ Please upload or enter a video URL before adding this task');
         return;
       }
     }
 
-    if (taskType === 'audio-message') {
+    if (typeForValidation === 'audio-message') {
       if (!content.audioUrl) {
         alert('⚠️ Please upload or enter an audio URL before adding this task');
         return;
       }
     }
 
-    if (taskType === 'motivation-message' || taskType === 'greeting-message' || taskType === 'healthcare-tip') {
+    if (typeForValidation === 'motivation-message' || typeForValidation === 'greeting-message' || typeForValidation === 'healthcare-tip') {
       if (!content.textContent) {
         alert('⚠️ Please enter message content before adding this task');
         return;
       }
     }
 
-    if (taskType === 'reflection-prompt') {
+    if (typeForValidation === 'reflection-prompt') {
       if (!content.reflectionQuestion) {
         alert('⚠️ Please enter a reflection question before adding this task');
         return;
       }
     }
 
-    if (taskType === 'feeling-check') {
+    if (typeForValidation === 'feeling-check') {
       if (!content.feelingQuestion) {
         alert('⚠️ Please enter a feeling question before adding this task');
         return;
       }
     }
 
-    if (taskType === 'reminder') {
+    if (typeForValidation === 'reminder') {
       if (!content.reminderMessage) {
         alert('⚠️ Please enter a reminder message before adding this task');
         return;
       }
     }
 
-    if (taskType === 'activity-selector') {
+    if (typeForValidation === 'activity-selector') {
       if (!content.activities || content.activities.length === 0) {
         alert('⚠️ Please add at least one activity before adding this task');
         return;
       }
     }
 
-    if (taskType === 'quick-assessment') {
+    if (typeForValidation === 'quick-assessment') {
       if (!content.questions || content.questions.length === 0) {
         alert('⚠️ Please add at least one question before adding this task');
         return;
       }
     }
 
-    if (taskType === 'visual-cue') {
+    if (typeForValidation === 'visual-cue') {
       if (!content.imageUrl) {
         alert('⚠️ Please upload an image before adding this task');
         return;
@@ -1349,7 +1601,7 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
       }
     }
 
-    if (taskType === 'task-checklist') {
+    if (typeForValidation === 'task-checklist') {
       if (!content.checklistQuestion) {
         alert('⚠️ Please enter a question before adding this task');
         return;
@@ -1357,17 +1609,17 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
     }
 
     const taskData = {
-      taskType,
-      title,
-      description,
+      taskType: typeForValidation,
+      title: includeTitle ? normalizedTitle : '',
+      description: includeDescription ? normalizedDescription : '',
       content,
       enabled: true
     };
 
     // Debug log for task-checklist
-    if (taskType === 'task-checklist') {
+    if (typeForValidation === 'task-checklist') {
       console.log('💾 Saving Task Checklist:', {
-        taskType,
+        taskType: typeForValidation,
         title,
         description,
         checklistQuestion: content.checklistQuestion,
@@ -1376,9 +1628,9 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
     }
 
     // Debug log for reminder tasks being saved
-    if (taskType === 'reminder') {
+    if (typeForValidation === 'reminder') {
       console.log('💾 Saving Reminder Task:', {
-        taskType,
+        taskType: typeForValidation,
         title,
         reminderMessage: content.reminderMessage,
         frequency: content.frequency,
@@ -1448,21 +1700,37 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
           {task ? '✏️ Edit Task' : '➕ Add New Task'}
         </h3>
 
+        {structureLocked && (
+          <div style={{
+            marginBottom: '16px',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            border: '1px solid #fde68a',
+            backgroundColor: '#fffbeb',
+            color: '#92400e',
+            fontSize: '13px',
+            fontWeight: 600
+          }}>
+            Structure is locked for this language. Update only the text or localized media; task type, order, and scoring must be edited in English.
+          </div>
+        )}
+
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
             Task Type *
           </label>
           <select
             value={taskType}
-            onChange={(e) => setTaskType(e.target.value)}
+            onChange={(e) => handleTaskTypeChange(e.target.value)}
+            disabled={structureLocked}
             style={{
               width: '100%',
               padding: '12px 14px',
               fontSize: '15px',
               border: '2px solid #e5e7eb',
               borderRadius: '8px',
-              backgroundColor: 'white',
-              cursor: 'pointer',
+              backgroundColor: structureLocked ? '#f3f4f6' : 'white',
+              cursor: structureLocked ? 'not-allowed' : 'pointer',
               fontWeight: '500'
             }}
           >
@@ -1473,45 +1741,131 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
           </select>
         </div>
 
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
-            Title ({selectedLanguage}) *
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter task title"
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              fontSize: '15px',
-              border: '2px solid #e5e7eb',
-              borderRadius: '8px'
-            }}
-          />
-        </div>
+        {showTitleField ? (
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Title ({selectedLanguage}){titleIsRequired ? ' *' : ''}
+              </label>
+              {!titleIsRequired && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTitleField(false);
+                    setTitle('');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ef4444',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Remove title
+                </button>
+              )}
+            </div>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter task title"
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                fontSize: '15px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px'
+              }}
+            />
+          </div>
+        ) : (
+          taskType && (
+            <button
+              type="button"
+              onClick={() => setShowTitleField(true)}
+              style={{
+                marginBottom: '16px',
+                padding: '8px 12px',
+                backgroundColor: '#e0e7ff',
+                color: '#3730a3',
+                border: '1px dashed #3730a3',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              + Add optional title
+            </button>
+          )
+        )}
 
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
-            Description ({selectedLanguage})
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter task description"
-            rows={3}
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              fontSize: '15px',
-              border: '2px solid #e5e7eb',
-              borderRadius: '8px',
-              fontFamily: 'inherit',
-              resize: 'vertical'
-            }}
-          />
-        </div>
+        {showDescriptionField ? (
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Description ({selectedLanguage}){descriptionIsRequired ? ' *' : ''}
+              </label>
+              {!descriptionIsRequired && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDescriptionField(false);
+                    setDescription('');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ef4444',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Remove description
+                </button>
+              )}
+            </div>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter task description"
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                fontSize: '15px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                fontFamily: 'inherit',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+        ) : (
+          taskType && (
+            <button
+              type="button"
+              onClick={() => setShowDescriptionField(true)}
+              style={{
+                marginBottom: '20px',
+                padding: '8px 12px',
+                backgroundColor: '#ecfccb',
+                color: '#4d7c0f',
+                border: '1px dashed #4d7c0f',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              + Add optional description
+            </button>
+          )
+        )}
 
         {/* Type-specific content fields */}
         {(taskType === 'video' || taskType === 'calming-video') && (
@@ -2659,7 +3013,7 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose }) {
 }
 
 // TaskCard Component - Individual task display with animations
-function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
+function TaskCard({ task, selectedLanguage, onEdit, onDelete, canDelete = true }) {
   // Debug log for reminder tasks
   if (task.taskType === 'reminder') {
     console.log('📋 Reminder Task Card Data:', {
@@ -3031,23 +3385,25 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete }) {
           >
             ✏️ Edit
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={onDelete}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#ef4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            🗑️ Delete
-          </motion.button>
+          {canDelete && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onDelete}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              🗑️ Delete
+            </motion.button>
+          )}
         </div>
       </div>
     </motion.div>
@@ -3096,9 +3452,14 @@ function getTypeColor(type) {
 }
 
 // Test Configuration Editor Component
-function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = false, onChange }) {
+function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = false, onChange, structureLocked = false }) {
   const [showQuestions, setShowQuestions] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
+  const guardStructureChange = () => {
+    if (!structureLocked) return false;
+    alert('Structure changes (levels/questions/options) are only editable in the English base language.');
+    return true;
+  };
   
   const buildDefaultOptions = () => {
     return getDefaultOptionLabels(selectedLanguage).map((label, idx) => ({
@@ -3108,6 +3469,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
   };
 
   const addQuestion = () => {
+    if (guardStructureChange()) return;
     const newQuestion = {
       id: (testConfig.questions?.length || 0) + 1,
       questionText: '',
@@ -3131,6 +3493,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
   };
 
   const deleteQuestion = (index) => {
+    if (guardStructureChange()) return;
     if (!confirm('⚠️ Delete this question?')) return;
     const updated = testConfig.questions.filter((_, i) => i !== index);
     onChange({
@@ -3149,6 +3512,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
   };
 
   const addOption = (questionIndex) => {
+    if (guardStructureChange()) return;
     const updated = [...testConfig.questions];
     const nextIndex = updated[questionIndex].options.length;
     const defaultLabels = getDefaultOptionLabels(selectedLanguage);
@@ -3164,6 +3528,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
   };
 
   const deleteOption = (questionIndex, optionIndex) => {
+    if (guardStructureChange()) return;
     const updated = [...testConfig.questions];
     updated[questionIndex].options.splice(optionIndex, 1);
     onChange({
@@ -3173,6 +3538,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
   };
 
   const applyDefaultOptions = (questionIndex) => {
+    if (guardStructureChange()) return;
     const updated = [...testConfig.questions];
     updated[questionIndex].options = buildDefaultOptions();
     onChange({
@@ -3182,6 +3548,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
   };
   
   const addScoreRange = () => {
+    if (guardStructureChange()) return;
     const newRange = {
       rangeName: `level_${testConfig.scoreRanges.length + 1}`,
       label: '',
@@ -3207,6 +3574,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
   };
 
   const deleteScoreRange = (index) => {
+    if (guardStructureChange()) return;
     if (!confirm('⚠️ Delete this score range? This will also remove associated content.')) return;
     
     const updated = testConfig.scoreRanges.filter((_, i) => i !== index);
@@ -3232,6 +3600,21 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
           ⚠️ Unsaved question changes. Click "Save Day Configuration" to persist.
         </div>
       )}
+
+      {structureLocked && (
+        <div style={{
+          marginBottom: '12px',
+          padding: '10px 14px',
+          backgroundColor: '#fffbeb',
+          border: '1px solid #fde68a',
+          borderRadius: '6px',
+          color: '#92400e',
+          fontSize: '13px',
+          fontWeight: 600
+        }}>
+          Translation mode: question/order/score changes are disabled. Update only the wording for this language.
+        </div>
+      )}
       
       {/* Questions Section */}
       <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: 'white', borderRadius: '8px', border: '2px solid #bfdbfe' }}>
@@ -3241,15 +3624,16 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
           </h4>
           <button
             onClick={addQuestion}
+            disabled={structureLocked}
             style={{
               padding: '8px 16px',
-              backgroundColor: '#10b981',
+              backgroundColor: structureLocked ? '#9ca3af' : '#10b981',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
               fontSize: '13px',
               fontWeight: '600',
-              cursor: 'pointer'
+              cursor: structureLocked ? 'not-allowed' : 'pointer'
             }}
           >
             + Add Question
@@ -3263,14 +3647,15 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                 <span style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280' }}>Question {qIndex + 1}</span>
                 <button
                   onClick={() => deleteQuestion(qIndex)}
+                  disabled={structureLocked}
                   style={{
                     padding: '4px 12px',
-                    backgroundColor: '#ef4444',
+                    backgroundColor: structureLocked ? '#fca5a5' : '#ef4444',
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
                     fontSize: '12px',
-                    cursor: 'pointer'
+                    cursor: structureLocked ? 'not-allowed' : 'pointer'
                   }}
                 >
                   🗑️ Delete
@@ -3299,28 +3684,30 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button
                       onClick={() => applyDefaultOptions(qIndex)}
+                      disabled={structureLocked}
                       style={{
                         padding: '4px 10px',
-                        backgroundColor: '#f59e0b',
+                        backgroundColor: structureLocked ? '#fcd34d' : '#f59e0b',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
                         fontSize: '11px',
-                        cursor: 'pointer'
+                        cursor: structureLocked ? 'not-allowed' : 'pointer'
                       }}
                     >
                       ⚡ Prefill Defaults ({selectedLanguage})
                     </button>
                     <button
                       onClick={() => addOption(qIndex)}
+                      disabled={structureLocked}
                       style={{
                         padding: '4px 10px',
-                        backgroundColor: '#3b82f6',
+                        backgroundColor: structureLocked ? '#93c5fd' : '#3b82f6',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
                         fontSize: '11px',
-                        cursor: 'pointer'
+                        cursor: structureLocked ? 'not-allowed' : 'pointer'
                       }}
                     >
                       + Add Option
@@ -3355,18 +3742,20 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                         border: '1px solid #d1d5db',
                         borderRadius: '4px'
                       }}
+                      disabled={structureLocked}
                     />
                     {question.options.length > 2 && (
                       <button
                         onClick={() => deleteOption(qIndex, oIndex)}
+                        disabled={structureLocked}
                         style={{
                           padding: '6px 10px',
-                          backgroundColor: '#ef4444',
+                          backgroundColor: structureLocked ? '#fca5a5' : '#ef4444',
                           color: 'white',
                           border: 'none',
                           borderRadius: '4px',
                           fontSize: '11px',
-                          cursor: 'pointer'
+                          cursor: structureLocked ? 'not-allowed' : 'pointer'
                         }}
                       >
                         ✕
@@ -3412,15 +3801,16 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
               {testConfig.scoreRanges.length > 1 && (
                 <button
                   onClick={() => deleteScoreRange(index)}
+                  disabled={structureLocked}
                   style={{
                     padding: '4px 10px',
-                    backgroundColor: '#fee2e2',
+                    backgroundColor: structureLocked ? '#fecaca' : '#fee2e2',
                     color: '#991b1b',
                     border: 'none',
                     borderRadius: '4px',
                     fontSize: '12px',
                     fontWeight: '600',
-                    cursor: 'pointer'
+                    cursor: structureLocked ? 'not-allowed' : 'pointer'
                   }}
                 >
                   🗑️ Delete
@@ -3464,6 +3854,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                     border: '1px solid #d1d5db',
                     borderRadius: '4px'
                   }}
+                  disabled={structureLocked}
                 />
               </div>
 
@@ -3482,6 +3873,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                     border: '1px solid #d1d5db',
                     borderRadius: '4px'
                   }}
+                  disabled={structureLocked}
                 />
               </div>
 
@@ -3500,6 +3892,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                     border: '1px solid #d1d5db',
                     borderRadius: '4px'
                   }}
+                  disabled={structureLocked}
                 />
               </div>
             </div>
@@ -3511,15 +3904,16 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={addScoreRange}
+        disabled={structureLocked}
         style={{
           padding: '10px 20px',
-          backgroundColor: '#3b82f6',
+          backgroundColor: structureLocked ? '#93c5fd' : '#3b82f6',
           color: 'white',
           border: 'none',
           borderRadius: '6px',
           fontSize: '14px',
           fontWeight: '600',
-          cursor: 'pointer',
+          cursor: structureLocked ? 'not-allowed' : 'pointer',
           marginBottom: '20px'
         }}
       >

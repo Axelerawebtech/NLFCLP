@@ -82,8 +82,70 @@ export default async function handler(req, res) {
         console.log(`✅ Created new program for caregiver ${caregiver.caregiverId}`);
       }
       
-      // Check for days that should be auto-unlocked
+      // Load wait-time defaults and calculate caregiver-specific overrides
       const now = new Date();
+      const DEFAULT_WAIT_TIMES = { day0ToDay1: 24, betweenDays: 24 };
+      let globalConfig = null;
+      try {
+        globalConfig = await ProgramConfig.findOne({ configType: 'global' });
+      } catch (configErr) {
+        console.log('⚠️ Failed to load global program config for wait times:', configErr.message);
+      }
+
+      const globalWaitTimes = {
+        day0ToDay1: globalConfig?.waitTimes?.day0ToDay1 ?? DEFAULT_WAIT_TIMES.day0ToDay1,
+        betweenDays: globalConfig?.waitTimes?.betweenDays ?? DEFAULT_WAIT_TIMES.betweenDays
+      };
+
+      const effectiveWaitTimes = {
+        day0ToDay1: program.customWaitTimes?.day0ToDay1 ?? globalWaitTimes.day0ToDay1,
+        betweenDays: program.customWaitTimes?.betweenDays ?? globalWaitTimes.betweenDays
+      };
+
+      // Ensure scheduled unlocks line up with latest wait time settings
+      let programModified = false;
+      if (Array.isArray(program.dayModules) && program.dayModules.length > 0) {
+        const modulesByDay = new Map();
+        program.dayModules.forEach(module => {
+          if (module && typeof module.day === 'number') {
+            modulesByDay.set(module.day, module);
+          }
+        });
+
+        let scheduleChanged = false;
+        for (const module of program.dayModules) {
+          if (!module || module.day === 0 || module.adminPermissionGranted) continue;
+          const previousDay = modulesByDay.get(module.day - 1);
+          if (!previousDay?.completedAt) continue;
+
+          const waitHours = module.day === 1
+            ? effectiveWaitTimes.day0ToDay1
+            : effectiveWaitTimes.betweenDays;
+
+          if (waitHours <= 0) {
+            module.adminPermissionGranted = true;
+            module.scheduledUnlockAt = previousDay.completedAt;
+            module.unlockedAt = module.unlockedAt || now;
+            scheduleChanged = true;
+            continue;
+          }
+
+          const expectedUnlockAt = new Date(previousDay.completedAt.getTime() + waitHours * 60 * 60 * 1000);
+          const scheduled = module.scheduledUnlockAt ? new Date(module.scheduledUnlockAt) : null;
+
+          if (!scheduled || Math.abs(scheduled.getTime() - expectedUnlockAt.getTime()) > 1000) {
+            module.scheduledUnlockAt = expectedUnlockAt;
+            scheduleChanged = true;
+          }
+        }
+
+        if (scheduleChanged) {
+          programModified = true;
+          program.markModified('dayModules');
+        }
+      }
+
+      // Check for days that should be auto-unlocked
       let unlockedDays = [];
       
       if (program.dayModules && program.dayModules.length > 0) {
@@ -101,24 +163,15 @@ export default async function handler(req, res) {
               dayModule.unlockedAt = now;
             }
             unlockedDays.push(dayModule.day);
+            programModified = true;
+            program.markModified('dayModules');
           }
         }
-        
-        // Save if any days were unlocked
-        if (unlockedDays.length > 0) {
-          await program.save();
-        }
-      }
-      
-      // Load global wait-time defaults for countdown metadata
-      let globalConfig = null;
-      try {
-        globalConfig = await ProgramConfig.findOne({ configType: 'global' });
-      } catch (configErr) {
-        console.log('⚠️ Failed to load global program config for wait times:', configErr.message);
       }
 
-      const globalWaitTimes = globalConfig?.waitTimes || { day0ToDay1: 24, betweenDays: 24 };
+      if (programModified) {
+        await program.save();
+      }
 
       // Build countdown metadata for locked days
       const countdownInfo = [];
@@ -177,6 +230,7 @@ export default async function handler(req, res) {
           waitTimes: {
             global: globalWaitTimes,
             caregiverOverrides: program.customWaitTimes || null,
+            effective: effectiveWaitTimes,
             countdowns: countdownInfo
           }
         }

@@ -25,7 +25,8 @@ export default function VideoContentPlayer({
   onVideoComplete, 
   onTaskStart,
   className,
-  showCompletionDialog: externalShowCompletion = true // New prop to control dialog display
+  showCompletionDialog: externalShowCompletion = true, // New prop to control dialog display
+  onProgressUpdate
 }) {
   const { currentLanguage, translations } = useLanguage();
   
@@ -42,6 +43,7 @@ export default function VideoContentPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const lastReportedProgressRef = useRef(0);
 
   // Use currentLanguage with fallback to 'en'
   const language = currentLanguage || 'en';
@@ -74,6 +76,23 @@ export default function VideoContentPlayer({
   console.log(`📺 Video URL:`, videoContent.videoUrl);
   console.log(`🎭 Provider:`, videoContent.provider);
 
+  const reportProgress = (rawPercent) => {
+    if (!onProgressUpdate || rawPercent === undefined || rawPercent === null) return;
+    const clamped = Math.max(0, Math.min(100, Math.round(rawPercent)));
+    const lastReported = lastReportedProgressRef.current;
+    if (clamped <= lastReported) return;
+
+    // Only report meaningful deltas or final completion
+    if (clamped >= 100 || clamped - lastReported >= 5 || lastReported === 0) {
+      lastReportedProgressRef.current = clamped;
+      onProgressUpdate(clamped);
+    }
+  };
+
+  useEffect(() => {
+    lastReportedProgressRef.current = Math.round(dayModule?.videoProgress || 0);
+  }, [dayModule?.day]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -87,6 +106,7 @@ export default function VideoContentPlayer({
       if (duration > 0) {
         const progressPercent = (currentTime / duration) * 100;
         setProgress(progressPercent);
+        reportProgress(progressPercent);
         
         // Mark video as completed when 100% watched
         if (progressPercent >= 100 && !videoCompleted) {
@@ -94,6 +114,7 @@ export default function VideoContentPlayer({
           if (externalShowCompletion) {
             setShowCompletionDialog(true);
           }
+          reportProgress(100);
           onVideoComplete?.();
         }
       }
@@ -101,6 +122,7 @@ export default function VideoContentPlayer({
 
     const handleVideoEnd = () => {
       setIsPlaying(false);
+      reportProgress(100);
       if (!videoCompleted) {
         setVideoCompleted(true);
         if (externalShowCompletion) {
