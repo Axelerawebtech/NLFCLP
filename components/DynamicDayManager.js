@@ -46,6 +46,10 @@ const normalizeDayConfigLevels = (config) => {
     return config;
   }
 
+  if (config?.testConfig?.disableLevels) {
+    return config;
+  }
+
   const scoreRangesClone = config.testConfig.scoreRanges.map(range => ({ ...range }));
   const originalContentByLevel = (config.contentByLevel || []).map(level => ({ ...level }));
   const keyMap = {};
@@ -104,6 +108,35 @@ const normalizeDayConfigLevels = (config) => {
   };
 };
 
+const hasFollowupTasksDefined = (testConfig = {}) => {
+  if (!Array.isArray(testConfig.questions)) return false;
+  return testConfig.questions.some(question =>
+    Array.isArray(question?.options) && question.options.some(option => Boolean(option?.followupTask))
+  );
+};
+
+const collapseLevelsToDefault = (config = {}) => {
+  const existingLevels = Array.isArray(config.contentByLevel) ? config.contentByLevel : [];
+  if (!existingLevels.length) {
+    config.contentByLevel = [{ levelKey: 'default', levelLabel: 'Default', tasks: [] }];
+    return config;
+  }
+
+  const aggregatedTasks = existingLevels
+    .flatMap(level => level?.tasks || [])
+    .map(task => ({ ...task }))
+    .sort((a, b) => (a.taskOrder || 0) - (b.taskOrder || 0))
+    .map((task, idx) => ({ ...task, taskOrder: idx + 1 }));
+
+  const defaultLevel = existingLevels.find(level => level.levelKey === 'default') || existingLevels[0];
+  config.contentByLevel = [{
+    levelKey: 'default',
+    levelLabel: defaultLevel?.levelLabel || 'Default',
+    tasks: aggregatedTasks
+  }];
+  return config;
+};
+
 /**
  * DynamicDayManager Component
  * 
@@ -120,6 +153,7 @@ export default function DynamicDayManager() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [dayConfig, setDayConfig] = useState(null);
   const [days, setDays] = useState([]);
+  const [daysLoading, setDaysLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -133,6 +167,19 @@ export default function DynamicDayManager() {
   const [waitTimesMessage, setWaitTimesMessage] = useState('');
   const [pendingTestConfig, setPendingTestConfig] = useState(null);
   const [hasUnsavedTestConfig, setHasUnsavedTestConfig] = useState(false);
+  const [mutationLoading, setMutationLoading] = useState(false);
+  const [mutationMessage, setMutationMessage] = useState('');
+  const withUiSpinner = async (message, fn) => {
+    setMutationMessage(message);
+    setMutationLoading(true);
+    try {
+      return await fn();
+    } finally {
+      setMutationLoading(false);
+      setMutationMessage('');
+    }
+  };
+
 
   const languages = [
     { code: 'english', label: 'English', flag: '🇺🇸' },
@@ -140,7 +187,14 @@ export default function DynamicDayManager() {
     { code: 'hindi', label: 'हिंदी', flag: '🇮🇳' }
   ];
 
+  const handleLanguageSwitch = (langCode) => {
+    if (langCode === selectedLanguage) return;
+    setError('');
+    setSelectedLanguage(langCode);
+  };
+
   const isBaseLanguage = selectedLanguage === BASE_LANGUAGE;
+  const testLevelsDisabled = Boolean(dayConfig?.testConfig?.disableLevels);
 
   const toTitleCase = (text = '') =>
     text.replace(/[-_]/g, ' ')
@@ -193,6 +247,26 @@ export default function DynamicDayManager() {
     }
   };
 
+  const fetchDays = async () => {
+    try {
+      setDaysLoading(true);
+      setError('');
+      const res = await fetch(`/api/admin/dynamic-days/config?language=${selectedLanguage}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setDays(data.days || []);
+      } else {
+        setError(data.error || 'Failed to load days');
+      }
+    } catch (err) {
+      console.error('Failed to load days:', err);
+      setError('Failed to load days');
+    } finally {
+      setDaysLoading(false);
+    }
+  };
+
   const handleTestConfigChange = (updatedConfig, markDirty = true) => {
     let nextSelectedLevel = null;
     let normalizedPendingCopy = null;
@@ -203,6 +277,10 @@ export default function DynamicDayManager() {
         hasTest: updatedConfig ? true : prev.hasTest,
         testConfig: updatedConfig
       });
+
+      if (updatedConfig?.disableLevels) {
+        collapseLevelsToDefault(mergedConfig);
+      }
 
       const availableLevels = mergedConfig.contentByLevel?.map(level => level.levelKey) || [];
       if (mergedConfig.hasTest && availableLevels.length && !availableLevels.includes(selectedLevel)) {
@@ -259,25 +337,6 @@ export default function DynamicDayManager() {
       setWaitTimesMessage(err.message || 'Failed to update wait times');
     } finally {
       setSavingGlobalWaits(false);
-    }
-  };
-
-  const fetchDays = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/admin/dynamic-days/config?language=${selectedLanguage}`);
-      const data = await res.json();
-      
-      if (data.success) {
-        setDays(data.days || []);
-      } else {
-        setError(data.error);
-      }
-    } catch (err) {
-      setError('Failed to load days');
-      console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -345,6 +404,9 @@ export default function DynamicDayManager() {
         }
 
         const normalizedConfig = normalizeDayConfigLevels(mergedConfig);
+        if (normalizedConfig?.testConfig?.disableLevels) {
+          collapseLevelsToDefault(normalizedConfig);
+        }
         setDayConfig(cloneDeep(normalizedConfig));
 
         if (normalizedConfig.hasTest && normalizedConfig.contentByLevel?.length) {
@@ -382,13 +444,18 @@ export default function DynamicDayManager() {
       setSaving(true);
       setError('');
 
+      const payload = cloneDeep(dayConfig);
+      if (payload?.testConfig?.disableLevels) {
+        collapseLevelsToDefault(payload);
+      }
+
       const res = await fetch('/api/admin/dynamic-days/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           dayNumber: selectedDay,
           language: selectedLanguage,
-          dayConfig
+          dayConfig: payload
         })
       });
 
@@ -396,6 +463,7 @@ export default function DynamicDayManager() {
       
       if (data.success) {
         alert(`✅ Day ${selectedDay} (${selectedLanguage}) saved successfully!`);
+        setDayConfig(cloneDeep(payload));
         setPendingTestConfig(null);
         setHasUnsavedTestConfig(false);
         await fetchDays();
@@ -484,7 +552,9 @@ export default function DynamicDayManager() {
       alert('Add or duplicate tasks only while editing the English structure.');
       return { success: false, error: 'Structure locked for translations' };
     }
-    try {
+    const targetLevelKey = effectiveLevelKey;
+    return withUiSpinner('Adding task...', async () => {
+      try {
       // First, check if day config exists in database by trying to add the task
       let res = await fetch('/api/admin/dynamic-days/tasks', {
         method: 'POST',
@@ -492,7 +562,7 @@ export default function DynamicDayManager() {
         body: JSON.stringify({
           dayNumber: selectedDay,
           language: selectedLanguage,
-          levelKey: selectedLevel,
+          levelKey: targetLevelKey,
           task: taskData
         })
       });
@@ -530,7 +600,7 @@ export default function DynamicDayManager() {
           body: JSON.stringify({
             dayNumber: selectedDay,
             language: selectedLanguage,
-            levelKey: selectedLevel,
+            levelKey: targetLevelKey,
             task: taskData
           })
         });
@@ -538,21 +608,44 @@ export default function DynamicDayManager() {
         data = await res.json();
       }
       
-      if (data.success) {
-        await loadDayConfig(selectedDay, true);
-        await fetchDays(); // Refresh days list
-        setShowAddTask(false);
-        console.log('✅ Task added successfully');
-        return data;
-      } else {
-        alert(data.error);
-        return data;
+        if (data.success) {
+          if (hasUnsavedTestConfig) {
+            setDayConfig(prev => {
+              if (!prev) return prev;
+              const updated = cloneDeep(prev);
+              const targetLevel = updated.contentByLevel?.find(level => level.levelKey === targetLevelKey);
+              if (targetLevel) {
+                const nextTasks = Array.isArray(targetLevel.tasks) ? [...targetLevel.tasks] : [];
+                const sanitizedTask = {
+                  ...data.task,
+                  title: data.task.title || taskData.title || '',
+                  description: data.task.description || taskData.description || '',
+                  content: taskData.content || data.task.content || {}
+                };
+                nextTasks.push(sanitizedTask);
+                targetLevel.tasks = nextTasks
+                  .sort((a, b) => (a.taskOrder || 0) - (b.taskOrder || 0))
+                  .map((task, idx) => ({ ...task, taskOrder: idx + 1 }));
+              }
+              return updated;
+            });
+          } else {
+            await loadDayConfig(selectedDay, true);
+          }
+          await fetchDays(); // Refresh days list
+          setShowAddTask(false);
+          console.log('✅ Task added successfully');
+          return data;
+        } else {
+          alert(data.error);
+          return data;
+        }
+      } catch (err) {
+        alert('Failed to add task');
+        console.error(err);
+        return { success: false, error: err.message };
       }
-    } catch (err) {
-      alert('Failed to add task');
-      console.error(err);
-      return { success: false, error: err.message };
-    }
+    });
   };
 
   // Delete task
@@ -563,23 +656,25 @@ export default function DynamicDayManager() {
     }
     if (!confirm('⚠️ Are you sure you want to delete this task?')) return;
 
-    try {
-      const res = await fetch(
-        `/api/admin/dynamic-days/tasks?dayNumber=${selectedDay}&language=${selectedLanguage}&levelKey=${selectedLevel}&taskId=${taskId}`,
-        { method: 'DELETE' }
-      );
+    await withUiSpinner('Deleting task...', async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/dynamic-days/tasks?dayNumber=${selectedDay}&language=${selectedLanguage}&levelKey=${effectiveLevelKey}&taskId=${taskId}`,
+          { method: 'DELETE' }
+        );
 
-      const data = await res.json();
-      
-      if (data.success) {
-        await loadDayConfig(selectedDay, true);
-      } else {
-        alert(data.error);
+        const data = await res.json();
+        
+        if (data.success) {
+          await loadDayConfig(selectedDay, true);
+        } else {
+          alert(data.error);
+        }
+      } catch (err) {
+        alert('Failed to delete task');
+        console.error(err);
       }
-    } catch (err) {
-      alert('Failed to delete task');
-      console.error(err);
-    }
+    });
   };
 
   // Update task order after reordering
@@ -591,7 +686,7 @@ export default function DynamicDayManager() {
     // Update local state immediately for smooth UX
     setDayConfig(prev => {
       const updated = { ...prev };
-      const levelConfig = updated.contentByLevel.find(l => l.levelKey === selectedLevel);
+      const levelConfig = updated.contentByLevel.find(l => l.levelKey === effectiveLevelKey);
       if (levelConfig) {
         levelConfig.tasks = newOrderedTasks.map((task, index) => ({
           ...task,
@@ -614,7 +709,7 @@ export default function DynamicDayManager() {
             body: JSON.stringify({
               dayNumber: selectedDay,
               language: selectedLanguage,
-              levelKey: selectedLevel,
+              levelKey: effectiveLevelKey,
               taskId: task.taskId,
               reorder: { newOrder }
             })
@@ -628,7 +723,22 @@ export default function DynamicDayManager() {
     }
   };
 
-  const currentLevelConfig = dayConfig?.contentByLevel?.find(l => l.levelKey === selectedLevel);
+  const effectiveLevelKey = testLevelsDisabled ? 'default' : (selectedLevel || 'default');
+  const currentLevelConfig = dayConfig?.contentByLevel?.find(l => l.levelKey === effectiveLevelKey);
+  const overlayActive = loading || saving || mutationLoading || daysLoading || savingGlobalWaits || loadingGlobalWaits;
+  const overlayMessage = saving
+    ? 'Saving day configuration...'
+    : mutationLoading
+      ? mutationMessage || 'Applying changes...'
+      : loading
+        ? 'Loading day content...'
+        : savingGlobalWaits
+          ? 'Updating wait time defaults...'
+          : loadingGlobalWaits
+            ? 'Fetching wait time defaults...'
+            : daysLoading
+              ? 'Refreshing day list...'
+              : 'Working...';
 
   const handleTaskUpdate = async (taskData) => {
     if (!editingTask) {
@@ -636,38 +746,40 @@ export default function DynamicDayManager() {
     }
 
     if (isBaseLanguage) {
-      try {
-        const res = await fetch('/api/admin/dynamic-days/tasks', {
+      return withUiSpinner('Updating task...', async () => {
+        try {
+          const res = await fetch('/api/admin/dynamic-days/tasks', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             dayNumber: selectedDay,
             language: selectedLanguage,
-            levelKey: selectedLevel,
+            levelKey: effectiveLevelKey,
             taskId: editingTask.taskId,
             updates: taskData
           })
         });
 
-        const data = await res.json();
+          const data = await res.json();
 
-        if (data.success) {
-          await loadDayConfig(selectedDay, true);
-          setEditingTask(null);
+          if (data.success) {
+            await loadDayConfig(selectedDay, true);
+            setEditingTask(null);
+          }
+
+          return data;
+        } catch (err) {
+          console.error('Failed to update task:', err);
+          return { success: false, error: err.message };
         }
-
-        return data;
-      } catch (err) {
-        console.error('Failed to update task:', err);
-        return { success: false, error: err.message };
-      }
+      });
     }
 
     setDayConfig(prev => {
       if (!prev) return prev;
       const updated = { ...prev };
       updated.contentByLevel = (prev.contentByLevel || []).map(level => {
-        if (level.levelKey !== selectedLevel) {
+        if (level.levelKey !== effectiveLevelKey) {
           return level;
         }
         return {
@@ -710,7 +822,7 @@ export default function DynamicDayManager() {
               key={lang.code}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setSelectedLanguage(lang.code)}
+              onClick={() => handleLanguageSwitch(lang.code)}
               style={{
                 padding: '12px 24px',
                 backgroundColor: selectedLanguage === lang.code ? '#3b82f6' : '#f3f4f6',
@@ -733,120 +845,121 @@ export default function DynamicDayManager() {
         </div>
       </div>
 
-        {/* Global Wait Time Configuration */}
+      {/* Global Wait Time Configuration */}
+      <div style={{
+        marginBottom: '24px',
+        padding: '20px',
+        backgroundColor: '#fff7ed',
+        borderRadius: '12px',
+        border: '2px solid #fed7aa'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#9a3412', margin: 0 }}>
+              ⏳ Global Wait Time Defaults
+            </h3>
+            <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#7c2d12' }}>
+              Configure the default delay between program milestones. Applies across all languages.
+            </p>
+          </div>
+          {waitTimesMessage && (
+            <motion.span
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '999px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: waitTimesMessage.includes('✅') ? '#166534' : '#991b1b',
+                backgroundColor: waitTimesMessage.includes('✅') ? '#dcfce7' : '#fee2e2'
+              }}
+            >
+              {waitTimesMessage}
+            </motion.span>
+          )}
+        </div>
+
         <div style={{
-          marginBottom: '24px',
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '20px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-          border: '1px solid #e5e7eb'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '16px',
+          marginTop: '16px'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: '#111827' }}>
-                ⏱️ Global Wait Times
-              </h3>
-              <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '14px' }}>
-                Controls how long we wait before unlocking the next day for all caregivers (unless overridden per caregiver).
-              </p>
-            </div>
-            {waitTimesMessage && (
-              <span style={{ color: waitTimesMessage.startsWith('✅') ? '#059669' : '#b91c1c', fontWeight: 600 }}>
-                {waitTimesMessage}
-              </span>
-            )}
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#7c2d12', marginBottom: '6px' }}>
+              Hours between Day 0 onboarding → Day 1 content
+            </label>
+            <input
+              type="number"
+              value={globalWaitTimes.day0ToDay1}
+              onChange={(e) => setGlobalWaitTimes(prev => ({ ...prev, day0ToDay1: e.target.value }))}
+              disabled={loadingGlobalWaits}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '2px solid #d1d5db',
+                fontSize: '15px',
+                backgroundColor: loadingGlobalWaits ? '#f3f4f6' : 'white'
+              }}
+            />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
-                Day 0 ➜ Day 1 (hours)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={globalWaitTimes.day0ToDay1 ?? ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setGlobalWaitTimes(prev => ({
-                    ...prev,
-                    day0ToDay1: value === '' ? '' : Math.max(0, parseInt(value, 10) || 0)
-                  }));
-                }}
-                disabled={loadingGlobalWaits}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '2px solid #d1d5db',
-                  fontSize: '15px',
-                  backgroundColor: loadingGlobalWaits ? '#f3f4f6' : 'white'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
-                Between Days 1-9 (hours)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={globalWaitTimes.betweenDays ?? ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setGlobalWaitTimes(prev => ({
-                    ...prev,
-                    betweenDays: value === '' ? '' : Math.max(0, parseInt(value, 10) || 0)
-                  }));
-                }}
-                disabled={loadingGlobalWaits}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '2px solid #d1d5db',
-                  fontSize: '15px',
-                  backgroundColor: loadingGlobalWaits ? '#f3f4f6' : 'white'
-                }}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button
-              onClick={handleUpdateGlobalWaitTimes}
-              disabled={savingGlobalWaits || loadingGlobalWaits}
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#7c2d12', marginBottom: '6px' }}>
+              Hours between subsequent days
+            </label>
+            <input
+              type="number"
+              value={globalWaitTimes.betweenDays}
+              onChange={(e) => setGlobalWaitTimes(prev => ({ ...prev, betweenDays: e.target.value }))}
+              disabled={loadingGlobalWaits}
               style={{
-                padding: '10px 20px',
-                backgroundColor: savingGlobalWaits || loadingGlobalWaits ? '#9ca3af' : '#2563eb',
-                color: 'white',
-                border: 'none',
+                width: '100%',
+                padding: '10px 14px',
                 borderRadius: '8px',
-                fontWeight: 600,
-                cursor: savingGlobalWaits || loadingGlobalWaits ? 'not-allowed' : 'pointer'
+                border: '2px solid #d1d5db',
+                fontSize: '15px',
+                backgroundColor: loadingGlobalWaits ? '#f3f4f6' : 'white'
               }}
-            >
-              {savingGlobalWaits ? 'Saving...' : 'Update Wait Times'}
-            </button>
-            <button
-              onClick={fetchGlobalWaitTimes}
-              disabled={savingGlobalWaits}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: 'transparent',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                color: '#374151',
-                fontWeight: 600,
-                cursor: savingGlobalWaits ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Refresh Values
-            </button>
+            />
           </div>
         </div>
 
+        <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleUpdateGlobalWaitTimes}
+            disabled={savingGlobalWaits || loadingGlobalWaits}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: savingGlobalWaits || loadingGlobalWaits ? '#9ca3af' : '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              cursor: savingGlobalWaits || loadingGlobalWaits ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {savingGlobalWaits ? 'Saving...' : 'Update Wait Times'}
+          </button>
+          <button
+            onClick={fetchGlobalWaitTimes}
+            disabled={savingGlobalWaits}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: 'transparent',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              color: '#374151',
+              fontWeight: 600,
+              cursor: savingGlobalWaits ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Refresh Values
+          </button>
+        </div>
+      </div>
       <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '20px', color: '#111827' }}>
         🗓️ Dynamic Day Content Manager
       </h2>
@@ -1010,7 +1123,9 @@ export default function DynamicDayManager() {
                     </div>
 
                     <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '15px' }}>
-                      📊 Levels configured: {dayConfig.testConfig?.scoreRanges?.length || 0}
+                      {testLevelsDisabled
+                        ? '📊 Score-based levels are disabled. Everyone sees the default plan.'
+                        : `📊 Levels configured: ${dayConfig.testConfig?.scoreRanges?.length || 0}`}
                     </p>
                     
                     <button
@@ -1053,7 +1168,7 @@ export default function DynamicDayManager() {
 
             {/* Level Tabs */}
             <AnimatePresence>
-              {dayConfig.hasTest && dayConfig.testConfig?.scoreRanges?.length > 0 && (
+              {dayConfig.hasTest && dayConfig.testConfig?.scoreRanges?.length > 0 && !testLevelsDisabled && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1093,7 +1208,7 @@ export default function DynamicDayManager() {
             <motion.div layout style={{ marginBottom: '30px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#111827' }}>
-                  📝 Content Tasks {currentLevelConfig && `(${getLevelDisplayLabel(currentLevelConfig)})`}
+                  📝 Content Tasks {testLevelsDisabled ? '(Single plan)' : currentLevelConfig && `(${getLevelDisplayLabel(currentLevelConfig)})`}
                 </h3>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -1249,6 +1364,56 @@ export default function DynamicDayManager() {
           ⚠️ {error}
         </motion.div>
       )}
+
+      <AnimatePresence>
+        {overlayActive && (
+          <motion.div
+            key="ui-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15,23,42,0.55)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backdropFilter: 'blur(2px)'
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              style={{
+                backgroundColor: 'white',
+                padding: '28px 36px',
+                borderRadius: '18px',
+                boxShadow: '0 20px 45px rgba(15,23,42,0.25)',
+                textAlign: 'center',
+                width: 'min(320px, 90vw)'
+              }}
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, ease: 'linear', duration: 1 }}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  border: '4px solid #bfdbfe',
+                  borderTopColor: '#2563eb',
+                  margin: '0 auto 16px'
+                }}
+              />
+              <p style={{ fontSize: '16px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>{overlayMessage}</p>
+              <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>Please wait while we update the program.</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -3455,10 +3620,42 @@ function getTypeColor(type) {
 function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = false, onChange, structureLocked = false }) {
   const [showQuestions, setShowQuestions] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
+  const [followupEditor, setFollowupEditor] = useState(null);
+  const scoreRanges = Array.isArray(testConfig.scoreRanges) ? testConfig.scoreRanges : [];
+  const hasExistingFollowups = Array.isArray(testConfig.questions)
+    ? testConfig.questions.some(question =>
+        Array.isArray(question?.options) && question.options.some(option => option?.followupTask))
+    : false;
+  const followupToggleActive = testConfig.enableFollowupTasks === undefined
+    ? hasExistingFollowups
+    : Boolean(testConfig.enableFollowupTasks);
+  const allowFollowupConfig = followupToggleActive || hasExistingFollowups;
+  const levelsDisabled = Boolean(testConfig.disableLevels);
+  const isBaseLanguage = selectedLanguage === BASE_LANGUAGE;
   const guardStructureChange = () => {
     if (!structureLocked) return false;
     alert('Structure changes (levels/questions/options) are only editable in the English base language.');
     return true;
+  };
+
+  const handleFollowupToggleChange = (checked) => {
+    if (structureLocked) return;
+    if (!checked && hasExistingFollowups) {
+      const confirmDisable = confirm('Follow-up tasks already exist. Disable them and hide the extra tasks?');
+      if (!confirmDisable) return;
+    }
+    onChange({
+      ...testConfig,
+      enableFollowupTasks: checked
+    });
+  };
+
+  const handleDisableLevelsToggle = (checked) => {
+    if (structureLocked) return;
+    onChange({
+      ...testConfig,
+      disableLevels: checked
+    });
   };
   
   const buildDefaultOptions = () => {
@@ -3480,6 +3677,68 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
     onChange({
       ...testConfig,
       questions: [...(testConfig.questions || []), newQuestion]
+    });
+  };
+
+  const openFollowupEditor = (questionIndex, optionIndex) => {
+    const option = testConfig.questions?.[questionIndex]?.options?.[optionIndex];
+    if (!option) return;
+    if (structureLocked && !option.followupTask) {
+      alert('Create follow-up tasks in the English base language first.');
+      return;
+    }
+    setFollowupEditor({
+      questionIndex,
+      optionIndex,
+      task: option.followupTask ? cloneDeep(option.followupTask) : null
+    });
+  };
+
+  const handleFollowupSave = async (questionIndex, optionIndex, taskPayload) => {
+    const updatedQuestions = testConfig.questions.map((question, qIdx) => {
+      if (qIdx !== questionIndex) return question;
+      const updatedOptions = question.options.map((opt, oIdx) => {
+        if (oIdx !== optionIndex) return opt;
+        const optionKey = opt.optionKey || `q${questionIndex + 1}_opt${optionIndex + 1}`;
+        const existingTaskId = opt.followupTask?.taskId;
+        return {
+          ...opt,
+          followupTask: {
+            ...cloneDeep(taskPayload),
+            taskId: taskPayload.taskId || existingTaskId || `${optionKey}_followup`,
+            enabled: taskPayload.enabled !== false
+          }
+        };
+      });
+      return { ...question, options: updatedOptions };
+    });
+
+    onChange({
+      ...testConfig,
+      questions: updatedQuestions
+    });
+    setFollowupEditor(null);
+    return { success: true };
+  };
+
+  const handleRemoveFollowup = (questionIndex, optionIndex) => {
+    if (!isBaseLanguage) {
+      alert('Remove follow-up tasks only while editing English.');
+      return;
+    }
+    if (!confirm('Remove this follow-up task?')) return;
+
+    const updatedQuestions = testConfig.questions.map((question, qIdx) => {
+      if (qIdx !== questionIndex) return question;
+      const updatedOptions = question.options.map((opt, oIdx) => (
+        oIdx === optionIndex ? { ...opt, followupTask: null } : opt
+      ));
+      return { ...question, options: updatedOptions };
+    });
+
+    onChange({
+      ...testConfig,
+      questions: updatedQuestions
     });
   };
 
@@ -3585,6 +3844,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
   };
 
   return (
+    <>
     <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
       {hasUnsavedChanges && (
         <div style={{
@@ -3615,6 +3875,45 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
           Translation mode: question/order/score changes are disabled. Update only the wording for this language.
         </div>
       )}
+      <div style={{
+        marginBottom: '20px',
+        padding: '16px',
+        backgroundColor: '#eef2ff',
+        borderRadius: '8px',
+        border: '1px solid #c7d2fe',
+        display: 'grid',
+        gap: '12px'
+      }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: structureLocked ? 'not-allowed' : 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={followupToggleActive}
+            onChange={(e) => handleFollowupToggleChange(e.target.checked)}
+            disabled={structureLocked}
+            style={{ marginTop: '4px', width: '18px', height: '18px' }}
+          />
+          <span style={{ fontSize: '14px', color: '#1e1b4b' }}>
+            <strong>Enable follow-up tasks per answer.</strong> When on, you can attach a bonus task that unlocks after a caregiver picks that answer.
+          </span>
+        </label>
+        {hasExistingFollowups && !followupToggleActive && (
+          <div style={{ fontSize: '13px', color: '#b45309', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '10px' }}>
+            Follow-up tasks exist but are hidden from caregivers until you re-enable this toggle.
+          </div>
+        )}
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: structureLocked ? 'not-allowed' : 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={levelsDisabled}
+            onChange={(e) => handleDisableLevelsToggle(e.target.checked)}
+            disabled={structureLocked}
+            style={{ marginTop: '4px', width: '18px', height: '18px' }}
+          />
+          <span style={{ fontSize: '14px', color: '#1e1b4b' }}>
+            <strong>Skip score-based levels.</strong> Everyone sees the same default task list regardless of their score.
+          </span>
+        </label>
+      </div>
       
       {/* Questions Section */}
       <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: 'white', borderRadius: '8px', border: '2px solid #bfdbfe' }}>
@@ -3715,8 +4014,21 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                   </div>
                 </div>
 
+                {levelsDisabled && (
+                  <div style={{
+                    marginBottom: '10px',
+                    padding: '8px 10px',
+                    backgroundColor: '#eef2ff',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    color: '#3730a3'
+                  }}>
+                    Score weights are hidden while "Skip score-based levels" is enabled.
+                  </div>
+                )}
+
                 {question.options?.map((option, oIndex) => (
-                  <div key={oIndex} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                  <div key={oIndex} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <input
                       type="text"
                       value={option.optionText}
@@ -3724,26 +4036,29 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                       placeholder={`Option ${oIndex + 1}`}
                       style={{
                         flex: 1,
+                        minWidth: '180px',
                         padding: '8px',
                         fontSize: '13px',
                         border: '1px solid #d1d5db',
                         borderRadius: '4px'
                       }}
                     />
-                    <input
-                      type="number"
-                      value={option.score}
-                      onChange={(e) => updateOption(qIndex, oIndex, 'score', parseInt(e.target.value) || 0)}
-                      placeholder="Score"
-                      style={{
-                        width: '70px',
-                        padding: '8px',
-                        fontSize: '13px',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '4px'
-                      }}
-                      disabled={structureLocked}
-                    />
+                    {!levelsDisabled && (
+                      <input
+                        type="number"
+                        value={option.score}
+                        onChange={(e) => updateOption(qIndex, oIndex, 'score', parseInt(e.target.value) || 0)}
+                        placeholder="Score"
+                        style={{
+                          width: '70px',
+                          padding: '8px',
+                          fontSize: '13px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '4px'
+                        }}
+                        disabled={structureLocked}
+                      />
+                    )}
                     {question.options.length > 2 && (
                       <button
                         onClick={() => deleteOption(qIndex, oIndex)}
@@ -3761,6 +4076,75 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
                         ✕
                       </button>
                     )}
+                    {allowFollowupConfig ? (
+                      <div style={{
+                        flexBasis: '100%',
+                        padding: '10px',
+                        border: '1px dashed #cbd5f5',
+                        borderRadius: '6px',
+                        backgroundColor: '#f8fafc'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                          <div>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Follow-Up Task
+                            </span>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#0f172a' }}>
+                              {option.followupTask
+                                ? `${option.followupTask.taskType || 'custom'} · ${option.followupTask.title || 'Untitled follow-up'}`
+                                : 'No follow-up configured for this answer'}
+                            </p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => openFollowupEditor(qIndex, oIndex)}
+                            disabled={structureLocked && !option.followupTask}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: structureLocked && !option.followupTask ? '#cbd5f5' : '#2563eb',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              cursor: structureLocked && !option.followupTask ? 'not-allowed' : 'pointer'
+                            }}
+                            title={structureLocked && !option.followupTask ? 'Create follow-up tasks in English first' : undefined}
+                          >
+                            {option.followupTask ? 'Edit follow-up task' : 'Add follow-up task'}
+                          </button>
+                          {option.followupTask && isBaseLanguage && (
+                            <button
+                              onClick={() => handleRemoveFollowup(qIndex, oIndex)}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#f87171',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Remove follow-up
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{
+                        flexBasis: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        backgroundColor: '#f1f5f9',
+                        color: '#475569',
+                        fontSize: '13px'
+                      }}>
+                        Enable follow-up tasks above to attach extra actions to this answer.
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -3776,12 +4160,14 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
       </div>
 
       {/* Score Ranges Section */}
+      {!levelsDisabled && (
+        <>
       <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>
         🎯 Score Ranges & Levels
       </h4>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
-        {testConfig.scoreRanges.map((range, index) => (
+        {scoreRanges.map((range, index) => (
           <motion.div
             key={index}
             layout
@@ -3798,7 +4184,7 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
               <h5 style={{ fontSize: '14px', fontWeight: '600', margin: 0, color: '#374151' }}>
                 Level {index + 1}: {range.levelKey}
               </h5>
-              {testConfig.scoreRanges.length > 1 && (
+              {scoreRanges.length > 1 && (
                 <button
                   onClick={() => deleteScoreRange(index)}
                   disabled={structureLocked}
@@ -3919,6 +4305,22 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
       >
         + Add Score Range
       </motion.button>
+        </>
+      )}
+
+      {levelsDisabled && (
+        <div style={{
+          marginBottom: '20px',
+          padding: '16px',
+          borderRadius: '8px',
+          border: '1px solid #cbd5f5',
+          backgroundColor: '#eff6ff',
+          fontSize: '14px',
+          color: '#1d4ed8'
+        }}>
+          Score-based levels are turned off. Caregivers will see the default tasks regardless of their scores.
+        </div>
+      )}
 
       <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
         <button
@@ -3953,5 +4355,18 @@ function TestConfigEditor({ testConfig, selectedLanguage, hasUnsavedChanges = fa
         </AnimatePresence>
       </div>
     </div>
+
+    <AnimatePresence>
+      {followupEditor && (
+        <TaskEditorModal
+          selectedLanguage={selectedLanguage}
+          task={followupEditor.task}
+          structureLocked={!isBaseLanguage}
+          onSave={(taskPayload) => handleFollowupSave(followupEditor.questionIndex, followupEditor.optionIndex, taskPayload)}
+          onClose={() => setFollowupEditor(null)}
+        />
+      )}
+    </AnimatePresence>
+  </>
   );
 }

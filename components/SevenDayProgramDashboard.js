@@ -75,7 +75,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [submittingQuick, setSubmittingQuick] = useState({});
   const [showTestReview, setShowTestReview] = useState(false);
   const [activeSubmission, setActiveSubmission] = useState(null);
+  const [inlineToast, setInlineToast] = useState(null);
   const submissionCounterRef = useRef(0);
+  const inlineToastTimeoutRef = useRef(null);
   
   // Task-specific state for different task types (using taskId as key)
   const [interactiveFieldState, setInteractiveFieldState] = useState({}); // { taskId: { problemText, solutionText } }
@@ -166,6 +168,94 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     if (submissionCounterRef.current === 0) {
       setActiveSubmission(null);
     }
+  };
+
+  const showInlineToast = ({
+    icon = 'ℹ️',
+    title = 'Heads up',
+    message = '',
+    tone = 'info',
+    duration = 4200,
+    actionLabel,
+    onAction
+  } = {}) => {
+    if (!message) return;
+    if (inlineToastTimeoutRef.current) {
+      clearTimeout(inlineToastTimeoutRef.current);
+    }
+    setInlineToast({ icon, title, message, tone, actionLabel, onAction });
+    inlineToastTimeoutRef.current = setTimeout(() => {
+      setInlineToast(null);
+      inlineToastTimeoutRef.current = null;
+    }, duration);
+  };
+
+  const hideInlineToast = () => {
+    if (inlineToastTimeoutRef.current) {
+      clearTimeout(inlineToastTimeoutRef.current);
+      inlineToastTimeoutRef.current = null;
+    }
+    setInlineToast(null);
+  };
+
+  const showValidationPrompt = (message, overrides = {}) => {
+    showInlineToast({
+      icon: '✋',
+      title: 'Let’s finish this step',
+      message,
+      tone: 'warning',
+      ...overrides
+    });
+  };
+
+  const showSuccessToast = (message, overrides = {}) => {
+    showInlineToast({
+      icon: '✅',
+      title: 'All set!',
+      message,
+      tone: 'success',
+      ...overrides
+    });
+  };
+
+  const showErrorToast = (message, overrides = {}) => {
+    showInlineToast({
+      icon: '⚠️',
+      title: 'Something needs attention',
+      message,
+      tone: 'error',
+      ...overrides
+    });
+  };
+
+  const getToastToneStyles = (tone = 'info') => {
+    const toneMap = {
+      success: {
+        borderColor: '#34d399',
+        backgroundColor: '#ecfdf5',
+        titleColor: '#065f46',
+        textColor: '#064e3b'
+      },
+      warning: {
+        borderColor: '#fbbf24',
+        backgroundColor: '#fffbeb',
+        titleColor: '#92400e',
+        textColor: '#78350f'
+      },
+      error: {
+        borderColor: '#f87171',
+        backgroundColor: '#fef2f2',
+        titleColor: '#b91c1c',
+        textColor: '#7f1d1d'
+      },
+      info: {
+        borderColor: '#93c5fd',
+        backgroundColor: '#eff6ff',
+        titleColor: '#1d4ed8',
+        textColor: '#1e3a8a'
+      }
+    };
+    return toneMap[tone] || toneMap.info;
   };
 
   // Render dynamic task based on type
@@ -594,7 +684,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             const problemText = (fieldState.problemText || '').trim();
             const solutionText = (fieldState.solutionText || '').trim();
             if (!problemText || !solutionText) {
-              alert('Please fill in both sections');
+              showValidationPrompt('Please fill in both sections before submitting.');
               return;
             }
             handleTaskResponse(task.taskId, 'interactive-field', {
@@ -610,7 +700,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
           if (fieldType === 'rating') {
             if (!fieldState.rating) {
-              alert('Please select a rating before submitting');
+              showValidationPrompt('Select a rating before submitting.');
               return;
             }
             handleTaskResponse(task.taskId, 'interactive-field', {
@@ -625,7 +715,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
           if (fieldType === 'mood-selector') {
             if (!fieldState.mood) {
-              alert('Please pick a mood to continue');
+              showValidationPrompt('Pick a mood to continue.');
               return;
             }
             const selectedMood = moods.find(m => m.key === fieldState.mood);
@@ -641,7 +731,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
           const textValue = (fieldState.value || '').trim();
           if (!textValue) {
-            alert('Please enter your response');
+            showValidationPrompt('Please enter your response before submitting.');
             return;
           }
           handleTaskResponse(task.taskId, 'interactive-field', {
@@ -954,8 +1044,36 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         );
 
       case 'activity-selector':
+        const activities = Array.isArray(task.content?.activities) ? task.content.activities : [];
         const selectedActivity = selectedActivities[task.taskId];
-        
+        const hasSelectedActivity = Number.isInteger(selectedActivity);
+
+        const handleActivitySubmit = () => {
+          if (!hasSelectedActivity) {
+            showValidationPrompt('Choose an activity before submitting.');
+            return;
+          }
+
+          if (activities.length === 0) {
+            showErrorToast('No activities are available to choose from yet.');
+            return;
+          }
+
+          const activity = activities[selectedActivity];
+          if (!activity) {
+            showValidationPrompt('Choose an activity before submitting.');
+            return;
+          }
+
+          handleTaskResponse(task.taskId, 'activity-selector', {
+            responseText: activity.activityName || `Activity ${selectedActivity + 1}`,
+            selectedActivity: activity.activityName,
+            activityDescription: activity.activityDescription,
+            completed: true,
+            submissionMessage: 'Saving your choice…'
+          });
+        };
+
         return (
           <div key={task.taskId || index} style={{
             padding: '32px',
@@ -1010,7 +1128,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               )}
 
               {/* Activities Content */}
-              {task.content?.activities && task.content.activities.length > 0 && (
+              {activities.length > 0 && (
                 <div style={{
                   marginTop: '24px',
                   padding: '24px',
@@ -1020,7 +1138,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
                 }}>
                   <div style={{ display: 'grid', gap: '12px' }}>
-                    {task.content.activities.map((activity, idx) => (
+                    {activities.map((activity, idx) => (
                       <div 
                         key={idx} 
                         onClick={() => setSelectedActivities(prev => ({ ...prev, [task.taskId]: idx }))}
@@ -1075,43 +1193,33 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   </div>
 
                   {/* Submit Button */}
-                  {selectedActivity !== null && (
-                    <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => {
-                          const activity = task.content.activities[selectedActivity];
-                          handleTaskResponse(task.taskId, 'activity-selector', {
-                            responseText: activity.activityName || `Activity ${selectedActivity + 1}`,
-                            selectedActivity: activity.activityName,
-                            activityDescription: activity.activityDescription,
-                            completed: true
-                          });
-                        }}
-                        style={{
-                          padding: '14px 32px',
-                          backgroundColor: '#f59e0b',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '10px',
-                          fontSize: '16px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.4)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'scale(1)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
-                        }}
-                      >
-                        I've Chosen This Activity ➜
-                      </button>
-                    </div>
-                  )}
+                  <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                    <button
+                      onClick={handleActivitySubmit}
+                      style={{
+                        padding: '14px 32px',
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                      }}
+                    >
+                      {hasSelectedActivity ? "I've Chosen This Activity ➜" : 'Please select an activity first'}
+                    </button>
+                  </div>
 
                   {/* Decorative hearts */}
                   <div style={{
@@ -1125,7 +1233,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 </div>
               )}
 
-              {(!task.content?.activities || task.content.activities.length === 0) && (
+              {activities.length === 0 && (
                 <p style={{ margin: '12px 0 0 0', fontSize: '14px', color: '#9ca3af', fontStyle: 'italic' }}>
                   No activities available
                 </p>
@@ -1136,11 +1244,32 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
       case 'feeling-check':
         const selectedFeeling = selectedFeelings[task.taskId];
+        const hasSelectedFeeling = Number.isInteger(selectedFeeling);
         const feelings = [
           { emoji: '😊', label: 'Happy', color: '#10b981' },
           { emoji: '😐', label: 'Neutral', color: '#f59e0b' },
           { emoji: '😟', label: 'Sad', color: '#ef4444' }
         ];
+
+        const handleFeelingSubmit = () => {
+          if (!hasSelectedFeeling) {
+            showValidationPrompt('Please choose how you feel before submitting.');
+            return;
+          }
+
+          const feeling = feelings[selectedFeeling];
+          if (!feeling) {
+            showValidationPrompt('Please choose how you feel before submitting.');
+            return;
+          }
+
+          handleTaskResponse(task.taskId, 'feeling-check', {
+            responseText: feeling.label,
+            feeling: feeling.label,
+            completed: true,
+            submissionMessage: 'Recording how you feel…'
+          });
+        };
         
         return (
           <div key={task.taskId || index} style={{
@@ -1272,39 +1401,33 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   </div>
 
                   {/* Submit Button */}
-                  {selectedFeeling !== null && (
-                    <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleTaskResponse(task.taskId, 'feeling-check', {
-                          responseText: feelings[selectedFeeling].label,
-                          feeling: feelings[selectedFeeling].label,
-                          completed: true
-                        })}
-                        style={{
-                          padding: '14px 32px',
-                          backgroundColor: '#f59e0b',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '10px',
-                          fontSize: '16px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.4)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'scale(1)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
-                        }}
-                      >
-                        Submit Feeling ➜
-                      </button>
-                    </div>
-                  )}
+                  <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                    <button
+                      onClick={handleFeelingSubmit}
+                      style={{
+                        padding: '14px 32px',
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                      }}
+                    >
+                      {hasSelectedFeeling ? 'Submit Feeling ➜' : 'Select a feeling to continue'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1377,7 +1500,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     // Validation
                     const unanswered = Object.entries(responsesObj).filter(([k, v]) => v === null || v === undefined);
                     if (unanswered.length > 0) {
-                      alert('Please answer all questions before submitting');
+                      showValidationPrompt('Please answer all questions before submitting.');
                       return;
                     }
 
@@ -1419,10 +1542,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                         suppressSubmissionToast: true
                       });
 
-                      alert('✅ Quick assessment saved');
+                      showSuccessToast('Quick assessment saved!');
                     } catch (err) {
                       console.error('Error submitting quick assessment', err);
-                      alert('Error submitting quick assessment');
+                      showErrorToast('Error submitting quick assessment. Please try again.');
                     } finally {
                       setSubmittingQuick(prev => ({ ...prev, [task.taskId]: false }));
                       hideSubmissionToast();
@@ -1705,6 +1828,63 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       fontSize: '13px',
       color: 'rgba(255,255,255,0.75)',
       marginTop: '16px'
+    },
+    inlineToastWrapper: {
+      position: 'fixed',
+      bottom: '24px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: 'calc(100% - 32px)',
+      maxWidth: '420px',
+      zIndex: 2600,
+      pointerEvents: 'none'
+    },
+    inlineToastCard: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '12px',
+      padding: '16px 20px',
+      borderRadius: '16px',
+      borderWidth: '2px',
+      borderStyle: 'solid',
+      boxShadow: '0 20px 45px rgba(15,23,42,0.25)',
+      pointerEvents: 'auto'
+    },
+    inlineToastIcon: {
+      fontSize: '20px',
+      lineHeight: 1
+    },
+    inlineToastBody: {
+      flex: 1
+    },
+    inlineToastTitle: {
+      margin: '0 0 4px 0',
+      fontSize: '15px',
+      fontWeight: 700
+    },
+    inlineToastMessage: {
+      margin: 0,
+      fontSize: '13px',
+      lineHeight: 1.4
+    },
+    inlineToastAction: {
+      marginTop: '8px',
+      padding: '6px 12px',
+      borderRadius: '999px',
+      border: 'none',
+      fontSize: '12px',
+      fontWeight: 600,
+      cursor: 'pointer'
+    },
+    inlineToastClose: {
+      border: 'none',
+      background: 'transparent',
+      fontSize: '18px',
+      cursor: 'pointer',
+      lineHeight: 1,
+      color: '#0f172a',
+      padding: 0,
+      marginLeft: '4px'
     }
   };
 
@@ -2113,7 +2293,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       // Get current day data
       const selectedDayData = programData.dayModules?.find(m => m.day === selectedDay);
       if (!selectedDayData?.test) {
-        alert('Test configuration not found');
+        showErrorToast('Test configuration not found.');
         return;
       }
 
@@ -2124,7 +2304,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       
       // Validate all questions are answered
       if (Object.keys(testAnswers).length !== questions.length) {
-        alert('Please answer all questions before submitting');
+        showValidationPrompt('Please answer all questions before submitting.');
         setSubmittingTest(false);
         return;
       }
@@ -2189,11 +2369,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       setShowTestReview(false);
       
       const friendlyLevel = burdenLevel.charAt(0).toUpperCase() + burdenLevel.slice(1);
-      alert(`${wasRetake ? 'Assessment updated' : 'Assessment complete'}! Your burden level: ${friendlyLevel}`);
+      showSuccessToast(`${wasRetake ? 'Assessment updated' : 'Assessment complete'}! Your burden level: ${friendlyLevel}`);
       
     } catch (error) {
       console.error('Error submitting test:', error);
-      alert('Failed to submit test. Please try again.');
+      showErrorToast('Failed to submit test. Please try again.');
     } finally {
       setSubmittingTest(false);
       hideSubmissionToast();
@@ -2299,11 +2479,6 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     }
   };
 
-  const formatLevelName = (level) => {
-    if (!level || typeof level !== 'string') return 'Personalized';
-    return level.charAt(0).toUpperCase() + level.slice(1);
-  };
-
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
@@ -2335,13 +2510,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const isDynamicTestPending = !shouldUseLegacyBurdenFlow && Boolean(selectedDayData?.test && !selectedDayData?.testCompleted);
   const burdenInfo = getBurdenLevelInfo(programData.burdenLevel);
   const selectedDayTestResult = selectedDayData?.dynamicTestResult || null;
-  const personalizedLevelLabel = selectedDayData?.levelLabel || formatLevelName(
-    selectedDayTestResult?.assignedLevel ||
-    selectedDayTestResult?.burdenLevel ||
-    selectedDayData?.burdenLevel ||
-    programData.burdenLevel
-  );
   const testCompletedAt = selectedDayTestResult?.completedAt ? new Date(selectedDayTestResult.completedAt) : null;
+  const inlineToastTone = inlineToast ? getToastToneStyles(inlineToast.tone) : null;
 
   return (
     <div style={styles.container}>
@@ -2365,6 +2535,51 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             <h3 style={styles.submissionTitle}>{activeSubmission.title || 'Hang tight…'}</h3>
             <p style={styles.submissionMessage}>{activeSubmission.message || 'Preparing your next task…'}</p>
             <p style={styles.submissionHint}>{activeSubmission.hint || 'This usually takes just a moment.'}</p>
+          </div>
+        </div>
+      )}
+
+      {inlineToast && inlineToastTone && (
+        <div style={styles.inlineToastWrapper} role="status" aria-live="polite">
+          <div
+            style={{
+              ...styles.inlineToastCard,
+              borderColor: inlineToastTone.borderColor,
+              backgroundColor: inlineToastTone.backgroundColor,
+              color: inlineToastTone.textColor
+            }}
+          >
+            <div style={styles.inlineToastIcon}>{inlineToast.icon || 'ℹ️'}</div>
+            <div style={styles.inlineToastBody}>
+              <p style={{ ...styles.inlineToastTitle, color: inlineToastTone.titleColor }}>
+                {inlineToast.title || 'Heads up'}
+              </p>
+              <p style={{ ...styles.inlineToastMessage, color: inlineToastTone.textColor }}>
+                {inlineToast.message}
+              </p>
+              {inlineToast.actionLabel && (
+                <button
+                  style={{
+                    ...styles.inlineToastAction,
+                    backgroundColor: inlineToastTone.borderColor,
+                    color: inlineToastTone.titleColor
+                  }}
+                  onClick={() => {
+                    inlineToast.onAction?.();
+                    hideInlineToast();
+                  }}
+                >
+                  {inlineToast.actionLabel}
+                </button>
+              )}
+            </div>
+            <button
+              style={{ ...styles.inlineToastClose, color: inlineToastTone.titleColor }}
+              onClick={hideInlineToast}
+              aria-label="Dismiss message"
+            >
+              ×
+            </button>
           </div>
         </div>
       )}
@@ -2767,20 +2982,15 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                           Assessment Complete
                         </p>
                         <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#1a2e05' }}>
-                          You are on the {personalizedLevelLabel} plan
+                          Thanks for completing the assessment
                         </h4>
-                        {selectedDayTestResult?.totalScore !== undefined && (
-                          <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#3f6212' }}>
-                            Score: <strong>{selectedDayTestResult.totalScore}</strong>
-                          </p>
-                        )}
                         {testCompletedAt && (
                           <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#3f6212' }}>
                             Finished on {testCompletedAt.toLocaleString()}
                           </p>
                         )}
                         <p style={{ margin: 0, fontSize: '13px', color: '#3f6212' }}>
-                          Today's tasks are unlocked and tailored to this level. Work through them one at a time below.
+                          Today's tasks are unlocked and ready. Work through them one at a time below.
                         </p>
                       </div>
                       <div style={{ minWidth: isMobile ? '100%' : '240px' }}>
@@ -3592,7 +3802,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
                                     const unanswered = Object.entries(responsesObj).filter(([k, v]) => v === null || v === undefined);
                                     if (unanswered.length > 0) {
-                                      alert('Please answer all questions before submitting');
+                                      showValidationPrompt('Please answer all questions before submitting.');
                                       return;
                                     }
 
@@ -3623,15 +3833,15 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
 
                                       const data = await res.json();
                                       if (res.ok && data.success) {
-                                        alert('✅ Quick assessment saved');
+                                        showSuccessToast('Quick assessment saved!');
                                         await fetchProgramStatus();
                                       } else {
                                         console.error('Failed to save quick assessment', data);
-                                        alert('Failed to save quick assessment');
+                                        showErrorToast('Failed to save quick assessment. Please try again.');
                                       }
                                     } catch (err) {
                                       console.error('Error submitting quick assessment', err);
-                                      alert('Error submitting quick assessment');
+                                      showErrorToast('Error submitting quick assessment. Please try again.');
                                     } finally {
                                       setSubmittingQuick(prev => ({ ...prev, [task.taskId]: false }));
                                       hideSubmissionToast();

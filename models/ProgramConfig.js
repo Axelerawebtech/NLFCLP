@@ -1,28 +1,48 @@
 import mongoose from 'mongoose';
 
+const TASK_TYPE_ENUM = [
+  'video',
+  'motivation-message',
+  'quick-assessment',
+  'reminder',
+  'interactive-field',
+  'greeting-message',
+  'activity-selector',
+  'calming-video',
+  'reflection-prompt',
+  'feeling-check',
+  'audio-message',
+  'healthcare-tip',
+  'task-checklist',
+  'visual-cue'
+];
+
 const dynamicDayTaskStructureSchema = new mongoose.Schema({
   taskId: { type: String, required: true },
   taskType: {
     type: String,
     required: true,
-    enum: [
-      'video',
-      'motivation-message',
-      'quick-assessment',
-      'reminder',
-      'interactive-field',
-      'greeting-message',
-      'activity-selector',
-      'calming-video',
-      'reflection-prompt',
-      'feeling-check',
-      'audio-message',
-      'healthcare-tip',
-      'task-checklist',
-      'visual-cue'
-    ]
+    enum: TASK_TYPE_ENUM
   },
   taskOrder: { type: Number, required: true },
+  title: { type: String, default: '' },
+  description: { type: String, default: '' },
+  content: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
+  enabled: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now }
+}, { _id: false });
+
+const dynamicDayFollowupTaskStructureSchema = new mongoose.Schema({
+  taskId: { type: String, required: true },
+  taskType: {
+    type: String,
+    required: true,
+    enum: TASK_TYPE_ENUM
+  },
+  taskOrder: { type: Number, default: 1 },
   title: { type: String, default: '' },
   description: { type: String, default: '' },
   content: {
@@ -56,6 +76,8 @@ const dynamicDayStructureSchema = new mongoose.Schema({
       enum: ['burden-assessment', 'mood-check', 'stress-level', 'stress-assessment', 'quality-of-life', 'custom'],
       default: 'custom'
     },
+    disableLevels: { type: Boolean, default: false },
+    enableFollowupTasks: { type: Boolean, default: false },
     questionSequence: [{
       questionId: { type: Number, required: true },
       questionText: { type: String, default: '' },
@@ -63,7 +85,8 @@ const dynamicDayStructureSchema = new mongoose.Schema({
       options: [{
         optionKey: { type: String, required: true },
         optionText: { type: String, default: '' },
-        score: { type: Number, default: 0 }
+        score: { type: Number, default: 0 },
+        followupTask: dynamicDayFollowupTaskStructureSchema
       }]
     }],
     scoreRanges: [{
@@ -81,6 +104,21 @@ const dynamicDayStructureSchema = new mongoose.Schema({
 
 const dynamicDayTaskTranslationSchema = new mongoose.Schema({
   taskId: { type: String, required: true },
+  title: { type: String, default: '' },
+  description: { type: String, default: '' },
+  contentOverrides: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  }
+}, { _id: false });
+
+const dynamicDayFollowupTaskTranslationSchema = new mongoose.Schema({
+  taskId: { type: String, required: true },
+  taskType: {
+    type: String,
+    enum: TASK_TYPE_ENUM,
+    default: 'motivation-message'
+  },
   title: { type: String, default: '' },
   description: { type: String, default: '' },
   contentOverrides: {
@@ -110,7 +148,8 @@ const dynamicDayTranslationSchema = new mongoose.Schema({
       questionText: { type: String, default: '' },
       options: [{
         optionKey: { type: String, required: true },
-        optionText: { type: String, default: '' }
+        optionText: { type: String, default: '' },
+        followupTask: dynamicDayFollowupTaskTranslationSchema
       }]
     }],
     scoreRanges: [{
@@ -309,7 +348,11 @@ const ProgramConfigSchema = new mongoose.Schema({
           questionText: { type: String },
           options: [{
             optionText: { type: String },
-            score: { type: Number, default: 0 }
+            score: { type: Number, default: 0 },
+            followupTask: {
+              type: mongoose.Schema.Types.Mixed,
+              default: null
+            }
           }],
           enabled: { type: Boolean, default: true }
         }],
