@@ -63,6 +63,7 @@ export default function PatientDashboard() {
   const [retakeScheduledFor, setRetakeScheduledFor] = useState(null);
   const [questionnaireAttempts, setQuestionnaireAttempts] = useState([]);
   const [retakeCompletedAt, setRetakeCompletedAt] = useState(null);
+  const [lastFetchedLanguage, setLastFetchedLanguage] = useState(null);
 
   // Translation helper using context language
   const t = (key) => getTranslation(key, currentLanguage);
@@ -108,6 +109,14 @@ export default function PatientDashboard() {
     }
   }, [router.isReady]);
 
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (!userData?.id) return;
+    if (lastFetchedLanguage === null) return;
+    if (currentLanguage === lastFetchedLanguage) return;
+    fetchQuestionnaireData(userData.id);
+  }, [currentLanguage, userData?.id, router.isReady, lastFetchedLanguage]);
+
   const fetchQuestionnaireData = async (patientId) => {
     try {
       console.log(`[Dashboard] Fetching questionnaire for patientId: ${patientId}`);
@@ -129,8 +138,9 @@ export default function PatientDashboard() {
         const isRetakeActive = statusFromApi === 'open';
         
         // Update userData with fresh data from API (all patient details + questionnaire status)
+        const baseUserData = userData || {};
         const updatedUserData = {
-          ...userData,
+          ...baseUserData,
           id: apiPatientData.id || userData?.id,
           name: apiPatientData.name || userData?.name,
           age: apiPatientData.age || userData?.age,
@@ -152,22 +162,70 @@ export default function PatientDashboard() {
 
         // If questionnaire is enabled and exists, process it
         if (apiPatientData.questionnaireEnabled && data.data.questionnaire) {
-          const questionCount = data.data.questionnaire.questions?.length;
+          const questionnairePayload = data.data.questionnaire;
+          const questionCount = questionnairePayload.questions?.length || 0;
           console.log(`✅ [Dashboard] Questionnaire found with ${questionCount} questions`);
-          setQuestionnaire(data.data.questionnaire);
+
+          const questionLookup = {};
+          (questionnairePayload.questions || []).forEach((question, index) => {
+            if (!question?._id) return;
+            const key = typeof question._id === 'string' ? question._id : question._id?.toString?.();
+            if (key) {
+              questionLookup[key] = {
+                ...question,
+                order: typeof question.order === 'number' ? question.order : index,
+              };
+            }
+          });
+
+          const normalizeAnswerValue = (value, question) => {
+            if (!question || !Array.isArray(question.options) || question.options.length === 0) {
+              return value;
+            }
+            const translationMap = new Map();
+            question.options.forEach((optionText) => {
+              if (typeof optionText === 'string' && optionText.length > 0) {
+                translationMap.set(optionText, optionText);
+              }
+            });
+            Object.values(question.optionTranslations || {}).forEach(optionList => {
+              if (!Array.isArray(optionList)) return;
+              optionList.forEach((label, idx) => {
+                const canonical = question.options[idx];
+                if (label && canonical) {
+                  translationMap.set(label, canonical);
+                }
+              });
+            });
+            if (translationMap.size === 0) {
+              return value;
+            }
+            const convertValue = (input) => translationMap.get(input) || input;
+            if (Array.isArray(value)) {
+              let changed = false;
+              const mapped = value.map(item => {
+                const converted = convertValue(item);
+                if (converted !== item) changed = true;
+                return converted;
+              });
+              return changed ? mapped : value;
+            }
+            return convertValue(value);
+          };
+
+          setQuestionnaire(questionnairePayload);
 
           // Check if patient has already submitted valid questionnaire responses
-          const existingAnswers = apiPatientData.questionnaireAnswers;
+          const existingAnswers = Array.isArray(apiPatientData.questionnaireAnswers)
+            ? apiPatientData.questionnaireAnswers
+            : [];
           
           console.log('[Dashboard] Existing answers:', existingAnswers);
           console.log('[Dashboard] Is array:', Array.isArray(existingAnswers));
-          console.log('[Dashboard] Length:', existingAnswers?.length);
+          console.log('[Dashboard] Length:', existingAnswers.length);
           
           // Validate answers - must be valid questionnaire responses, not corrupted data
-          // Valid answer has: questionId, questionText, answer
-          // Corrupted answer has: name, phone, age, gender, cancerType (patient object properties)
-          const hasValidAnswers = Array.isArray(existingAnswers) && 
-            existingAnswers.length > 0 && 
+          const hasValidAnswers = existingAnswers.length > 0 && 
             existingAnswers.every(answer => 
               answer && 
               answer.questionId && 
@@ -179,23 +237,50 @@ export default function PatientDashboard() {
             );
           
           console.log('[Dashboard] Has valid answers:', hasValidAnswers);
+
+          const normalizedExistingAnswers = hasValidAnswers
+            ? existingAnswers.map(answer => {
+                const key = typeof answer.questionId === 'string'
+                  ? answer.questionId
+                  : answer.questionId?.toString?.();
+                const questionMeta = key ? questionLookup[key] : null;
+                if (!questionMeta) {
+                  return answer;
+                }
+                const normalizedAnswerValue = normalizeAnswerValue(answer.answer, questionMeta);
+                const englishQuestionText = questionMeta.originalQuestionText || questionMeta.questionText || answer.questionText;
+                if (normalizedAnswerValue === answer.answer && englishQuestionText === answer.questionText) {
+                  return answer;
+                }
+                return {
+                  ...answer,
+                  answer: normalizedAnswerValue,
+                  questionText: englishQuestionText,
+                };
+              })
+            : [];
           
           const shouldShowSubmittedState = hasValidAnswers && !isRetakeActive;
           const previousAnswerMap = hasValidAnswers
-            ? existingAnswers.reduce((acc, answer) => {
-                acc[answer.questionId] = answer.answer;
+            ? normalizedExistingAnswers.reduce((acc, answer) => {
+                const key = typeof answer.questionId === 'string'
+                  ? answer.questionId
+                  : answer.questionId?.toString?.();
+                if (key) {
+                  acc[key] = answer.answer;
+                }
                 return acc;
               }, {})
             : {};
 
           if (shouldShowSubmittedState) {
-            console.log(`[Dashboard] ✅ Patient HAS submitted - showing ${existingAnswers.length} valid answers`);
+            console.log(`[Dashboard] ✅ Patient HAS submitted - showing ${normalizedExistingAnswers.length} valid answers`);
             setIsSubmitted(true);
-            setSubmittedAnswers(existingAnswers);
+            setSubmittedAnswers(normalizedExistingAnswers);
           } else {
             console.log('[Dashboard] ❌ Showing questionnaire form for new submission');
             const initialAnswers = {};
-            data.data.questionnaire.questions.forEach(question => {
+            (questionnairePayload.questions || []).forEach(question => {
               if (question.type === 'checkbox') {
                 const fallback = isRetakeActive && hasValidAnswers ? (previousAnswerMap[question._id] || []) : [];
                 initialAnswers[question._id] = Array.isArray(fallback) ? fallback : [];
@@ -207,7 +292,7 @@ export default function PatientDashboard() {
             setAnswers(initialAnswers);
             setIsSubmitted(false);
             if (isRetakeActive && hasValidAnswers) {
-              setSubmittedAnswers(existingAnswers);
+              setSubmittedAnswers(normalizedExistingAnswers);
             }
           }
         } else {
@@ -223,6 +308,7 @@ export default function PatientDashboard() {
       showAlert('Failed to load questionnaire', 'error');
     } finally {
       setLoading(false);
+      setLastFetchedLanguage(currentLanguage);
     }
   };
 
@@ -285,18 +371,29 @@ export default function PatientDashboard() {
         return;
       }
 
-      // Build answers array - only include non-empty answers
-      const answersToSubmit = questionnaire.questions
-        .filter(question => {
-          const answer = answers[question._id];
-          return answer !== undefined && answer !== '' && (Array.isArray(answer) ? answer.length > 0 : true);
-        })
-        .map(question => ({
+      // Build answers array - only include non-empty answers (always storing canonical English text)
+      const answersToSubmit = questionnaire.questions.reduce((acc, question, idx) => {
+        const response = answers[question._id];
+        const hasValue = response !== undefined && response !== '' && (Array.isArray(response) ? response.length > 0 : true);
+        if (!hasValue) {
+          return acc;
+        }
+        const fallbackIndex = typeof question.order === 'number' ? question.order : idx;
+        const fallbackKey = `q${fallbackIndex + 1}`;
+        const englishQuestionText = question.originalQuestionText
+          || question.translations?.en
+          || translations.en?.[fallbackKey]
+          || question.questionText
+          || `Question ${fallbackIndex + 1}`;
+        acc.push({
           questionId: question._id,
-          questionText: question.questionText,
-          answer: answers[question._id],
+          questionText: englishQuestionText,
+          answer: response,
+          language: currentLanguage,
           submittedAt: new Date().toISOString()
-        }));
+        });
+        return acc;
+      }, []);
 
       if (answersToSubmit.length === 0) {
         console.error('[Dashboard] ERROR: No valid answers to submit');
@@ -402,49 +499,41 @@ export default function PatientDashboard() {
 
   // Helper function to get translated question text
   const getQuestionText = (question, index) => {
-    // Try to get translation based on question order (q1, q2, etc)
-    const translationKey = `q${index + 1}`;
+    if (!question) return '';
+    const orderIndex = typeof question.order === 'number' ? question.order : index;
+    if (currentLanguage === 'en' && question.originalQuestionText) {
+      return question.originalQuestionText;
+    }
+    if (question.questionText) {
+      return question.questionText;
+    }
+
+    const translationKey = `q${orderIndex + 1}`;
     const translated = t(translationKey);
-    // DEBUG: log translation attempts for troubleshooting (temporary)
-    try {
-      // only log for indices known to have issues
-      if ([10,11,12,13,25].includes(index)) {
-        console.log('[getQuestionText] index', index, 'key', translationKey, 'lang', currentLanguage, 'translated', translated, 'dbText', question.questionText);
-      }
-    } catch (e) {
-      // ignore
+    if (translated !== translationKey) {
+      return translated;
     }
 
-    // If translation exists and is different from the key, use it
-    if (translated !== translationKey) return translated;
-
-    // Fallback #2: Try to match the question's English text to a translation key directly
-    try {
-      const enMap = translations.en || {};
-      const normalize = s => (s || '').toString().trim().toLowerCase();
-      const qTextNorm = normalize(question.questionText);
-      for (let i = 1; i <= 26; i++) {
-        const key = `q${i}`;
-        const enText = enMap[key];
-        if (!enText) continue;
-        const enNorm = normalize(enText);
-        // match if equal or one contains the other (loose match)
-        if (enNorm === qTextNorm || enNorm.includes(qTextNorm) || qTextNorm.includes(enNorm)) {
-          const translatedByKey = getTranslation(key, currentLanguage);
-          if (translatedByKey && translatedByKey !== enText) return translatedByKey;
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    // Final fallback: return the question text from database
-    return question.questionText;
+    return translations.en?.[translationKey] || question.originalQuestionText || '';
   };
 
   // Prefer translating options by their option-set/index rather than by exact English label.
   // This handles variations in stored option text and ensures consistent translations.
   const getOptionText = (option, question = null, optIndex = null) => {
+    if (option === undefined || option === null) return '';
+    const optionValue = typeof option === 'string' ? option : option.toString();
+
+    // Prefer direct translations provided alongside the question payload
+    if (question && question.optionTranslations && typeof optIndex === 'number') {
+      const translationsForLanguage = question.optionTranslations[currentLanguage];
+      if (Array.isArray(translationsForLanguage)) {
+        const localizedLabel = translationsForLanguage[optIndex];
+        if (localizedLabel) {
+          return localizedLabel;
+        }
+      }
+    }
+
     // Define canonical option sets (ordered)
     const OPTION_SETS = {
       qualityOfLife: ['Very poor', 'Poor', 'Neither poor nor good', 'Good', 'Very good'],
@@ -487,7 +576,7 @@ export default function PatientDashboard() {
     }
 
     // Fallback: try to match option text loosely to known canonical items
-    const optNorm = normalize(option);
+    const optNorm = normalize(optionValue);
     for (const [setName, canonical] of Object.entries(OPTION_SETS)) {
       for (let i = 0; i < canonical.length; i++) {
         const canon = normalize(canonical[i]);
@@ -495,7 +584,7 @@ export default function PatientDashboard() {
         if (optNorm === canon || optNorm.includes(canon) || canon.includes(optNorm)) {
           const key = OPTION_KEYS[setName][i];
           const translated = t(key);
-          return translated !== key ? translated : option;
+          return translated !== key ? translated : optionValue;
         }
       }
     }
@@ -503,11 +592,11 @@ export default function PatientDashboard() {
     // Last fallback: map standalone placeholder
     if (optNorm === normalize('Select an option')) {
       const translated = t('selectAnOption');
-      return translated !== 'selectAnOption' ? translated : option;
+      return translated !== 'selectAnOption' ? translated : optionValue;
     }
 
     // If nothing matched, return original option
-    return option;
+    return optionValue;
   };
 
   const renderQuestion = (question, index) => {
@@ -609,7 +698,7 @@ export default function PatientDashboard() {
               value={value || ''}
               onChange={(e) => handleAnswerChange(questionId, e.target.value, 'select')}
             >
-              <MenuItem value="">{getOptionText('Select an option')}</MenuItem>
+              <MenuItem value="">{t('selectAnOption')}</MenuItem>
               {question.options?.map((option, optIdx) => (
                 <MenuItem key={option} value={option}>
                   {getOptionText(option, question, optIdx)}

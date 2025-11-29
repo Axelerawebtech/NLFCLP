@@ -88,21 +88,22 @@ export default async function handler(req, res) {
           console.log(`[Dashboard API] Questionnaire found: ${questionnaire.title} with ${questionnaire.questions?.length} questions`);
           // Map questions to include translated text/options if available
           const mappedQuestions = (questionnaire.questions || []).map((q, idx) => {
-            // use translations stored in question.translations if present, otherwise fallback to DB text
             const qObj = typeof q.toObject === 'function' ? q.toObject() : q;
-            const questionText = (qObj.translations && qObj.translations[lang]) || qObj.questionText;
-            // Options translations: support qObj.optionTranslations[lang] if present
-            let options = qObj.options || [];
-            if (qObj.optionTranslations && qObj.optionTranslations[lang] && Array.isArray(qObj.optionTranslations[lang])) {
-              options = qObj.optionTranslations[lang];
-            }
+            const englishQuestionText = qObj.questionText || '';
+            const questionText = (qObj.translations && qObj.translations[lang]) || englishQuestionText;
+            const options = qObj.options || [];
+            const optionTranslations = qObj.optionTranslations || {};
+
             return {
               _id: qObj._id,
-              order: qObj.order,
+              order: typeof qObj.order === 'number' ? qObj.order : idx,
               type: qObj.type,
-              required: qObj.required,
+              required: qObj.required !== false,
               questionText,
+              originalQuestionText: englishQuestionText,
               options,
+              translations: qObj.translations || {},
+              optionTranslations,
             };
           });
           // Replace questions with mappedQuestions for response

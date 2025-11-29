@@ -10,6 +10,10 @@ const QuestionnaireAnswerSchema = new mongoose.Schema({
   answer: {
     type: mongoose.Schema.Types.Mixed,
   },
+  language: {
+    type: String,
+    default: 'en',
+  },
   submittedAt: {
     type: Date,
     default: Date.now,

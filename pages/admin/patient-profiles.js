@@ -252,7 +252,7 @@ export default function PatientProfiles() {
     }
   };
 
-  const getComparisonRows = () => {
+  function getComparisonRows() {
     if (!selectedPatient?.questionnaireAttempts || selectedPatient.questionnaireAttempts.length < 2) {
       return [];
     }
@@ -289,7 +289,7 @@ export default function PatientProfiles() {
     });
 
     return Array.from(rowsMap.values()).sort((a, b) => a.question.localeCompare(b.question));
-  };
+  }
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>

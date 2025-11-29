@@ -10,7 +10,8 @@ const Questionnaire = require('../models/Questionnaire').default || require('../
     const q = await Questionnaire.findOne({ isActive: true }).sort({ updatedAt: -1 }).lean();
     if (!q) return console.error('No active questionnaire');
     console.log('Questionnaire:', q.title, 'questions:', q.questions?.length || 0);
-    const indices = [11,12,13,14,26];
+    const cliIndices = process.argv.slice(2).map(Number).filter(n => !Number.isNaN(n));
+    const indices = cliIndices.length > 0 ? cliIndices : [10,11,12,13,14,26];
     indices.forEach(i => {
       const idx = i - 1;
       const ques = q.questions && q.questions[idx];

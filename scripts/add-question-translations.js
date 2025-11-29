@@ -37,6 +37,10 @@ const { translations } = require('../lib/translations');
 
     // common synonyms mapping to canonical translation keys
     const synonymToKey = {
+      'not at all': 'notAtAll',
+      'notatall': 'notAtAll',
+      'a little': 'aLittle',
+      'alittle': 'aLittle',
       'moderately': 'aModerateAmount',
       'mostly': 'veryMuch',
       'completely': 'anExtremeAmount',

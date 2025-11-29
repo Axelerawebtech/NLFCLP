@@ -94,6 +94,7 @@ export default async function handler(req, res) {
           questionId: item.questionId,
           questionText: item.questionText,
           answer: item.answer,
+          language: item.language || 'en',
           submittedAt: item.submittedAt ? new Date(item.submittedAt) : new Date()
         }));
       } else {
@@ -105,6 +106,7 @@ export default async function handler(req, res) {
             questionId,
             questionText: question ? question.questionText : 'Unknown Question',
             answer,
+            language: 'en',
             submittedAt: new Date()
           };
         });

@@ -39,12 +39,22 @@ const QUESTION_TYPES = [
   { value: 'scale', label: 'Scale (1-10)' },
 ];
 
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'kn', label: 'Kannada' }
+];
+
+const getLanguageLabel = (code) => SUPPORTED_LANGUAGES.find(lang => lang.code === code)?.label || 'English';
+
 export default function ConfigurePatientQuestionnaire() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [activeLanguage, setActiveLanguage] = useState('en');
+  const activeLanguageLabel = getLanguageLabel(activeLanguage);
   
   // Form state
   const [questionnaire, setQuestionnaire] = useState({
@@ -70,7 +80,11 @@ export default function ConfigurePatientQuestionnaire() {
         setQuestionnaire({
           title: data.data.title,
           description: data.data.description || '',
-          questions: data.data.questions || []
+          questions: (data.data.questions || []).map((question) => ({
+            ...question,
+            translations: question.translations || {},
+            optionTranslations: question.optionTranslations || {}
+          }))
         });
       }
     } catch (error) {
@@ -90,6 +104,8 @@ export default function ConfigurePatientQuestionnaire() {
       ...prev,
       questions: [...prev.questions, {
         questionText: '',
+        translations: {},
+        optionTranslations: {},
         type: 'text',
         options: [],
         required: true
@@ -97,7 +113,38 @@ export default function ConfigurePatientQuestionnaire() {
     }));
   };
 
+  const getQuestionTextForLanguage = (question) => {
+    if (activeLanguage === 'en') {
+      return question.questionText || '';
+    }
+    return (question.translations && question.translations[activeLanguage]) || '';
+  };
+
+  const getOptionsForLanguage = (question) => {
+    if (activeLanguage === 'en') {
+      return question.options || [];
+    }
+    return (question.optionTranslations && question.optionTranslations[activeLanguage]) || [];
+  };
+
   const updateQuestion = (index, field, value) => {
+    if (field === 'questionText') {
+      setQuestionnaire(prev => ({
+        ...prev,
+        questions: prev.questions.map((q, i) => {
+          if (i !== index) return q;
+          const translations = { ...(q.translations || {}) };
+          translations[activeLanguage] = value;
+          const updated = { ...q, translations };
+          if (activeLanguage === 'en') {
+            updated.questionText = value;
+          }
+          return updated;
+        })
+      }));
+      return;
+    }
+
     setQuestionnaire(prev => ({
       ...prev,
       questions: prev.questions.map((q, i) => 
@@ -116,33 +163,60 @@ export default function ConfigurePatientQuestionnaire() {
   const addOption = (questionIndex) => {
     setQuestionnaire(prev => ({
       ...prev,
-      questions: prev.questions.map((q, i) => 
-        i === questionIndex ? { ...q, options: [...q.options, ''] } : q
-      )
+      questions: prev.questions.map((q, i) => {
+        if (i !== questionIndex) return q;
+        if (activeLanguage === 'en') {
+          return { ...q, options: [...(q.options || []), ''] };
+        }
+        const optionTranslations = { ...(q.optionTranslations || {}) };
+        const currentOptions = optionTranslations[activeLanguage] || [];
+        optionTranslations[activeLanguage] = [...currentOptions, ''];
+        return { ...q, optionTranslations };
+      })
     }));
   };
 
   const updateOption = (questionIndex, optionIndex, value) => {
     setQuestionnaire(prev => ({
       ...prev,
-      questions: prev.questions.map((q, i) => 
-        i === questionIndex ? {
+      questions: prev.questions.map((q, i) => {
+        if (i !== questionIndex) return q;
+        if (activeLanguage === 'en') {
+          return {
+            ...q,
+            options: (q.options || []).map((opt, j) => j === optionIndex ? value : opt)
+          };
+        }
+        const optionTranslations = { ...(q.optionTranslations || {}) };
+        const currentOptions = optionTranslations[activeLanguage] || [];
+        optionTranslations[activeLanguage] = currentOptions.map((opt, j) => j === optionIndex ? value : opt);
+        return {
           ...q,
-          options: q.options.map((opt, j) => j === optionIndex ? value : opt)
-        } : q
-      )
+          optionTranslations
+        };
+      })
     }));
   };
 
   const removeOption = (questionIndex, optionIndex) => {
     setQuestionnaire(prev => ({
       ...prev,
-      questions: prev.questions.map((q, i) => 
-        i === questionIndex ? {
+      questions: prev.questions.map((q, i) => {
+        if (i !== questionIndex) return q;
+        if (activeLanguage === 'en') {
+          return {
+            ...q,
+            options: (q.options || []).filter((_, j) => j !== optionIndex)
+          };
+        }
+        const optionTranslations = { ...(q.optionTranslations || {}) };
+        const currentOptions = optionTranslations[activeLanguage] || [];
+        optionTranslations[activeLanguage] = currentOptions.filter((_, j) => j !== optionIndex);
+        return {
           ...q,
-          options: q.options.filter((_, j) => j !== optionIndex)
-        } : q
-      )
+          optionTranslations
+        };
+      })
     }));
   };
 
@@ -160,20 +234,76 @@ export default function ConfigurePatientQuestionnaire() {
     // Validate questions
     for (let i = 0; i < questionnaire.questions.length; i++) {
       const question = questionnaire.questions[i];
-      if (!question.questionText.trim()) {
-        showAlert(`Question ${i + 1} text is required`, 'error');
+      const currentText = activeLanguage === 'en'
+        ? (question.questionText || '')
+        : ((question.translations && question.translations[activeLanguage]) || '');
+      if (!currentText.trim()) {
+        showAlert(`Question ${i + 1} text is required for ${SUPPORTED_LANGUAGES.find(l => l.code === activeLanguage)?.label || 'selected language'}`, 'error');
         return;
       }
       
-      if (['radio', 'checkbox', 'select'].includes(question.type) && question.options.length === 0) {
-        showAlert(`Question ${i + 1} needs at least one option`, 'error');
+      const optionList = getOptionsForLanguage(question);
+
+      if (['radio', 'checkbox', 'select'].includes(question.type) && optionList.length === 0) {
+        showAlert(`Question ${i + 1} needs at least one option for ${SUPPORTED_LANGUAGES.find(l => l.code === activeLanguage)?.label || 'selected language'}`, 'error');
         return;
       }
     }
 
     setSaving(true);
     try {
-      const adminId = localStorage.getItem('adminId') || 'admin123'; // Replace with actual admin ID from auth
+      let adminId = null;
+      try {
+        const storedAdminData = localStorage.getItem('adminData');
+        if (storedAdminData) {
+          const parsed = JSON.parse(storedAdminData);
+          adminId = parsed?.id || parsed?._id || parsed?.adminId || null;
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse adminData from localStorage:', parseError);
+      }
+
+      if (!adminId && !existingQuestionnaire) {
+        showAlert('Unable to find admin session. Please log in again.', 'error');
+        setSaving(false);
+        return;
+      }
+
+      const sanitizedQuestions = questionnaire.questions.map((question, index) => {
+        const translations = SUPPORTED_LANGUAGES.reduce((acc, lang) => {
+          const value = lang.code === 'en'
+            ? question.questionText
+            : question.translations?.[lang.code];
+          if (value && value.trim() !== '') {
+            acc[lang.code] = value.trim();
+          }
+          return acc;
+        }, {});
+
+        const optionTranslations = SUPPORTED_LANGUAGES.reduce((acc, lang) => {
+          const values = lang.code === 'en'
+            ? question.options
+            : question.optionTranslations?.[lang.code];
+          if (Array.isArray(values) && values.length > 0) {
+            const cleaned = values.map(opt => (opt || '').trim()).filter(Boolean);
+            if (cleaned.length > 0) {
+              acc[lang.code] = cleaned;
+            }
+          }
+          return acc;
+        }, {});
+
+        return {
+          _id: question._id,
+          questionText: translations.en || '',
+          translations,
+          optionTranslations,
+          type: question.type,
+          options: optionTranslations.en || [],
+          required: question.required !== false,
+          order: index,
+        };
+      });
       
       const url = existingQuestionnaire 
         ? '/api/admin/questionnaire/config'
@@ -182,8 +312,8 @@ export default function ConfigurePatientQuestionnaire() {
       const method = existingQuestionnaire ? 'PUT' : 'POST';
       
       const payload = existingQuestionnaire 
-        ? { ...questionnaire, questionnaireId: existingQuestionnaire._id }
-        : { ...questionnaire, adminId };
+        ? { ...questionnaire, questionnaireId: existingQuestionnaire._id, questions: sanitizedQuestions }
+        : { ...questionnaire, adminId, questions: sanitizedQuestions };
 
       const response = await fetch(url, {
         method,
@@ -197,7 +327,7 @@ export default function ConfigurePatientQuestionnaire() {
       
       if (data.success) {
         showAlert(data.message, 'success');
-        setExistingQuestionnaire(data.data);
+        await fetchExistingQuestionnaire();
       } else {
         showAlert(data.message || 'Failed to save questionnaire', 'error');
       }
@@ -209,10 +339,13 @@ export default function ConfigurePatientQuestionnaire() {
   };
 
   const renderQuestionPreview = (question, index) => {
+    const previewQuestionText = getQuestionTextForLanguage(question) || 'No text for selected language';
+    const previewOptions = getOptionsForLanguage(question);
+
     return (
       <Paper key={index} sx={{ p: 3, mb: 2 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
-          {index + 1}. {question.questionText}
+          {index + 1}. {previewQuestionText}
           {question.required && <Chip label="Required" size="small" color="primary" sx={{ ml: 1 }} />}
         </Typography>
         
@@ -226,30 +359,34 @@ export default function ConfigurePatientQuestionnaire() {
         
         {question.type === 'radio' && (
           <Box>
-            {question.options.map((option, i) => (
+            {previewOptions.length > 0 ? previewOptions.map((option, i) => (
               <Box key={i} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <input type="radio" disabled style={{ marginRight: 8 }} />
                 <Typography>{option}</Typography>
               </Box>
-            ))}
+            )) : (
+              <Typography color="text.secondary">No options for {activeLanguageLabel}.</Typography>
+            )}
           </Box>
         )}
         
         {question.type === 'checkbox' && (
           <Box>
-            {question.options.map((option, i) => (
+            {previewOptions.length > 0 ? previewOptions.map((option, i) => (
               <Box key={i} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <input type="checkbox" disabled style={{ marginRight: 8 }} />
                 <Typography>{option}</Typography>
               </Box>
-            ))}
+            )) : (
+              <Typography color="text.secondary">No options for {activeLanguageLabel}.</Typography>
+            )}
           </Box>
         )}
         
         {question.type === 'select' && (
           <Select fullWidth disabled value="">
             <MenuItem value="">Select an option...</MenuItem>
-            {question.options.map((option, i) => (
+            {previewOptions.map((option, i) => (
               <MenuItem key={i} value={option}>{option}</MenuItem>
             ))}
           </Select>
@@ -282,6 +419,18 @@ export default function ConfigurePatientQuestionnaire() {
         <Typography variant="h4" component="h1">
           Configure Patient Questionnaire
         </Typography>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
+        {SUPPORTED_LANGUAGES.map(lang => (
+          <Button
+            key={lang.code}
+            variant={activeLanguage === lang.code ? 'contained' : 'outlined'}
+            onClick={() => setActiveLanguage(lang.code)}
+          >
+            {lang.label}
+          </Button>
+        ))}
       </Box>
 
       {/* Alert */}
@@ -334,79 +483,90 @@ export default function ConfigurePatientQuestionnaire() {
                   </Button>
                 </Box>
 
-                {questionnaire.questions.map((question, index) => (
-                  <Paper key={index} sx={{ p: 3, mb: 3, border: '1px solid #e0e0e0' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="subtitle1" fontWeight="bold">
-                        Question {index + 1}
-                      </Typography>
-                      <IconButton
-                        color="error"
-                        onClick={() => removeQuestion(index)}
-                        size="small"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
+                {questionnaire.questions.map((question, index) => {
+                  const optionsForLanguage = getOptionsForLanguage(question);
+                  const questionTextValue = getQuestionTextForLanguage(question);
 
-                    <TextField
-                      fullWidth
-                      label="Question Text"
-                      value={question.questionText}
-                      onChange={(e) => updateQuestion(index, 'questionText', e.target.value)}
-                      sx={{ mb: 2 }}
-                    />
-
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                      <FormLabel>Question Type</FormLabel>
-                      <Select
-                        value={question.type}
-                        onChange={(e) => updateQuestion(index, 'type', e.target.value)}
-                      >
-                        {QUESTION_TYPES.map(type => (
-                          <MenuItem key={type.value} value={type.value}>
-                            {type.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    {/* Options for radio, checkbox, select */}
-                    {['radio', 'checkbox', 'select'].includes(question.type) && (
-                      <Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                          <Typography variant="subtitle2">Options</Typography>
-                          <Button
-                            size="small"
-                            startIcon={<AddIcon />}
-                            onClick={() => addOption(index)}
-                          >
-                            Add Option
-                          </Button>
-                        </Box>
-                        
-                        {question.options.map((option, optIndex) => (
-                          <Box key={optIndex} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                            <TextField
-                              fullWidth
-                              size="small"
-                              placeholder={`Option ${optIndex + 1}`}
-                              value={option}
-                              onChange={(e) => updateOption(index, optIndex, e.target.value)}
-                            />
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => removeOption(index, optIndex)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Box>
-                        ))}
+                  return (
+                    <Paper key={index} sx={{ p: 3, mb: 3, border: '1px solid #e0e0e0' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          Question {index + 1}
+                        </Typography>
+                        <IconButton
+                          color="error"
+                          onClick={() => removeQuestion(index)}
+                          size="small"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
                       </Box>
-                    )}
-                  </Paper>
-                ))}
+
+                      <TextField
+                        fullWidth
+                        label={`Question Text (${activeLanguageLabel})`}
+                        value={questionTextValue}
+                        onChange={(e) => updateQuestion(index, 'questionText', e.target.value)}
+                        sx={{ mb: 2 }}
+                      />
+
+                      <FormControl fullWidth sx={{ mb: 2 }}>
+                        <FormLabel>Question Type</FormLabel>
+                        <Select
+                          value={question.type}
+                          onChange={(e) => updateQuestion(index, 'type', e.target.value)}
+                        >
+                          {QUESTION_TYPES.map(type => (
+                            <MenuItem key={type.value} value={type.value}>
+                              {type.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      {/* Options for radio, checkbox, select */}
+                      {['radio', 'checkbox', 'select'].includes(question.type) && (
+                        <Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Typography variant="subtitle2">Options ({activeLanguageLabel})</Typography>
+                            <Button
+                              size="small"
+                              startIcon={<AddIcon />}
+                              onClick={() => addOption(index)}
+                            >
+                              Add Option
+                            </Button>
+                          </Box>
+                          
+                          {optionsForLanguage.map((option, optIndex) => (
+                            <Box key={optIndex} sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                placeholder={`Option ${optIndex + 1} (${activeLanguageLabel})`}
+                                value={option}
+                                onChange={(e) => updateOption(index, optIndex, e.target.value)}
+                              />
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => removeOption(index, optIndex)}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Box>
+                          ))}
+
+                          {optionsForLanguage.length === 0 && (
+                            <Typography variant="body2" color="text.secondary">
+                              No options defined for {activeLanguageLabel}. Use "Add Option" to create one.
+                            </Typography>
+                          )}
+                        </Box>
+                      )}
+                    </Paper>
+                  );
+                })}
 
                 {questionnaire.questions.length === 0 && (
                   <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
@@ -478,7 +638,7 @@ export default function ConfigurePatientQuestionnaire() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Questionnaire Preview</DialogTitle>
+        <DialogTitle>Questionnaire Preview ({activeLanguageLabel})</DialogTitle>
         <DialogContent>
           <Typography variant="h5" sx={{ mb: 1 }}>{questionnaire.title}</Typography>
           {questionnaire.description && (
