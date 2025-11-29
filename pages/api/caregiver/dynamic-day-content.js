@@ -4,8 +4,32 @@ import CaregiverProgram from '../../../models/CaregiverProgramEnhanced';
 import {
   getStructureForDay,
   getTranslationForDay,
-  composeDayConfig
+  composeDayConfig,
+  normalizeAnswerValue,
+  inferTaskTypeFromContent
 } from '../../../lib/dynamicDayUtils';
+
+const buildFollowupTaskId = ({ dayNumber, questionId, optionKey, optionIndex }) => {
+  const dayPart = typeof dayNumber === 'number' ? `day${dayNumber}` : 'day';
+  const questionPart = (questionId ?? `q${(optionIndex ?? 0) + 1}`).toString().trim().replace(/\s+/g, '-');
+  const optionPart = (optionKey ?? `opt${(optionIndex ?? 0) + 1}`).toString().trim().replace(/\s+/g, '-');
+  return `${dayPart}_${questionPart}_${optionPart}_followup`;
+};
+
+const ensureFollowupTaskMeta = (task, context) => {
+  if (!task) return null;
+  const normalized = { ...task };
+  if (!normalized.taskId) {
+    normalized.taskId = buildFollowupTaskId(context);
+  }
+  if (normalized.taskOrder === undefined) {
+    normalized.taskOrder = (context.optionIndex ?? 0) + 1;
+  }
+  if (!normalized.taskType) {
+    normalized.taskType = inferTaskTypeFromContent(normalized) || 'motivation-message';
+  }
+  return normalized;
+};
 
 /**
  * API Route: /api/caregiver/dynamic-day-content
@@ -111,14 +135,20 @@ export default async function handler(req, res) {
     }
 
     const dayHasDynamicTest = hasActiveDynamicTestConfig(dayConfig);
+    const testSettings = dayConfig.testConfig || {};
+    const testDisablesLevels = Boolean(testSettings.disableLevels);
 
     // Determine which level to show content from
     let levelKey;
     if (dayHasDynamicTest) {
-      levelKey = dynamicTestAssignedLevel || dayModule?.contentLevel || (programBurdenLevel !== 'default' ? programBurdenLevel : 'default');
+      if (testDisablesLevels) {
+        levelKey = dayConfig.contentByLevel?.[0]?.levelKey || 'default';
+      } else {
+        levelKey = dynamicTestAssignedLevel || dayModule?.contentLevel || (programBurdenLevel !== 'default' ? programBurdenLevel : 'default');
 
-      if ((!levelKey || levelKey === 'default') && dayConfig.testConfig?.scoreRanges?.length) {
-        levelKey = dayConfig.testConfig.scoreRanges[0].levelKey || 'default';
+        if ((!levelKey || levelKey === 'default') && dayConfig.testConfig?.scoreRanges?.length) {
+          levelKey = dayConfig.testConfig.scoreRanges[0].levelKey || 'default';
+        }
       }
     } else {
       levelKey = dayConfig.defaultLevelKey || dayConfig.contentByLevel?.[0]?.levelKey || 'default';
@@ -161,6 +191,24 @@ export default async function handler(req, res) {
         description: task.description || '',
         content: extractLocalizedContent(task.content)
       }));
+
+    const branchingTasks = buildBranchingTasks({
+      dayConfig,
+      dayModule,
+      includeOnlyCompleted: true
+    });
+
+    if (branchingTasks.length > 0) {
+      const lastOrder = tasks.reduce((max, task) => Math.max(max, task.taskOrder || 0), 0);
+      const startingOrder = lastOrder > 0 ? lastOrder + 1 : 1;
+      branchingTasks.forEach((branchTask, idx) => {
+        const taskOrder = branchTask.taskOrder ?? startingOrder + idx;
+        tasks.push({
+          ...branchTask,
+          taskOrder
+        });
+      });
+    }
 
     // Save tasks to the dayModule for progress tracking
     if (caregiverProgram) {
@@ -251,6 +299,7 @@ function extractLocalizedContent(content) {
   if (!content) return {};
 
   const result = {};
+  if (typeof content !== 'object') return content;
 
   // Simple string fields - already in correct language
   if (content.videoUrl) result.videoUrl = content.videoUrl;
@@ -259,12 +308,11 @@ function extractLocalizedContent(content) {
   if (content.reflectionQuestion) result.reflectionQuestion = content.reflectionQuestion;
   if (content.feelingQuestion) result.feelingQuestion = content.feelingQuestion;
   
-  // Interactive field
-  if (content.fieldType) {
-    result.fieldType = content.fieldType;
-    result.placeholder = content.placeholder || '';
-    result.problemLabel = content.problemLabel || '';
-    result.solutionLabel = content.solutionLabel || '';
+  if (content.fieldType || content.placeholder || content.problemLabel || content.solutionLabel) {
+    result.fieldType = content.fieldType || 'text-input';
+    if (content.placeholder !== undefined) result.placeholder = content.placeholder;
+    if (content.problemLabel !== undefined) result.problemLabel = content.problemLabel;
+    if (content.solutionLabel !== undefined) result.solutionLabel = content.solutionLabel;
   }
 
   // Reminder fields
@@ -313,6 +361,14 @@ function extractLocalizedContent(content) {
   // Visual cue
   if (content.imageUrl) result.imageUrl = content.imageUrl;
 
+  if (!Object.keys(result).length) {
+    try {
+      return JSON.parse(JSON.stringify(content));
+    } catch (err) {
+      return { ...content };
+    }
+  }
+
   return result;
 }
 
@@ -320,4 +376,93 @@ function hasActiveDynamicTestConfig(dayConfig) {
   if (!dayConfig?.hasTest) return false;
   const questions = dayConfig?.testConfig?.questions;
   return Array.isArray(questions) && questions.length > 0;
+}
+
+function buildBranchingTasks({ dayConfig, dayModule, includeOnlyCompleted = true }) {
+  if (!dayConfig?.testConfig?.questions?.length) return [];
+
+  const followupToggle = dayConfig?.testConfig?.enableFollowupTasks;
+  const hasDefinedFollowups = dayConfig.testConfig.questions.some(question =>
+    Array.isArray(question?.options) && question.options.some(option => option?.followupTask)
+  );
+  const followupsEnabled = followupToggle === undefined ? hasDefinedFollowups : Boolean(followupToggle);
+  if (!followupsEnabled) return [];
+
+  if (includeOnlyCompleted) {
+    const completed = Boolean(dayModule?.dynamicTestCompleted || dayModule?.dynamicTest?.completedAt);
+    if (!completed) return [];
+  }
+
+  const answers = Array.isArray(dayModule?.dynamicTest?.answers) ? dayModule.dynamicTest.answers : [];
+  const answerDetails = Array.isArray(dayModule?.dynamicTest?.answerDetails)
+    ? dayModule.dynamicTest.answerDetails
+    : null;
+
+  const tasks = [];
+
+  dayConfig.testConfig.questions.forEach((question, questionIdx) => {
+    const detail = answerDetails && answerDetails[questionIdx] ? answerDetails[questionIdx] : null;
+    const fallbackScore = answers[questionIdx];
+    const selectedOption = resolveSelectedOption(question, detail, fallbackScore);
+    if (!selectedOption || !selectedOption.followupTask || selectedOption.followupTask.enabled === false) {
+      return;
+    }
+
+    const selectedOptionIndex = Array.isArray(question.options)
+      ? question.options.indexOf(selectedOption)
+      : -1;
+
+    const taskBase = ensureFollowupTaskMeta(selectedOption.followupTask, {
+      dayNumber: dayConfig?.dayNumber,
+      questionId: question.id || question.questionId || questionIdx + 1,
+      optionKey: selectedOption.optionKey,
+      optionIndex: selectedOptionIndex >= 0 ? selectedOptionIndex : questionIdx
+    });
+    if (!taskBase) {
+      return;
+    }
+    tasks.push({
+      taskId: taskBase.taskId,
+      taskType: taskBase.taskType,
+      title: taskBase.title || question.questionText || 'Follow-up Task',
+      description: taskBase.description || '',
+      content: extractLocalizedContent(taskBase.content),
+      branchingSource: {
+        questionId: question.id || question.questionId || questionIdx + 1,
+        optionKey: selectedOption.optionKey,
+        answerValue: selectedOption.answerValue || selectedOption.optionText || ''
+      },
+      taskOrder: taskBase.taskOrder
+    });
+  });
+
+  return tasks;
+}
+
+function resolveSelectedOption(question, answerDetail, fallbackScore) {
+  if (!question?.options?.length) return null;
+
+  const tryMatchByOptionKey = (key) => {
+    if (!key) return null;
+    return question.options.find(opt => opt.optionKey === key) || null;
+  };
+
+  const tryMatchByAnswerValue = (value) => {
+    if (!value) return null;
+    const normalized = normalizeAnswerValue(value);
+    if (!normalized) return null;
+    return question.options.find(opt => normalizeAnswerValue(opt.answerValue || opt.optionText) === normalized) || null;
+  };
+
+  const tryMatchByScore = (score) => {
+    if (score === undefined || score === null) return null;
+    return question.options.find(opt => opt.score === score) || null;
+  };
+
+  return (
+    tryMatchByOptionKey(answerDetail?.optionKey) ||
+    tryMatchByAnswerValue(answerDetail?.answerValue) ||
+    tryMatchByScore(answerDetail?.score) ||
+    tryMatchByScore(fallbackScore)
+  );
 }

@@ -86,7 +86,8 @@ const DayModuleSchema = new mongoose.Schema({
   contentLevel: {
     type: String,
     enum: ['low', 'moderate', 'high'],
-    required: false // Make optional initially
+    required: false,
+    set: (value) => (value === null || value === undefined || value === '' ? undefined : value)
   },
   // Dynamic day assessments/tests (e.g., custom admin-defined tests)
   dynamicTest: {
@@ -186,6 +187,13 @@ const DayModuleSchema = new mongoose.Schema({
   completedAt: {
     type: Date
   }
+});
+
+DayModuleSchema.pre('validate', function(next) {
+  if (this.contentLevel === null || this.contentLevel === '' || this.contentLevel === undefined) {
+    this.contentLevel = undefined;
+  }
+  next();
 });
 
 // Legacy Zarit Burden Schema (for Day 1) - made optional for backwards compatibility
@@ -682,8 +690,20 @@ function shouldReloadCaregiverProgramModel(existingModel) {
   const hasResponseData = responseSchema?.path('responseData');
   const hasTaskType = responseSchema?.path('taskType');
 
+  const contentLevelPath = dayModulesPath?.schema?.path('contentLevel');
+  const hasContentLevelSetter = typeof contentLevelPath?.options?.set === 'function';
+
   // If any of the enhanced response fields are missing, force a reload so the new schema is applied
-  return !(hasResponseText && hasResponseData && hasTaskType);
+  if (!(hasResponseText && hasResponseData && hasTaskType)) {
+    return true;
+  }
+
+  // Ensure the contentLevel setter is present so null values no longer break validation
+  if (!hasContentLevelSetter) {
+    return true;
+  }
+
+  return false;
 }
 
 if (shouldReloadCaregiverProgramModel(mongoose.models.CaregiverProgram)) {

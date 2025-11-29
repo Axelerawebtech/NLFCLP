@@ -8,13 +8,46 @@ import {
   sanitizeDynamicDayStructures
 } from '../../../../lib/dynamicDayUtils';
 
-const ensureLevelExists = (structure, levelKey) => {
+const normalizeLevelKey = (value = '') => {
+  if (!value && value !== 0) return '';
+  return value.toString().trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+};
+
+const buildKeyVariants = (value = '') => {
+  const normalized = normalizeLevelKey(value);
+  if (!normalized) return [];
+  const variants = new Set([normalized]);
+  const stripped = normalized.replace(/-(level|content|tasks?)$/g, '');
+  if (stripped && stripped !== normalized) {
+    variants.add(stripped);
+  }
+  return Array.from(variants);
+};
+
+const findLevelByKey = (levels = [], requestedKey) => {
+  if (!Array.isArray(levels) || !levels.length) return null;
+  const targetVariants = buildKeyVariants(requestedKey);
+  if (!targetVariants.length) return null;
+
+  return levels.find(level => {
+    const levelVariants = new Set([
+      ...buildKeyVariants(level?.levelKey),
+      ...buildKeyVariants(level?.levelLabel)
+    ]);
+    return targetVariants.some(variant => levelVariants.has(variant));
+  }) || null;
+};
+
+const ensureLevelExists = (structure, levelKey, fallbackLabel = '') => {
   if (!structure.contentLevels) {
     structure.contentLevels = [];
   }
-  let level = structure.contentLevels.find(entry => entry.levelKey === levelKey);
+  let level = findLevelByKey(structure.contentLevels, levelKey);
   if (!level) {
-    level = { levelKey, levelLabel: levelKey, tasks: [] };
+    level = { levelKey, levelLabel: fallbackLabel || levelKey, tasks: [] };
     structure.contentLevels.push(level);
   }
   return level;
@@ -24,9 +57,9 @@ const ensureTranslationLevel = (translation, levelKey, fallbackLabel = '') => {
   if (!translation.levelContent) {
     translation.levelContent = [];
   }
-  let level = translation.levelContent.find(entry => entry.levelKey === levelKey);
+  let level = findLevelByKey(translation.levelContent, levelKey);
   if (!level) {
-    level = { levelKey, levelLabel: fallbackLabel, tasks: [] };
+    level = { levelKey, levelLabel: fallbackLabel || levelKey, tasks: [] };
     translation.levelContent.push(level);
   }
   return level;
@@ -191,12 +224,48 @@ export default async function handler(req, res) {
         });
       }
 
-      const level = ensureLevelExists(structure, levelKey);
+      const level = findLevelByKey(structure.contentLevels || [], levelKey);
+      if (!level) {
+        return res.status(404).json({
+          success: false,
+          error: 'Level not found'
+        });
+      }
       if (!level.tasks) {
         level.tasks = [];
       }
+
+      const translation = ensureTranslationEntry(config, dayNumber, language);
+      const translationLevel = ensureTranslationLevel(translation, level.levelKey || levelKey, level.levelLabel || levelKey);
+      if (!translationLevel.tasks) {
+        translationLevel.tasks = [];
+      }
+
       const taskIndex = level.tasks.findIndex(t => t.taskId === taskId);
-      if (taskIndex === -1) {
+      let taskRecord = taskIndex >= 0 ? level.tasks[taskIndex] : null;
+      let translationTask = translationLevel.tasks.find(t => t.taskId === taskId);
+
+      if (taskRecord && !translationTask) {
+        translationTask = {
+          taskId,
+          title: taskRecord.title,
+          description: taskRecord.description,
+          contentOverrides: taskRecord.content || {}
+        };
+        translationLevel.tasks.push(translationTask);
+      }
+
+      const translationOnly = !taskRecord && Boolean(translationTask);
+
+      if (!taskRecord && !translationTask) {
+        console.warn('[DynamicDayTasks] Task lookup failed', {
+          dayNumber,
+          language,
+          levelKey,
+          taskId,
+          structureTaskIds: level.tasks?.map(t => t.taskId) || [],
+          translationTaskIds: translationLevel.tasks?.map(t => t.taskId) || []
+        });
         return res.status(404).json({ 
           success: false,
           error: 'Task not found' 
@@ -204,8 +273,15 @@ export default async function handler(req, res) {
       }
 
       if (reorder) {
+        if (translationOnly) {
+          return res.status(400).json({
+            success: false,
+            error: 'Cannot reorder task that exists only in translation context'
+          });
+        }
+
         const { newOrder } = reorder;
-        const task = level.tasks[taskIndex];
+        const task = taskRecord;
         const oldOrder = task.taskOrder;
         if (newOrder !== oldOrder) {
           level.tasks.forEach(t => {
@@ -220,33 +296,26 @@ export default async function handler(req, res) {
           task.taskOrder = newOrder;
           level.tasks.sort((a, b) => a.taskOrder - b.taskOrder);
         }
-      } else if (updates) {
-        const taskRecord = level.tasks[taskIndex];
-        if (updates.title !== undefined) taskRecord.title = updates.title;
-        if (updates.description !== undefined) taskRecord.description = updates.description;
-        if (updates.content !== undefined) taskRecord.content = updates.content;
-        if (updates.enabled !== undefined) taskRecord.enabled = updates.enabled;
       }
 
-      const translation = ensureTranslationEntry(config, dayNumber, language);
-      const translationLevel = ensureTranslationLevel(translation, levelKey, level.levelLabel || levelKey);
-      if (!translationLevel.tasks) {
-        translationLevel.tasks = [];
-      }
-      let translationTask = translationLevel.tasks.find(t => t.taskId === taskId);
-      if (!translationTask) {
-        translationTask = {
-          taskId,
-          title: level.tasks[taskIndex].title,
-          description: level.tasks[taskIndex].description,
-          contentOverrides: level.tasks[taskIndex].content || {}
-        };
-        translationLevel.tasks.push(translationTask);
+      if (updates) {
+        if (taskRecord) {
+          if (updates.title !== undefined) taskRecord.title = updates.title;
+          if (updates.description !== undefined) taskRecord.description = updates.description;
+          if (updates.content !== undefined) taskRecord.content = updates.content;
+          if (updates.enabled !== undefined) taskRecord.enabled = updates.enabled;
+          if (updates.taskType !== undefined) {
+            taskRecord.taskType = updates.taskType;
+          }
+        }
+
+        if (translationTask) {
+          if (updates.title !== undefined) translationTask.title = updates.title;
+          if (updates.description !== undefined) translationTask.description = updates.description;
+          if (updates.content !== undefined) translationTask.contentOverrides = updates.content;
+        }
       }
 
-      if (updates?.title !== undefined) translationTask.title = updates.title;
-      if (updates?.description !== undefined) translationTask.description = updates.description;
-      if (updates?.content !== undefined) translationTask.contentOverrides = updates.content;
       translation.updatedAt = new Date();
 
       config.markModified('dynamicDayStructures');
@@ -260,7 +329,7 @@ export default async function handler(req, res) {
       res.status(200).json({ 
         success: true, 
         message: 'Task updated successfully',
-        task: level.tasks[taskIndex]
+        task: taskRecord || translationTask
       });
 
     } catch (error) {
@@ -301,7 +370,13 @@ export default async function handler(req, res) {
         });
       }
 
-      const level = ensureLevelExists(structure, levelKey);
+      const level = findLevelByKey(structure.contentLevels || [], levelKey);
+      if (!level) {
+        return res.status(404).json({
+          success: false,
+          error: 'Level not found'
+        });
+      }
       if (!level.tasks) {
         level.tasks = [];
       }

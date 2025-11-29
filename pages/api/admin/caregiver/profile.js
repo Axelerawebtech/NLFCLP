@@ -235,7 +235,8 @@ export default async function handler(req, res) {
           });
           const dynamicTestResponsePayload = buildDynamicTestResponsePayload({
             dayModule: module,
-            taskMeta: dynamicTestTaskMeta
+            taskMeta: dynamicTestTaskMeta,
+            dayConfig
           });
           const hasDynamicTest = Boolean(dynamicTestTaskMeta);
           const dynamicTestCompleted = Boolean(
@@ -669,6 +670,15 @@ function formatTaskResponseForAdmin(task = null, response = {}, fallback = null)
       if (typeof data?.answersCount === 'number') {
         addDetail('Answers Recorded', data.answersCount);
       }
+      if (Array.isArray(data?.selectedOptions) && data.selectedOptions.length) {
+        data.selectedOptions.forEach((selection, idx) => {
+          const label = selection.questionText || `Question ${selection.questionId || idx + 1}`;
+          const value = selection.score !== undefined && selection.score !== null
+            ? `${selection.optionText} (Score ${selection.score})`
+            : selection.optionText;
+          addDetail(label, value);
+        });
+      }
       summary = summary || 'Assessment completed';
       break;
     }
@@ -826,7 +836,7 @@ function buildDynamicTestTaskMeta({ dayModule, dayConfig }) {
   };
 }
 
-function buildDynamicTestResponsePayload({ dayModule, taskMeta }) {
+function buildDynamicTestResponsePayload({ dayModule, taskMeta, dayConfig }) {
   if (!taskMeta) return null;
   const dynamicTest = dayModule?.dynamicTest;
   const completed = Boolean(dayModule?.dynamicTestCompleted || dynamicTest?.completedAt);
@@ -834,19 +844,41 @@ function buildDynamicTestResponsePayload({ dayModule, taskMeta }) {
 
   const totalScore = dynamicTest?.totalScore;
   const level = dynamicTest?.assignedLevel || dynamicTest?.burdenLevel || dayModule?.contentLevel;
+
+  // Decide if we should expose scores/levels:
+  // - Only when the day config explicitly defines score ranges and levels are not disabled
+  // - If the test is configured as follow-up-only (followups exist) and there are no score ranges, we hide score/level
+  const hasConfiguredScoreRanges = Boolean(dayConfig?.testConfig?.scoreRanges && dayConfig.testConfig.scoreRanges.length);
+  const levelsDisabled = Boolean(dayConfig?.testConfig?.disableLevels);
+  const hasDefinedFollowups = Boolean(dayConfig?.testConfig?.questions?.some(q => Array.isArray(q.options) && q.options.some(o => o?.followupTask)));
+  const includeScores = hasConfiguredScoreRanges && !levelsDisabled;
+
   const summaryParts = [];
-  if (typeof totalScore === 'number') {
+  if (includeScores && typeof totalScore === 'number') {
     summaryParts.push(`Score ${totalScore}`);
   }
-  if (level) {
+  if (includeScores && level) {
     summaryParts.push(`${level} level`);
   }
+
+  const responseData = sanitizeDynamicTestData(dynamicTest, dayModule) || {};
+  // If we should not include scores, remove them from the response payload
+  if (!includeScores) {
+    delete responseData.totalScore;
+    delete responseData.assignedLevel;
+    delete responseData.burdenLevel;
+  }
+  const optionSelections = buildDynamicTestAnswerSelections({ dayConfig, dynamicTest });
+  if (optionSelections.length) {
+    responseData.selectedOptions = optionSelections;
+  }
+  const normalizedResponseData = Object.keys(responseData).length ? responseData : null;
 
   return {
     taskId: taskMeta.taskId,
     taskType: 'dynamic-test',
     responseText: summaryParts.join(' • ') || 'Assessment completed',
-    responseData: sanitizeDynamicTestData(dynamicTest, dayModule),
+    responseData: normalizedResponseData,
     completedAt: dynamicTest?.completedAt || dayModule?.completedAt || null
   };
 }
@@ -882,4 +914,75 @@ function sanitizeDynamicTestData(dynamicTest, dayModule) {
   }, {});
 
   return Object.keys(cleaned).length ? cleaned : null;
+}
+
+function buildDynamicTestAnswerSelections({ dayConfig, dynamicTest }) {
+  if (!dayConfig?.testConfig?.questions?.length) return [];
+  const questions = dayConfig.testConfig.questions;
+  const answerDetails = Array.isArray(dynamicTest?.answerDetails) ? dynamicTest.answerDetails : [];
+  const answers = Array.isArray(dynamicTest?.answers) ? dynamicTest.answers : [];
+
+  return questions.map((question, idx) => {
+    const detail = answerDetails[idx] || {};
+    const score = detail.score ?? answers[idx];
+    const option = findMatchingOption(question.options, {
+      optionKey: detail.optionKey,
+      answerValue: detail.answerValue,
+      score
+    });
+
+    const optionText = pickFirstString(
+      detail.optionText,
+      detail.answerValue,
+      option?.optionText,
+      typeof score === 'number' ? `Score ${score}` : null
+    );
+
+    if (!optionText) {
+      return null;
+    }
+
+    const resolvedScore = typeof score === 'number'
+      ? score
+      : (typeof option?.score === 'number' ? option.score : null);
+
+    return {
+      questionId: question.id || question.questionId || idx + 1,
+      questionText: question.questionText || `Question ${idx + 1}`,
+      optionKey: option?.optionKey || detail.optionKey || null,
+      optionText,
+      score: resolvedScore
+    };
+  }).filter(Boolean);
+}
+
+function findMatchingOption(options = [], criteria = {}) {
+  if (!Array.isArray(options) || options.length === 0) return null;
+  const normalizedAnswer = normalizeOptionIdentifier(criteria.answerValue);
+
+  return options.find(option => {
+    if (!option) return false;
+    if (criteria.optionKey && option.optionKey === criteria.optionKey) {
+      return true;
+    }
+
+    if (normalizedAnswer) {
+      const optionAnswer = normalizeOptionIdentifier(option.answerValue || option.optionText);
+      if (optionAnswer && optionAnswer === normalizedAnswer) {
+        return true;
+      }
+    }
+
+    if (typeof criteria.score === 'number' && typeof option.score === 'number') {
+      return option.score === criteria.score;
+    }
+
+    return false;
+  }) || null;
+}
+
+function normalizeOptionIdentifier(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized.length ? normalized : null;
 }

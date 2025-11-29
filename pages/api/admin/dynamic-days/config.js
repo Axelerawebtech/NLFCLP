@@ -150,10 +150,18 @@ export default async function handler(req, res) {
       }
 
       // Validation
-      if (dayConfig.hasTest && (!dayConfig.testConfig || !dayConfig.testConfig.scoreRanges)) {
+      const requiresScoreRanges = dayConfig.hasTest && dayConfig.testConfig && dayConfig.testConfig.disableLevels !== true;
+      if (dayConfig.hasTest && !dayConfig.testConfig) {
         return res.status(400).json({ 
           success: false,
           error: 'Test configuration is required when hasTest is true' 
+        });
+      }
+
+      if (requiresScoreRanges && !Array.isArray(dayConfig.testConfig.scoreRanges)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Score ranges are required unless the test disables levels'
         });
       }
 
@@ -165,7 +173,7 @@ export default async function handler(req, res) {
       const existingStructure = getStructureForDay(config, dayNumber);
       const normalizedLanguage = normalizeLanguage(language);
       const baseLanguageForDay = existingStructure?.baseLanguage || normalizedLanguage;
-      const isBaseLanguageUpdate = !existingStructure || normalizedLanguage === baseLanguageForDay;
+      const isBaseLanguageUpdate = !existingStructure || normalizedLanguage === baseLanguageForDay || normalizedLanguage === 'english';
       let structurePayload = existingStructure;
 
       if (isBaseLanguageUpdate) {
