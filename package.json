@@ -25,6 +25,7 @@
     "mongoose": "^7.5.0",
     "next": "14.2.5",
     "next-auth": "^4.23.1",
+    "next-cloudinary": "^6.17.5",
     "node-fetch": "^2.7.0",
     "node-mocks-http": "^1.17.2",
     "qrcode": "^1.5.3",
