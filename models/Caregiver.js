@@ -107,7 +107,7 @@ const CaregiverSchema = new mongoose.Schema({
   programControl: {
     status: {
       type: String,
-      enum: ['active', 'paused', 'terminated'],
+      enum: ['active', 'paused', 'terminated', 'inactive'],
       default: 'active',
     },
     delayHours: {
