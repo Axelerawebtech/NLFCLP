@@ -514,7 +514,7 @@ export default function PatientDashboard() {
   );
 }
 
-export default function PatientDashboard() {
+export function PatientDashboardAlternate() {
   const { isDarkMode, toggleTheme } = useTheme();
   const [userData, setUserData] = useState(null);
   const [postTestQuestions, setPostTestQuestions] = useState([]);
