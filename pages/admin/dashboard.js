@@ -1,48 +1,47 @@
 import { useState, useEffect } from 'react';
 import {
+  AppBar,
+  Alert,
   Box,
-  Container,
-  Typography,
   Button,
   Card,
   CardContent,
+  Chip,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormHelperText,
   Grid,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  IconButton,
-  AppBar,
   Toolbar,
-  Alert,
+  Typography,
   useTheme
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
-  FaUsers,
-  FaUserMd,
-  FaUser,
-  FaLink,
-  FaSignOutAlt,
-  FaSun,
-  FaMoon,
   FaChartBar,
   FaDownload,
-  FaClipboardCheck,
+  FaLink,
+  FaMoon,
+  FaSignOutAlt,
+  FaSun,
   FaTrash,
-  FaUnlink
+  FaUnlink,
+  FaUser,
+  FaUserMd
 } from 'react-icons/fa';
 import { useTheme as useCustomTheme } from '../../contexts/ThemeContext';
 import { useRouter } from 'next/router';
@@ -60,9 +59,93 @@ export default function AdminDashboard() {
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null, type: null });
   const [unassignDialog, setUnassignDialog] = useState({ open: false, caregiver: null, patient: null });
+  const [manualUnassignDialogOpen, setManualUnassignDialogOpen] = useState(false);
+  const [manualSelectedCaregiver, setManualSelectedCaregiver] = useState('');
+  const [manualSelectedPatient, setManualSelectedPatient] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
+
+  const surfaceColor = (lightColor, darkColor) => (theme.palette.mode === 'dark' ? darkColor : lightColor);
+  const tileSurface = surfaceColor('#ffffff', '#0b1120');
+  const tileBorder = surfaceColor('rgba(15,23,42,0.08)', 'rgba(148,163,184,0.2)');
+  const tileShadow = theme.palette.mode === 'dark'
+    ? '0 22px 50px rgba(0,0,0,0.45)'
+    : '0 18px 35px rgba(15,23,42,0.08)';
+
+  const formatPercentage = (numerator, denominator) => {
+    if (!denominator || Number.isNaN(denominator) || denominator === 0) return '0';
+    const percentage = (numerator / denominator) * 100;
+    if (!Number.isFinite(percentage)) return '0';
+    return Math.max(0, Math.min(100, percentage)).toFixed(0);
+  };
+
+  const metricCards = [
+    {
+      label: 'Total Caregivers',
+      value: stats.totalCaregivers || 0,
+      icon: FaUserMd,
+      background: surfaceColor('#f4f6ff', '#131a33'),
+      border: surfaceColor('rgba(99,102,241,0.25)', 'rgba(99,102,241,0.35)')
+    },
+    {
+      label: 'Total Patients',
+      value: stats.totalPatients || 0,
+      icon: FaUser,
+      background: surfaceColor('#fff5f5', '#2d1720'),
+      border: surfaceColor('rgba(248,113,113,0.25)', 'rgba(248,113,113,0.35)')
+    },
+    {
+      label: 'Assigned Caregivers',
+      value: stats.assignedCaregivers || 0,
+      icon: FaLink,
+      background: surfaceColor('#ecfdf5', '#082c24'),
+      border: surfaceColor('rgba(16,185,129,0.25)', 'rgba(45,212,191,0.35)')
+    },
+    {
+      label: 'Assignment Rate',
+      value: `${formatPercentage(stats.assignedPatients, stats.totalPatients)}%`,
+      icon: FaChartBar,
+      background: surfaceColor('#fff7ed', '#2b1707'),
+      border: surfaceColor('rgba(251,146,60,0.25)', 'rgba(251,146,60,0.35)')
+    }
+  ];
+
+  const primaryActions = [
+    {
+      label: 'Configure 7-Day Program',
+      emoji: '🎯',
+      route: '/admin/program-config',
+      background: surfaceColor('#fff4e6', '#2d1b0c')
+    },
+    {
+      label: 'Configure Patient Questionnaire',
+      emoji: '📋',
+      route: '/admin/configure-patient-questionnaire',
+      background: surfaceColor('#f3edff', '#1f1231')
+    },
+    {
+      label: 'Patient Profiles',
+      emoji: '👥',
+      route: '/admin/patient-profiles',
+      background: surfaceColor('#ecfdf5', '#0a2a1f')
+    }
+  ];
+
+  const exportActions = [
+    { label: 'Export All Users', type: 'all', color: '#2563eb' },
+    { label: 'Export Caregivers', type: 'caregivers', color: '#7c3aed' },
+    { label: 'Export Patients', type: 'patients', color: '#059669' }
+  ];
+
+  const tableCardSx = {
+    backdropFilter: 'blur(14px)',
+    border: '1px solid',
+    borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 20px 60px rgba(0,0,0,0.45)'
+      : '0 20px 50px rgba(15,23,42,0.08)'
+  };
 
   useEffect(() => {
     const checkAuth = () => {
@@ -235,13 +318,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const openUnassignDialog = ({ caregiver = null, patient = null }) => {
-    const resolvedCaregiver = caregiver || patient?.assignedCaregiver || null;
-    const resolvedPatient = patient || caregiver?.assignedPatient || null;
-
-    setUnassignDialog({ open: true, caregiver: resolvedCaregiver, patient: resolvedPatient });
-  };
-
   const handleUnassign = async () => {
     if (!unassignDialog.caregiver && !unassignDialog.patient) return;
 
@@ -271,12 +347,57 @@ export default function AdminDashboard() {
 
   const closeUnassignDialog = () => setUnassignDialog({ open: false, caregiver: null, patient: null });
 
+  const closeManualUnassignDialog = () => {
+    setManualUnassignDialogOpen(false);
+    setManualSelectedCaregiver('');
+    setManualSelectedPatient('');
+  };
+
+  const handleManualUnassign = () => {
+    const caregiver = caregivers.find((c) => c.caregiverId === manualSelectedCaregiver);
+    const patient = patients.find((p) => p.patientId === manualSelectedPatient);
+
+    if (!caregiver || !patient) {
+      setAlert({ show: true, message: 'Select both caregiver and patient to unassign', type: 'error' });
+      return;
+    }
+
+    closeManualUnassignDialog();
+    setUnassignDialog({ open: true, caregiver, patient });
+  };
+
   const openDeleteDialog = (user, type) => {
     setDeleteDialog({ open: true, user, type });
   };
 
   const unassignedCaregivers = caregivers.filter(c => !c.isAssigned);
   const unassignedPatients = patients.filter(p => !p.isAssigned);
+  const assignedCaregivers = caregivers.filter(c => c.isAssigned);
+  const assignedPatients = patients.filter(p => p.isAssigned);
+  const canAssign = unassignedCaregivers.length > 0 && unassignedPatients.length > 0;
+
+  useEffect(() => {
+    if (!manualSelectedCaregiver) {
+      setManualSelectedPatient('');
+      return;
+    }
+
+    const caregiver = caregivers.find((c) => c.caregiverId === manualSelectedCaregiver);
+    if (!caregiver) {
+      setManualSelectedPatient('');
+      return;
+    }
+
+    const resolvedPatient = caregiver.assignedPatient
+      || patients.find((patient) => {
+        if (patient.patientId === caregiver.assignedPatientId) return true;
+        const assignedCaregiver = patient.assignedCaregiver;
+        return assignedCaregiver?.caregiverId === caregiver.caregiverId
+          || patient.assignedCaregiverId === caregiver.caregiverId;
+      });
+
+    setManualSelectedPatient(resolvedPatient?.patientId || '');
+  }, [manualSelectedCaregiver, caregivers, patients]);
 
   if (authLoading) {
     return (
@@ -312,36 +433,68 @@ export default function AdminDashboard() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
-      {/* Header */}
-      <AppBar position="static" elevation={0}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Admin Dashboard - Cancer Care Support
-          </Typography>
-          <IconButton color="inherit" onClick={toggleTheme} sx={{ mr: 2 }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        backgroundColor: surfaceColor('#f6f7fb', '#020617')
+      }}
+    >
+
+      <AppBar
+        position="static"
+        color="transparent"
+        elevation={0}
+        sx={{
+          backdropFilter: 'blur(16px)',
+          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(2,6,23,0.85)' : 'rgba(255,255,255,0.85)',
+          borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)'}`
+        }}
+      >
+        <Toolbar sx={{ py: 2 }}>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" fontWeight={600}>
+              Admin Command Center
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Monitor program health, consent, and caregiver engagement in one glance
+            </Typography>
+          </Box>
+          <IconButton
+            color="inherit"
+            onClick={toggleTheme}
+            sx={{
+              mr: 2,
+              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.08)'}`
+            }}
+          >
             {isDarkMode ? <FaSun /> : <FaMoon />}
           </IconButton>
           <Button
-            color="inherit"
+            variant="contained"
             startIcon={<FaSignOutAlt />}
             onClick={handleLogout}
+            sx={{
+              borderRadius: 999,
+              textTransform: 'none'
+            }}
           >
             Logout
           </Button>
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Alert */}
+      <Container maxWidth="xl" sx={{ py: 5, position: 'relative', zIndex: 1 }}>
         {alert.show && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
             <Alert
               severity={alert.type}
-              sx={{ mb: 3 }}
+              sx={{
+                mb: 3,
+                borderRadius: 2,
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 20px 45px rgba(0,0,0,0.35)'
+                  : '0 15px 30px rgba(15,23,42,0.15)'
+              }}
               onClose={() => setAlert({ ...alert, show: false })}
             >
               {alert.message}
@@ -349,409 +502,341 @@ export default function AdminDashboard() {
           </motion.div>
         )}
 
-        {/* Statistics Cards */}
-        <Grid container spacing={4} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <Card sx={{
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                color: 'white',
-                height: 120
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <FaUserMd style={{ fontSize: '2rem', marginBottom: '8px' }} />
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {stats.totalCaregivers || 0}
-                  </Typography>
-                  <Typography variant="body2">Total Caregivers</Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
+        <Box
+          sx={{
+            mb: 3,
+            mx: 'auto',
+            maxWidth: 1040,
+            p: { xs: 1.5, md: 2 },
+            borderRadius: 3,
+            backgroundColor: tileSurface,
+            border: `1px solid ${tileBorder}`,
+            boxShadow: tileShadow
+          }}
+        >
+          <Grid container spacing={2}>
+            {metricCards.map((card, index) => {
+            const Icon = card.icon;
+            return (
+              <Grid item xs={12} sm={6} md={3} key={card.label}>
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 * index }}
+                >
+                  <Card
+                    sx={{
+                      backgroundColor: card.background,
+                      color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
+                      borderRadius: 2.5,
+                      overflow: 'hidden',
+                      minHeight: 120,
+                      border: card.border ? `1px solid ${card.border}` : `1px solid ${tileBorder}`,
+                      boxShadow: theme.palette.mode === 'dark'
+                        ? '0 14px 28px rgba(0,0,0,0.32)'
+                        : '0 12px 22px rgba(15,23,42,0.12)'
+                    }}
+                  >
+                    <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="caption" sx={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>
+                          {card.label}
+                        </Typography>
+                        <Icon size={24} color={theme.palette.mode === 'dark' ? 'rgba(248,250,252,0.85)' : 'rgba(15,23,42,0.65)'} />
+                      </Box>
+                      <Typography variant="h5" fontWeight={700}>
+                        {card.value}
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.75 }}>
+                        {card.label === 'Assignment Rate' ? 'Caregivers assigned to patients' : 'Current count'}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+            );
+            })}
           </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card sx={{
-                background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
-                color: 'white',
-                height: 120
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <FaUser style={{ fontSize: '2rem', marginBottom: '8px' }} />
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {stats.totalPatients || 0}
-                  </Typography>
-                  <Typography variant="body2">Total Patients</Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <Card sx={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                height: 120
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <FaLink style={{ fontSize: '2rem', marginBottom: '8px' }} />
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {stats.assignedCaregivers || 0}
-                  </Typography>
-                  <Typography variant="body2">Active Assignments</Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <Card sx={{
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                color: 'white',
-                height: 120
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <FaChartBar style={{ fontSize: '2rem', marginBottom: '8px' }} />
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {((stats.assignedPatients / stats.totalPatients) * 100 || 0).toFixed(0)}%
-                  </Typography>
-                  <Typography variant="body2">Assignment Rate</Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-        </Grid>
-
-        {/* Consent Statistics Cards */}
-        <Grid container spacing={4} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <Card sx={{
-                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-                color: 'white',
-                height: 120
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <FaClipboardCheck style={{ fontSize: '2rem', marginBottom: '8px' }} />
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {stats.consentedCaregivers || 0}
-                  </Typography>
-                  <Typography variant="body2">Consented Caregivers</Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <Card sx={{
-                background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                color: 'white',
-                height: 120
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <FaClipboardCheck style={{ fontSize: '2rem', marginBottom: '8px' }} />
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {stats.consentedPatients || 0}
-                  </Typography>
-                  <Typography variant="body2">Consented Patients</Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-            >
-              <Card sx={{
-                background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
-                color: 'white',
-                height: 120
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <FaChartBar style={{ fontSize: '2rem', marginBottom: '8px' }} />
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {((stats.consentedCaregivers / stats.totalCaregivers) * 100 || 0).toFixed(0)}%
-                  </Typography>
-                  <Typography variant="body2">Caregiver Consent Rate</Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <Card sx={{
-                background: 'linear-gradient(135deg, #7c2d12 0%, #92400e 100%)',
-                color: 'white',
-                height: 120
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <FaChartBar style={{ fontSize: '2rem', marginBottom: '8px' }} />
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {((stats.consentedPatients / stats.totalPatients) * 100 || 0).toFixed(0)}%
-                  </Typography>
-                  <Typography variant="body2">Patient Consent Rate</Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-        </Grid>
-
-        {/* Export and Action Buttons */}
-        <Box sx={{ mb: 4, textAlign: 'center', display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => router.push('/admin/program-config')}
-              sx={{ 
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                color: 'white',
-                '&:hover': { 
-                  background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
-                } 
-              }}
-            >
-              🎯 Configure 7-Day Program
-            </Button>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => router.push('/admin/configure-patient-questionnaire')}
-              sx={{ 
-                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                color: 'white',
-                '&:hover': { 
-                  background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)'
-                } 
-              }}
-            >
-              📋 Configure Patient Questionnaire
-            </Button>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => router.push('/admin/patient-profiles')}
-              sx={{ 
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                '&:hover': { 
-                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)'
-                } 
-              }}
-            >
-              👥 Patient Profiles
-            </Button>
-          </motion.div>
-          
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<FaDownload />}
-              onClick={() => handleExport('all')}
-              sx={{ borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', backgroundColor: '#eff6ff' } }}
-            >
-              Export All Users
-            </Button>
-          </motion.div>
-          
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<FaDownload />}
-              onClick={() => handleExport('caregivers')}
-              sx={{ borderColor: '#7c3aed', color: '#7c3aed', '&:hover': { borderColor: '#5b21b6', backgroundColor: '#f3e8ff' } }}
-            >
-              Export Caregivers
-            </Button>
-          </motion.div>
-          
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<FaDownload />}
-              onClick={() => handleExport('patients')}
-              sx={{ borderColor: '#16a34a', color: '#16a34a', '&:hover': { borderColor: '#15803d', backgroundColor: '#f0fdf4' } }}
-            >
-              Export Patients
-            </Button>
-          </motion.div>
         </Box>
 
-        {/* Action Button */}
-        <Box sx={{ mb: 4, textAlign: 'center' }}>
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<FaLink />}
-              onClick={() => setAssignDialogOpen(true)}
-              disabled={unassignedCaregivers.length === 0 || unassignedPatients.length === 0}
+        <Box
+          sx={{
+            mb: 3,
+            p: { xs: 1.5, md: 2 },
+            borderRadius: 3,
+            backgroundColor: tileSurface,
+            border: `1px solid ${tileBorder}`,
+            boxShadow: tileShadow
+          }}
+        >
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5}>
+            <Grid container spacing={1.5} flex={1}>
+              {primaryActions.map((action) => (
+                <Grid item xs={12} md={4} key={action.label}>
+                  <motion.div whileHover={{ y: -4 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
+                    <Button
+                      fullWidth
+                      size="medium"
+                      onClick={() => router.push(action.route)}
+                      sx={{
+                        backgroundColor: action.background,
+                        color: theme.palette.mode === 'dark' ? '#fdfdfd' : '#0f172a',
+                        minHeight: 58,
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontSize: '0.95rem',
+                        justifyContent: 'flex-start',
+                        px: 2.25,
+                        border: `1px solid ${tileBorder}`,
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 12px 26px rgba(0,0,0,0.32)'
+                          : '0 12px 22px rgba(15,23,42,0.12)',
+                        '&:hover': {
+                          backgroundColor: action.background,
+                          opacity: 0.96
+                        }
+                      }}
+                    >
+                      <span style={{ fontSize: '1.15rem', marginRight: '0.6rem' }}>{action.emoji}</span>
+                      {action.label}
+                    </Button>
+                  </motion.div>
+                </Grid>
+              ))}
+
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    mt: { xs: 2, md: 2.5 },
+                    p: { xs: 1.5, md: 2 },
+                    borderRadius: 2,
+                    backgroundColor: surfaceColor('#eef2ff', '#0f172a'),
+                    border: `1px solid ${tileBorder}`
+                  }}
+                >
+                  <Stack spacing={1.5}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      size="medium"
+                      startIcon={<FaLink />}
+                      onClick={() => setAssignDialogOpen(true)}
+                      sx={{
+                        borderRadius: 3,
+                        py: 1.75,
+                        fontSize: '0.95rem',
+                        backgroundColor: surfaceColor('#e0e7ff', '#1a1b4b'),
+                        color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
+                        '&:hover': {
+                          backgroundColor: surfaceColor('#c7d2fe', '#272063')
+                        }
+                      }}
+                    >
+                      Assign Caregiver to Patient
+                    </Button>
+                    <Typography variant="caption" color="text.secondary" textAlign="center">
+                      {canAssign
+                        ? 'Pairings ensure day modules, assessments, and follow-ups stay personalized.'
+                        : 'No available caregivers or patients to pair right now. Complete registrations to unlock new assignments.'}
+                    </Typography>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      size="medium"
+                      startIcon={<FaUnlink />}
+                      onClick={() => setManualUnassignDialogOpen(true)}
+                      disabled={assignedCaregivers.length === 0 || assignedPatients.length === 0}
+                      sx={{ borderRadius: 3, py: 1.5, fontSize: '0.9rem' }}
+                    >
+                      Unassign Caregiver & Patient
+                    </Button>
+                  </Stack>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Card
               sx={{
-                px: 4,
-                py: 2,
-                fontSize: '1.1rem',
-                background: 'linear-gradient(45deg, #2563eb, #7c3aed)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #1d4ed8, #5b21b6)',
-                }
+                flexBasis: { xs: '100%', lg: '32%' },
+                borderRadius: 2.5,
+                p: 2,
+                backgroundColor: tileSurface,
+                border: `1px solid ${tileBorder}`,
+                boxShadow: tileShadow
               }}
             >
-              Assign Caregiver to Patient
-            </Button>
-          </motion.div>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, letterSpacing: 1.1 }}>
+                EXPORT SNAPSHOTS
+              </Typography>
+              <Stack spacing={1.2}>
+                {exportActions.map((action) => (
+                  <motion.div whileHover={{ x: 4 }} key={action.label}>
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      startIcon={<FaDownload />}
+                      onClick={() => handleExport(action.type)}
+                      sx={{
+                        borderRadius: 999,
+                        borderColor: action.color,
+                        color: action.color,
+                        textTransform: 'none',
+                        justifyContent: 'space-between',
+                        px: 2.4,
+                        '&:hover': {
+                          borderColor: action.color,
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(15,23,42,0.6)'
+                            : 'rgba(37, 99, 235, 0.08)'
+                        }
+                      }}
+                    >
+                      {action.label}
+                      <Typography component="span" variant="caption" sx={{ opacity: 0.65 }}>
+                        CSV
+                      </Typography>
+                    </Button>
+                  </motion.div>
+                ))}
+              </Stack>
+            </Card>
+          </Stack>
         </Box>
 
-        {/* Tables */}
         <Grid container spacing={4}>
-          {/* Caregivers Table */}
           <Grid item xs={12} lg={6}>
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <Card>
+            <motion.div initial={{ opacity: 0, x: -25 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+              <Card sx={{ borderRadius: 3, p: 2, backgroundColor: tileSurface, ...tableCardSx }}>
                 <CardContent>
-                  <Typography variant="h5" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-                    <FaUserMd style={{ marginRight: '8px' }} />
-                    Caregivers
-                  </Typography>
-                  <TableContainer>
-                    <Table>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Typography variant="h5" fontWeight={600}>
+                      Caregivers
+                    </Typography>
+                    <Chip label={`${caregivers.length} total`} size="small" color="primary" />
+                  </Box>
+                  <Stack spacing={2} sx={{ display: { xs: 'flex', md: 'none' }, mb: 2 }}>
+                    {caregivers.map((caregiver) => (
+                      <Box
+                        key={`${caregiver._id}-mobile`}
+                        sx={{
+                          borderRadius: 2,
+                          border: `1px solid ${tileBorder}`,
+                          p: 2,
+                          backgroundColor: surfaceColor('#fdfdfd', '#0b152d')
+                        }}
+                      >
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          {caregiver.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          ID: {caregiver.caregiverId}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                          Relationship: {caregiver.relationshipToPatient || '—'}
+                        </Typography>
+                        <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
+                          <Chip
+                            label={caregiver.consentAccepted ? 'Consented' : 'Pending'}
+                            color={caregiver.consentAccepted ? 'success' : 'warning'}
+                            size="small"
+                          />
+                          <Chip
+                            label={caregiver.isAssigned ? 'Assigned' : 'Available'}
+                            color={caregiver.isAssigned ? 'success' : 'info'}
+                            size="small"
+                          />
+                        </Stack>
+                        <Stack direction="row" spacing={1} sx={{ mt: 1.2, flexWrap: 'wrap' }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => router.push(`/admin/caregiver-profile?id=${caregiver._id}`)}
+                            sx={{ minWidth: 0, px: 1.25, py: 0.5, fontSize: '0.75rem' }}
+                          >
+                            View
+                          </Button>
+                          <IconButton color="error" size="small" onClick={() => openDeleteDialog(caregiver, 'caregiver')}>
+                            <FaTrash />
+                          </IconButton>
+                        </Stack>
+                      </Box>
+                    ))}
+                  </Stack>
+                  <TableContainer
+                    sx={{
+                      display: { xs: 'none', sm: 'block' },
+                      maxHeight: 460,
+                      overflowX: 'auto',
+                      borderRadius: 2,
+                      border: `1px solid ${tileBorder}`,
+                      '&::-webkit-scrollbar': { height: 6 },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: 'rgba(100,116,139,0.4)',
+                        borderRadius: 999
+                      }
+                    }}
+                  >
+                    <Table
+                      size="small"
+                      stickyHeader
+                      aria-label="caregivers table"
+                      sx={{ minWidth: 560 }}
+                    >
                       <TableHead>
                         <TableRow>
                           <TableCell>Name</TableCell>
                           <TableCell>Relationship</TableCell>
                           <TableCell>Consent</TableCell>
                           <TableCell>Status</TableCell>
-                          <TableCell>Actions</TableCell>
+                          <TableCell align="right">Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {caregivers.map((caregiver) => (
-                          <TableRow key={caregiver._id}>
+                          <TableRow key={caregiver._id} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
                             <TableCell>
-                              <Box>
-                                <Typography variant="body1" fontWeight={500}>
-                                  {caregiver.name}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  ID: {caregiver.caregiverId}
-                                </Typography>
-                              </Box>
+                              <Typography variant="body1" fontWeight={600}>
+                                {caregiver.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ID: {caregiver.caregiverId}
+                              </Typography>
                             </TableCell>
-                            <TableCell>{caregiver.relationshipToPatient}</TableCell>
+                            <TableCell>{caregiver.relationshipToPatient || '—'}</TableCell>
                             <TableCell>
                               <Chip
                                 label={caregiver.consentAccepted ? 'Consented' : 'Pending'}
-                                color={caregiver.consentAccepted ? 'success' : 'error'}
-                                size="small"
-                                sx={{ minWidth: '80px' }}
-                              />
-                            </TableCell>
-                            <TableCell>                              <Chip
-                                label={caregiver.isAssigned ? 'Assigned' : 'Available'}
-                                color={caregiver.isAssigned ? 'success' : 'warning'}
+                                color={caregiver.consentAccepted ? 'success' : 'warning'}
                                 size="small"
                               />
                             </TableCell>
                             <TableCell>
-                              <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Chip
+                                label={caregiver.isAssigned ? 'Assigned' : 'Available'}
+                                color={caregiver.isAssigned ? 'success' : 'info'}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                justifyContent="flex-end"
+                                sx={{ flexWrap: 'wrap' }}
+                              >
                                 <Button
-                                  onClick={() => router.push(`/admin/caregiver-profile?id=${caregiver._id}`)}
-                                  color="primary"
                                   size="small"
                                   variant="contained"
-                                  title="View profile"
+                                  color="primary"
+                                  onClick={() => router.push(`/admin/caregiver-profile?id=${caregiver._id}`)}
+                                  sx={{ minWidth: 0, px: 1.25, py: 0.5, fontSize: '0.75rem' }}
                                 >
-                                  View Profile
+                                  View
                                 </Button>
-                                {caregiver.isAssigned && (
-                                  <Button
-                                    onClick={() => openUnassignDialog({ caregiver })}
-                                    color="warning"
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<FaUnlink />}
-                                    title="Unassign caregiver"
-                                  >
-                                    Unassign
-                                  </Button>
-                                )}
-                                <IconButton
-                                  onClick={() => openDeleteDialog(caregiver, 'caregiver')}
-                                  color="error"
-                                  size="small"
-                                  title="Delete caregiver"
-                                >
+                                <IconButton color="error" size="small" onClick={() => openDeleteDialog(caregiver, 'caregiver')}>
                                   <FaTrash />
                                 </IconButton>
-                              </Box>
+                              </Stack>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -763,90 +848,140 @@ export default function AdminDashboard() {
             </motion.div>
           </Grid>
 
-          {/* Patients Table */}
           <Grid item xs={12} lg={6}>
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <Card>
+            <motion.div initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>
+              <Card sx={{ borderRadius: 3, p: 2, backgroundColor: tileSurface, ...tableCardSx }}>
                 <CardContent>
-                  <Typography variant="h5" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-                    <FaUser style={{ marginRight: '8px' }} />
-                    Patients
-                  </Typography>
-                  <TableContainer>
-                    <Table>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Typography variant="h5" fontWeight={600}>
+                      Patients
+                    </Typography>
+                    <Chip label={`${patients.length} total`} size="small" color="secondary" />
+                  </Box>
+                  <Stack spacing={2} sx={{ display: { xs: 'flex', md: 'none' }, mb: 2 }}>
+                    {patients.map((patient) => (
+                      <Box
+                        key={`${patient._id}-mobile`}
+                        sx={{
+                          borderRadius: 2,
+                          border: `1px solid ${tileBorder}`,
+                          p: 2,
+                          backgroundColor: surfaceColor('#fdfdfd', '#0b152d')
+                        }}
+                      >
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          {patient.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          ID: {patient.patientId}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                          Cancer Type: {patient.cancerType || '—'}
+                        </Typography>
+                        <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
+                          <Chip
+                            label={patient.consentAccepted ? 'Consented' : 'Pending'}
+                            color={patient.consentAccepted ? 'success' : 'warning'}
+                            size="small"
+                          />
+                          <Chip
+                            label={patient.isAssigned ? 'Assigned' : 'Waiting'}
+                            color={patient.isAssigned ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </Stack>
+                        <Stack direction="row" spacing={1} sx={{ mt: 1.2, flexWrap: 'wrap' }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="secondary"
+                            onClick={() => router.push(`/admin/patient-profile?id=${patient._id}`)}
+                            sx={{ minWidth: 0, px: 1.25, py: 0.5, fontSize: '0.75rem' }}
+                          >
+                            View
+                          </Button>
+                          <IconButton color="error" size="small" onClick={() => openDeleteDialog(patient, 'patient')}>
+                            <FaTrash />
+                          </IconButton>
+                        </Stack>
+                      </Box>
+                    ))}
+                  </Stack>
+                  <TableContainer
+                    sx={{
+                      display: { xs: 'none', sm: 'block' },
+                      maxHeight: 460,
+                      overflowX: 'auto',
+                      borderRadius: 2,
+                      border: `1px solid ${tileBorder}`,
+                      '&::-webkit-scrollbar': { height: 6 },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: 'rgba(100,116,139,0.4)',
+                        borderRadius: 999
+                      }
+                    }}
+                  >
+                    <Table
+                      size="small"
+                      stickyHeader
+                      aria-label="patients table"
+                      sx={{ minWidth: 560 }}
+                    >
                       <TableHead>
                         <TableRow>
                           <TableCell>Name</TableCell>
                           <TableCell>Cancer Type</TableCell>
                           <TableCell>Consent</TableCell>
                           <TableCell>Status</TableCell>
-                          <TableCell>Actions</TableCell>
+                          <TableCell align="right">Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {patients.map((patient) => (
-                          <TableRow key={patient._id}>
+                          <TableRow key={patient._id} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
                             <TableCell>
-                              <Box>
-                                <Typography variant="body1" fontWeight={500}>
-                                  {patient.name}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  ID: {patient.patientId}
-                                </Typography>
-                              </Box>
+                              <Typography variant="body1" fontWeight={600}>
+                                {patient.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ID: {patient.patientId}
+                              </Typography>
                             </TableCell>
-                            <TableCell>{patient.cancerType}</TableCell>
+                            <TableCell>{patient.cancerType || '—'}</TableCell>
                             <TableCell>
                               <Chip
                                 label={patient.consentAccepted ? 'Consented' : 'Pending'}
-                                color={patient.consentAccepted ? 'success' : 'error'}
+                                color={patient.consentAccepted ? 'success' : 'warning'}
                                 size="small"
-                                sx={{ minWidth: '80px' }}
                               />
                             </TableCell>
                             <TableCell>
                               <Chip
                                 label={patient.isAssigned ? 'Assigned' : 'Waiting'}
-                                color={patient.isAssigned ? 'success' : 'error'}
+                                color={patient.isAssigned ? 'success' : 'default'}
                                 size="small"
                               />
                             </TableCell>
-                            <TableCell>
-                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <IconButton
+                            <TableCell align="right">
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                justifyContent="flex-end"
+                                sx={{ flexWrap: 'wrap' }}
+                              >
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="secondary"
                                   onClick={() => router.push(`/admin/patient-profile?id=${patient._id}`)}
-                                  color="primary"
-                                  size="small"
-                                  title="View profile"
+                                  sx={{ minWidth: 0, px: 1.25, py: 0.5, fontSize: '0.75rem' }}
                                 >
-                                  <FaUser />
-                                </IconButton>
-                                {patient.isAssigned && (
-                                  <Button
-                                    onClick={() => openUnassignDialog({ patient })}
-                                    color="warning"
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<FaUnlink />}
-                                    title="Unassign caregiver"
-                                  >
-                                    Unassign
-                                  </Button>
-                                )}
-                                <IconButton
-                                  onClick={() => openDeleteDialog(patient, 'patient')}
-                                  color="error"
-                                  size="small"
-                                  title="Delete patient"
-                                >
+                                  View
+                                </Button>
+                                <IconButton color="error" size="small" onClick={() => openDeleteDialog(patient, 'patient')}>
                                   <FaTrash />
                                 </IconButton>
-                              </Box>
+                              </Stack>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -900,6 +1035,70 @@ export default function AdminDashboard() {
           <Button onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleAssignment}>
             Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Manual Unassign Dialog */}
+      <Dialog open={manualUnassignDialogOpen} onClose={closeManualUnassignDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Unassign Caregiver & Patient</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <FormControl fullWidth sx={{ mb: 3 }}>
+              <InputLabel>Caregiver</InputLabel>
+              <Select
+                value={manualSelectedCaregiver}
+                onChange={(e) => setManualSelectedCaregiver(e.target.value)}
+                label="Caregiver"
+                disabled={assignedCaregivers.length === 0}
+              >
+                {assignedCaregivers.map((caregiver) => (
+                  <MenuItem key={caregiver.caregiverId} value={caregiver.caregiverId}>
+                    {caregiver.name} (ID: {caregiver.caregiverId})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth disabled sx={{ opacity: manualSelectedCaregiver ? 1 : 0.6 }}>
+              <InputLabel>Patient</InputLabel>
+              <Select
+                value={manualSelectedPatient}
+                label="Patient"
+                disabled
+                renderValue={(value) => {
+                  if (!value) {
+                    return manualSelectedCaregiver ? 'No linked patient' : 'Select a caregiver';
+                  }
+                  const patient = patients.find((p) => p.patientId === value);
+                  return patient ? `${patient.name} (ID: ${patient.patientId})` : value;
+                }}
+              >
+                {assignedPatients.map((patient) => (
+                  <MenuItem key={patient.patientId} value={patient.patientId}>
+                    {patient.name} (ID: {patient.patientId})
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>
+                {manualSelectedCaregiver
+                  ? manualSelectedPatient
+                    ? 'Linked patient auto-selected.'
+                    : 'This caregiver is not currently linked to a patient.'
+                  : 'Select a caregiver to view their linked patient.'}
+              </FormHelperText>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeManualUnassignDialog}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleManualUnassign}
+            disabled={!manualSelectedCaregiver || !manualSelectedPatient}
+          >
+            Continue
           </Button>
         </DialogActions>
       </Dialog>
