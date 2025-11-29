@@ -514,6 +514,46 @@ export default function AdminDashboard() {
               🎯 Configure 7-Day Program
             </Button>
           </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => router.push('/admin/configure-patient-questionnaire')}
+              sx={{ 
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                color: 'white',
+                '&:hover': { 
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)'
+                } 
+              }}
+            >
+              📋 Configure Patient Questionnaire
+            </Button>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => router.push('/admin/patient-profiles')}
+              sx={{ 
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                '&:hover': { 
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                } 
+              }}
+            >
+              👥 Patient Profiles
+            </Button>
+          </motion.div>
           
           <motion.div
             whileHover={{ scale: 1.05 }}

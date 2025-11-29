@@ -80,8 +80,32 @@ const PatientSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  // Questionnaire Answers
-  questionnaireAnswers: {
+  // Questionnaire System
+  questionnaireEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  questionnaireAnswers: [{
+    questionId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+    questionText: {
+      type: String,
+    },
+    answer: {
+      type: mongoose.Schema.Types.Mixed, // Can be string, array, number, etc.
+    },
+    submittedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
+  lastQuestionnaireSubmission: {
+    type: Date,
+    default: null,
+  },
+  // Legacy questionnaire answers (keeping for backward compatibility)
+  legacyQuestionnaireAnswers: {
     type: Object,
     default: {},
   },

@@ -73,7 +73,12 @@ export default function UserLogin() {
           router.push('/patient/dashboard');
         }
       } else {
-        setError(data.message || getTranslation(currentLanguage, 'loginFailed'));
+        // Handle specific error messages
+        if (data.needsAssignment || data.needsApproval) {
+          setError(data.message);
+        } else {
+          setError(data.message || getTranslation(currentLanguage, 'loginFailed'));
+        }
       }
     } catch (error) {
       setError(getTranslation(currentLanguage, 'networkError'));
