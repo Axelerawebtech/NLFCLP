@@ -41,7 +41,8 @@ import {
   FaChartBar,
   FaDownload,
   FaClipboardCheck,
-  FaTrash
+  FaTrash,
+  FaUnlink
 } from 'react-icons/fa';
 import { useTheme as useCustomTheme } from '../../contexts/ThemeContext';
 import { useRouter } from 'next/router';
@@ -58,6 +59,7 @@ export default function AdminDashboard() {
   const [selectedPatient, setSelectedPatient] = useState('');
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null, type: null });
+  const [unassignDialog, setUnassignDialog] = useState({ open: false, caregiver: null, patient: null });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
@@ -232,6 +234,42 @@ export default function AdminDashboard() {
       setAlert({ show: true, message: 'Network error: ' + error.message, type: 'error' });
     }
   };
+
+  const openUnassignDialog = ({ caregiver = null, patient = null }) => {
+    const resolvedCaregiver = caregiver || patient?.assignedCaregiver || null;
+    const resolvedPatient = patient || caregiver?.assignedPatient || null;
+
+    setUnassignDialog({ open: true, caregiver: resolvedCaregiver, patient: resolvedPatient });
+  };
+
+  const handleUnassign = async () => {
+    if (!unassignDialog.caregiver && !unassignDialog.patient) return;
+
+    try {
+      const response = await fetch('/api/admin/manage-users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caregiverId: unassignDialog.caregiver?.caregiverId,
+          patientId: unassignDialog.patient?.patientId
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setAlert({ show: true, message: 'Caregiver successfully unassigned from patient', type: 'success' });
+        setUnassignDialog({ open: false, caregiver: null, patient: null });
+        fetchUsers();
+      } else {
+        setAlert({ show: true, message: data.message || 'Failed to unassign caregiver and patient', type: 'error' });
+      }
+    } catch (error) {
+      setAlert({ show: true, message: 'Network error: ' + error.message, type: 'error' });
+    }
+  };
+
+  const closeUnassignDialog = () => setUnassignDialog({ open: false, caregiver: null, patient: null });
 
   const openDeleteDialog = (user, type) => {
     setDeleteDialog({ open: true, user, type });
@@ -693,6 +731,18 @@ export default function AdminDashboard() {
                                 >
                                   View Profile
                                 </Button>
+                                {caregiver.isAssigned && (
+                                  <Button
+                                    onClick={() => openUnassignDialog({ caregiver })}
+                                    color="warning"
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<FaUnlink />}
+                                    title="Unassign caregiver"
+                                  >
+                                    Unassign
+                                  </Button>
+                                )}
                                 <IconButton
                                   onClick={() => openDeleteDialog(caregiver, 'caregiver')}
                                   color="error"
@@ -767,23 +817,36 @@ export default function AdminDashboard() {
                               />
                             </TableCell>
                             <TableCell>
-                              <IconButton
-                                onClick={() => router.push(`/admin/patient-profile?id=${patient._id}`)}
-                                color="primary"
-                                size="small"
-                                title="View profile"
-                                sx={{ mr: 1 }}
-                              >
-                                <FaUser />
-                              </IconButton>
-                              <IconButton
-                                onClick={() => openDeleteDialog(patient, 'patient')}
-                                color="error"
-                                size="small"
-                                title="Delete patient"
-                              >
-                                <FaTrash />
-                              </IconButton>
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <IconButton
+                                  onClick={() => router.push(`/admin/patient-profile?id=${patient._id}`)}
+                                  color="primary"
+                                  size="small"
+                                  title="View profile"
+                                >
+                                  <FaUser />
+                                </IconButton>
+                                {patient.isAssigned && (
+                                  <Button
+                                    onClick={() => openUnassignDialog({ patient })}
+                                    color="warning"
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<FaUnlink />}
+                                    title="Unassign caregiver"
+                                  >
+                                    Unassign
+                                  </Button>
+                                )}
+                                <IconButton
+                                  onClick={() => openDeleteDialog(patient, 'patient')}
+                                  color="error"
+                                  size="small"
+                                  title="Delete patient"
+                                >
+                                  <FaTrash />
+                                </IconButton>
+                              </Box>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -879,6 +942,35 @@ export default function AdminDashboard() {
             variant="contained"
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Unassign Confirmation Dialog */}
+      <Dialog
+        open={unassignDialog.open}
+        onClose={closeUnassignDialog}
+        PaperProps={{
+          sx: {
+            bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
+            color: theme.palette.text.primary
+          }
+        }}
+      >
+        <DialogTitle>Unassign Caregiver</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This action will unlink
+            {unassignDialog.caregiver ? ` caregiver "${unassignDialog.caregiver.name}"` : ' the selected caregiver'}
+            {unassignDialog.patient ? ` and patient "${unassignDialog.patient.name}"` : ''}.
+            <br /><br />
+            They will return to the available pool and any in-progress program will be paused.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeUnassignDialog}>Cancel</Button>
+          <Button onClick={handleUnassign} color="warning" variant="contained">
+            Confirm Unassign
           </Button>
         </DialogActions>
       </Dialog>

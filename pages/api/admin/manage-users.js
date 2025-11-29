@@ -120,6 +120,68 @@ export default async function handler(req, res) {
     }
   }
 
+  else if (req.method === 'PUT') {
+    try {
+      const { caregiverId, patientId } = req.body;
+      console.log('UNASSIGN request - Caregiver:', caregiverId, 'Patient:', patientId);
+
+      if (!caregiverId && !patientId) {
+        return res.status(400).json({ success: false, message: 'Caregiver ID or Patient ID is required' });
+      }
+
+      let caregiver = caregiverId ? await Caregiver.findOne({ caregiverId }) : null;
+      let patient = patientId ? await Patient.findOne({ patientId }) : null;
+
+      if (!caregiver && patient?.assignedCaregiver) {
+        caregiver = await Caregiver.findById(patient.assignedCaregiver);
+      }
+
+      if (!patient && caregiver?.assignedPatient) {
+        patient = await Patient.findById(caregiver.assignedPatient);
+      }
+
+      if (!caregiver || !patient) {
+        return res.status(404).json({ success: false, message: 'Active assignment not found' });
+      }
+
+      if (!caregiver.isAssigned || !patient.isAssigned) {
+        return res.status(400).json({ success: false, message: 'This caregiver and patient are not currently assigned' });
+      }
+
+      caregiver.isAssigned = false;
+      caregiver.assignedPatient = null;
+      caregiver.programAssignedAt = null;
+      caregiver.programControl = {
+        ...(caregiver.programControl || {}),
+        status: 'paused',
+        pausedAt: new Date(),
+        resumedAt: null,
+        terminatedAt: null,
+      };
+      caregiver.programProgress = {
+        currentDay: 1,
+        completedDays: [],
+        isCompleted: false,
+      };
+
+      patient.isAssigned = false;
+      patient.assignedCaregiver = null;
+
+      await caregiver.save();
+      await patient.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Caregiver unassigned from patient successfully',
+        caregiver: { id: caregiver.caregiverId, name: caregiver.name },
+        patient: { id: patient.patientId, name: patient.name }
+      });
+    } catch (error) {
+      console.error('Unassign API error:', error);
+      return res.status(500).json({ success: false, message: 'Failed to unassign caregiver and patient', error: error.message });
+    }
+  }
+
   else if (req.method === 'DELETE') {
     try {
       const { userId, userType } = req.body;

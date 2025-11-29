@@ -38,6 +38,9 @@ import {
   Visibility as VisibilityIcon,
   ToggleOn as ToggleOnIcon,
   ToggleOff as ToggleOffIcon,
+  Schedule as ScheduleIcon,
+  Compare as CompareIcon,
+  EventBusy as EventBusyIcon
 } from '@mui/icons-material';
 
 export default function PatientProfiles() {
@@ -49,10 +52,21 @@ export default function PatientProfiles() {
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [questionnaire, setQuestionnaire] = useState(null);
+  const [retakeSchedule, setRetakeSchedule] = useState('');
+  const [scheduling, setScheduling] = useState(false);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchPatients();
   }, []);
+
+  useEffect(() => {
+    if (selectedPatient?.questionnaireRetakeScheduledFor) {
+      setRetakeSchedule(formatDateTimeInput(selectedPatient.questionnaireRetakeScheduledFor));
+    } else {
+      setRetakeSchedule('');
+    }
+  }, [selectedPatient]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -148,6 +162,133 @@ export default function PatientProfiles() {
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  const formatDateTimeInput = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '';
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  const comparisonRows = getComparisonRows();
+  const retakeStatusValue = selectedPatient?.questionnaireRetakeStatus || 'none';
+  const retakeStatusMeta = {
+    none: { label: 'Not scheduled', color: 'default' },
+    scheduled: { label: 'Scheduled', color: 'warning' },
+    open: { label: 'Open', color: 'info' },
+    completed: { label: 'Completed', color: 'success' }
+  }[retakeStatusValue] || { label: 'Not scheduled', color: 'default' };
+  const attemptCount = selectedPatient?.questionnaireAttempts?.length || 0;
+  const maxAttempts = 2;
+  const canScheduleRetake = attemptCount >= 1 && attemptCount < maxAttempts;
+
+  const handleScheduleRetake = async () => {
+    if (!selectedPatient) return;
+    if (!retakeSchedule) {
+      showAlert('Please select a date and time for the second assessment.', 'error');
+      return;
+    }
+
+    const scheduleDate = new Date(retakeSchedule);
+    if (Number.isNaN(scheduleDate.getTime())) {
+      showAlert('Invalid schedule date', 'error');
+      return;
+    }
+
+    setScheduling(true);
+    try {
+      const response = await fetch(`/api/admin/patients/${selectedPatient._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'scheduleRetake',
+          scheduleAt: scheduleDate.toISOString()
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        showAlert(data.message || 'Second assessment scheduled successfully', 'success');
+        await fetchPatientDetails(selectedPatient._id);
+        fetchPatients();
+      } else {
+        showAlert(data.message || 'Failed to schedule retake', 'error');
+      }
+    } catch (error) {
+      console.error('Error scheduling retake:', error);
+      showAlert('Failed to schedule retake', 'error');
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const handleCancelRetake = async () => {
+    if (!selectedPatient) return;
+    setScheduling(true);
+    try {
+      const response = await fetch(`/api/admin/patients/${selectedPatient._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancelRetake' })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        showAlert(data.message || 'Scheduled retake cancelled', 'success');
+        await fetchPatientDetails(selectedPatient._id);
+        fetchPatients();
+      } else {
+        showAlert(data.message || 'Failed to cancel retake', 'error');
+      }
+    } catch (error) {
+      console.error('Error cancelling retake:', error);
+      showAlert('Failed to cancel retake', 'error');
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const getComparisonRows = () => {
+    if (!selectedPatient?.questionnaireAttempts || selectedPatient.questionnaireAttempts.length < 2) {
+      return [];
+    }
+
+    const firstAttempt = selectedPatient.questionnaireAttempts.find(attempt => attempt.attemptNumber === 1);
+    const secondAttempt = selectedPatient.questionnaireAttempts.find(attempt => attempt.attemptNumber === 2);
+
+    if (!firstAttempt || !secondAttempt) return [];
+
+    const rowsMap = new Map();
+
+    (firstAttempt.answers || []).forEach((answer, index) => {
+      const key = (answer.questionId && answer.questionId.toString()) || `${answer.questionText}-${index}-a1`;
+      if (!rowsMap.has(key)) {
+        rowsMap.set(key, {
+          question: answer.questionText,
+          first: '-',
+          second: '-'
+        });
+      }
+      rowsMap.get(key).first = formatAnswer(answer.answer);
+    });
+
+    (secondAttempt.answers || []).forEach((answer, index) => {
+      const key = (answer.questionId && answer.questionId.toString()) || `${answer.questionText}-${index}-a2`;
+      if (!rowsMap.has(key)) {
+        rowsMap.set(key, {
+          question: answer.questionText,
+          first: '-',
+          second: '-'
+        });
+      }
+      rowsMap.get(key).second = formatAnswer(answer.answer);
+    });
+
+    return Array.from(rowsMap.values()).sort((a, b) => a.question.localeCompare(b.question));
   };
 
   return (
@@ -488,6 +629,96 @@ export default function PatientProfiles() {
                   )}
                 </Grid>
 
+                {/* Second Assessment Scheduler */}
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="h6" sx={{ mb: 2 }}>Second Assessment Scheduler</Typography>
+                  <Paper sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                      <Chip
+                        label={`Status: ${retakeStatusMeta.label}`}
+                        color={retakeStatusMeta.color}
+                      />
+                      <Chip
+                        label={`Attempts: ${attemptCount}/${maxAttempts}`}
+                        color={attemptCount >= 2 ? 'success' : 'default'}
+                      />
+                    </Box>
+
+                    {selectedPatient.questionnaireRetakeScheduledFor && (
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        Scheduled for: {formatDate(selectedPatient.questionnaireRetakeScheduledFor)}
+                      </Typography>
+                    )}
+                    {selectedPatient.questionnaireRetakeCompletedAt && (
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        Second assessment completed: {formatDate(selectedPatient.questionnaireRetakeCompletedAt)}
+                      </Typography>
+                    )}
+
+                    {canScheduleRetake ? (
+                      <>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          Schedule when this patient should retake the questionnaire. They will regain access automatically at that time.
+                        </Typography>
+                        <Grid container spacing={2} alignItems="center">
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              label="Select date and time"
+                              type="datetime-local"
+                              value={retakeSchedule}
+                              onChange={(e) => setRetakeSchedule(e.target.value)}
+                              InputLabelProps={{ shrink: true }}
+                              fullWidth
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Button
+                              variant="contained"
+                              startIcon={<ScheduleIcon />}
+                              onClick={handleScheduleRetake}
+                              disabled={scheduling || !retakeSchedule}
+                            >
+                              Schedule Second Assessment
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      </>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        {attemptCount === 0
+                          ? 'The patient must complete the first assessment before scheduling a retake.'
+                          : 'Two assessments already recorded for this patient.'}
+                      </Typography>
+                    )}
+
+                    {selectedPatient.questionnaireRetakeStatus === 'scheduled' && (
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        onClick={handleCancelRetake}
+                        startIcon={<EventBusyIcon />}
+                        disabled={scheduling}
+                        sx={{ mt: 2 }}
+                      >
+                        Cancel Scheduled Retake
+                      </Button>
+                    )}
+
+                    {selectedPatient.questionnaireAttempts && selectedPatient.questionnaireAttempts.length >= 2 && (
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        startIcon={<CompareIcon />}
+                        onClick={() => setCompareDialogOpen(true)}
+                        sx={{ mt: 2 }}
+                      >
+                        Compare First vs Second Attempt
+                      </Button>
+                    )}
+                  </Paper>
+                </Grid>
+
                 {/* Current Questionnaire Info */}
                 {questionnaire && (
                   <Grid item xs={12}>
@@ -525,6 +756,51 @@ export default function PatientProfiles() {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Comparison Dialog */}
+      <Dialog
+        open={compareDialogOpen}
+        onClose={() => setCompareDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Compare Questionnaire Attempts</DialogTitle>
+        <DialogContent dividers>
+          {comparisonRows.length > 0 ? (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Question</TableCell>
+                  <TableCell>Attempt 1</TableCell>
+                  <TableCell>Attempt 2</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {comparisonRows.map((row, index) => (
+                  <TableRow key={`${row.question}-${index}`}>
+                    <TableCell sx={{ width: '50%' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {row.question}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ width: '25%' }}>
+                      <Chip label={row.first || '-'} size="small" variant="outlined" />
+                    </TableCell>
+                    <TableCell sx={{ width: '25%' }}>
+                      <Chip label={row.second || '-'} size="small" color="secondary" variant="outlined" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <Typography>No comparison data available yet.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCompareDialogOpen(false)}>Close</Button>
+        </DialogActions>
       </Dialog>
     </Container>
   );

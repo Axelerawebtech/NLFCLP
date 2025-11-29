@@ -2,6 +2,7 @@ import dbConnect from '../../../lib/mongodb';
 import Patient from '../../../models/Patient';
 import Questionnaire from '../../../models/Questionnaire';
 import mongoose from 'mongoose';
+import { ensureAttemptHistory } from '../../../lib/questionnaireAttempts';
 
 export default async function handler(req, res) {
   await dbConnect();
@@ -43,6 +44,30 @@ export default async function handler(req, res) {
       }
 
       console.log(`[Dashboard API] Patient found: ${patient.name}`);
+
+      await ensureAttemptHistory(patient);
+
+      if (
+        patient.questionnaireRetakeStatus === 'scheduled' &&
+        patient.questionnaireRetakeScheduledFor &&
+        patient.questionnaireRetakeScheduledFor <= new Date()
+      ) {
+        patient.questionnaireRetakeStatus = 'open';
+        patient.questionnaireEnabled = true;
+        await patient.save();
+      }
+
+      // Populate assigned caregiver details if available so we can surface their name/email
+      if (patient.assignedCaregiver) {
+        try {
+          await patient.populate({
+            path: 'assignedCaregiver',
+            select: 'caregiverId name email phone'
+          });
+        } catch (populateError) {
+          console.warn('[Dashboard API] Failed to populate caregiver info:', populateError.message);
+        }
+      }
 
       // Only return questionnaire if enabled for this patient
       let questionnaire = null;
@@ -111,10 +136,15 @@ export default async function handler(req, res) {
             assignedCaregiver: patient.assignedCaregiver ? {
               name: patient.assignedCaregiver.name || 'Unknown',
               email: patient.assignedCaregiver.email || '',
-              id: patient.assignedCaregiver._id
+              id: patient.assignedCaregiver.caregiverId || patient.assignedCaregiver._id,
+              phone: patient.assignedCaregiver.phone || ''
             } : null,
             questionnaireEnabled: patient.questionnaireEnabled,
             questionnaireAnswers: patient.questionnaireAnswers,
+            questionnaireAttempts: patient.questionnaireAttempts,
+            questionnaireRetakeStatus: patient.questionnaireRetakeStatus,
+            questionnaireRetakeScheduledFor: patient.questionnaireRetakeScheduledFor,
+            questionnaireRetakeCompletedAt: patient.questionnaireRetakeCompletedAt,
             lastQuestionnaireSubmission: patient.lastQuestionnaireSubmission
           },
           questionnaire: questionnaire ? {

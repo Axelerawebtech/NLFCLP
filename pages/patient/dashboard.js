@@ -59,6 +59,10 @@ export default function PatientDashboard() {
   const [isEditing, setIsEditing] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState(null);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
+  const [retakeStatus, setRetakeStatus] = useState('none');
+  const [retakeScheduledFor, setRetakeScheduledFor] = useState(null);
+  const [questionnaireAttempts, setQuestionnaireAttempts] = useState([]);
+  const [retakeCompletedAt, setRetakeCompletedAt] = useState(null);
 
   // Translation helper using context language
   const t = (key) => getTranslation(key, currentLanguage);
@@ -118,6 +122,11 @@ export default function PatientDashboard() {
 
       if (data.success && data.data && data.data.patient) {
         const apiPatientData = data.data.patient;
+        const statusFromApi = apiPatientData.questionnaireRetakeStatus || 'none';
+        const scheduledFor = apiPatientData.questionnaireRetakeScheduledFor || null;
+        const attemptsFromApi = apiPatientData.questionnaireAttempts || [];
+        const completedAt = apiPatientData.questionnaireRetakeCompletedAt || null;
+        const isRetakeActive = statusFromApi === 'open';
         
         // Update userData with fresh data from API (all patient details + questionnaire status)
         const updatedUserData = {
@@ -135,6 +144,10 @@ export default function PatientDashboard() {
           lastQuestionnaireSubmission: apiPatientData.lastQuestionnaireSubmission
         };
         setUserData(updatedUserData);
+        setRetakeStatus(statusFromApi);
+        setRetakeScheduledFor(scheduledFor);
+        setQuestionnaireAttempts(attemptsFromApi);
+        setRetakeCompletedAt(completedAt);
         console.log('[Dashboard] Updated userData with id:', updatedUserData.id);
 
         // If questionnaire is enabled and exists, process it
@@ -167,24 +180,35 @@ export default function PatientDashboard() {
           
           console.log('[Dashboard] Has valid answers:', hasValidAnswers);
           
-          // Only show submitted state if: questionnaire is enabled AND has valid answers
-          if (hasValidAnswers) {
+          const shouldShowSubmittedState = hasValidAnswers && !isRetakeActive;
+          const previousAnswerMap = hasValidAnswers
+            ? existingAnswers.reduce((acc, answer) => {
+                acc[answer.questionId] = answer.answer;
+                return acc;
+              }, {})
+            : {};
+
+          if (shouldShowSubmittedState) {
             console.log(`[Dashboard] ✅ Patient HAS submitted - showing ${existingAnswers.length} valid answers`);
             setIsSubmitted(true);
             setSubmittedAnswers(existingAnswers);
           } else {
-            console.log('[Dashboard] ❌ Patient has NOT submitted valid answers - showing empty form');
-            // Initialize answers for new submission
+            console.log('[Dashboard] ❌ Showing questionnaire form for new submission');
             const initialAnswers = {};
             data.data.questionnaire.questions.forEach(question => {
               if (question.type === 'checkbox') {
-                initialAnswers[question._id] = [];
+                const fallback = isRetakeActive && hasValidAnswers ? (previousAnswerMap[question._id] || []) : [];
+                initialAnswers[question._id] = Array.isArray(fallback) ? fallback : [];
               } else {
-                initialAnswers[question._id] = '';
+                const fallback = isRetakeActive && hasValidAnswers ? previousAnswerMap[question._id] : '';
+                initialAnswers[question._id] = fallback ?? '';
               }
             });
             setAnswers(initialAnswers);
             setIsSubmitted(false);
+            if (isRetakeActive && hasValidAnswers) {
+              setSubmittedAnswers(existingAnswers);
+            }
           }
         } else {
           console.warn('❌ [Dashboard] Questionnaire not enabled or not found');
@@ -313,6 +337,25 @@ export default function PatientDashboard() {
         setIsSubmitted(true);
         const submittedAnswersData = payload.answers;
         setSubmittedAnswers(submittedAnswersData);
+        const attemptNumber = data.data?.attemptNumber || 1;
+        const submissionTimestamp = new Date().toISOString();
+        const attemptRecord = {
+          attemptNumber,
+          submittedAt: submissionTimestamp,
+          answers: submittedAnswersData,
+        };
+        setQuestionnaireAttempts(prev => {
+          const updated = [...prev];
+          updated[attemptNumber - 1] = attemptRecord;
+          return updated;
+        });
+        if (attemptNumber === 2) {
+          setRetakeStatus('completed');
+          setRetakeCompletedAt(submissionTimestamp);
+        } else {
+          setRetakeStatus('none');
+        }
+        setRetakeScheduledFor(null);
         
         // Exit editing mode and show success card
         setIsEditing(false);
@@ -331,7 +374,8 @@ export default function PatientDashboard() {
         // Update user data
         const updatedUser = {
           ...userData,
-          lastQuestionnaireSubmission: new Date().toISOString()
+          lastQuestionnaireSubmission: submissionTimestamp,
+          questionnaireEnabled: false
         };
         setUserData(updatedUser);
         localStorage.setItem('userData', JSON.stringify(updatedUser));
@@ -625,6 +669,15 @@ export default function PatientDashboard() {
   console.log('  questionnaire exists:', !!questionnaire);
   console.log('  Will show questionnaire?:', userData?.questionnaireEnabled && questionnaire);
 
+  const maxQuestionnaireAttempts = 2;
+  const totalRecordedAttempts = Array.isArray(questionnaireAttempts) ? questionnaireAttempts.length : 0;
+  const baselineAttempt = totalRecordedAttempts === 0 ? 1 : totalRecordedAttempts;
+  const activeAttemptNumber = retakeStatus === 'open'
+    ? Math.min(totalRecordedAttempts + 1, maxQuestionnaireAttempts)
+    : Math.min(baselineAttempt, maxQuestionnaireAttempts);
+  const scheduledDateLabel = retakeScheduledFor ? new Date(retakeScheduledFor).toLocaleString() : null;
+  const completedDateLabel = retakeCompletedAt ? new Date(retakeCompletedAt).toLocaleString() : null;
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       {/* Header */}
@@ -809,6 +862,24 @@ export default function PatientDashboard() {
           </motion.div>
         )}
 
+        {retakeStatus === 'scheduled' && scheduledDateLabel && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Second assessment scheduled for {scheduledDateLabel}. Access will reopen automatically at that time.
+          </Alert>
+        )}
+
+        {retakeStatus === 'open' && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            Your second assessment is now available. Attempt {activeAttemptNumber} of {maxQuestionnaireAttempts}.
+          </Alert>
+        )}
+
+        {retakeStatus === 'completed' && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            You have completed both assessments{completedDateLabel ? ` (${completedDateLabel})` : ''}.
+          </Alert>
+        )}
+
         {/* Questionnaire Section */}
         {userData.questionnaireEnabled && questionnaire ? (
           <motion.div
@@ -826,6 +897,9 @@ export default function PatientDashboard() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     {t('youHaveSubmittedThePreTest')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Attempt {Math.min(questionnaireAttempts.length, maxQuestionnaireAttempts)} of {maxQuestionnaireAttempts}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
                     {t('submittedOn')}: {submittedAnswers?.[0]?.submittedAt ? new Date(submittedAnswers[0].submittedAt).toLocaleString() : t('today')}
@@ -855,6 +929,9 @@ export default function PatientDashboard() {
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {questionnaire?.description}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Attempt {activeAttemptNumber} of {maxQuestionnaireAttempts}
                       </Typography>
                     </Box>
                   </Box>

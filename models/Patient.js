@@ -1,5 +1,21 @@
 import mongoose from 'mongoose';
 
+const QuestionnaireAnswerSchema = new mongoose.Schema({
+  questionId: {
+    type: mongoose.Schema.Types.ObjectId,
+  },
+  questionText: {
+    type: String,
+  },
+  answer: {
+    type: mongoose.Schema.Types.Mixed,
+  },
+  submittedAt: {
+    type: Date,
+    default: Date.now,
+  },
+}, { _id: false });
+
 const PatientSchema = new mongoose.Schema({
   patientId: {
     type: String,
@@ -85,21 +101,31 @@ const PatientSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  questionnaireAnswers: [{
-    questionId: {
-      type: mongoose.Schema.Types.ObjectId,
-    },
-    questionText: {
-      type: String,
-    },
-    answer: {
-      type: mongoose.Schema.Types.Mixed, // Can be string, array, number, etc.
+  questionnaireAnswers: [QuestionnaireAnswerSchema],
+  questionnaireAttempts: [{
+    attemptNumber: {
+      type: Number,
+      default: 1,
     },
     submittedAt: {
       type: Date,
       default: Date.now,
     },
+    answers: [QuestionnaireAnswerSchema],
   }],
+  questionnaireRetakeStatus: {
+    type: String,
+    enum: ['none', 'scheduled', 'open', 'completed'],
+    default: 'none',
+  },
+  questionnaireRetakeScheduledFor: {
+    type: Date,
+    default: null,
+  },
+  questionnaireRetakeCompletedAt: {
+    type: Date,
+    default: null,
+  },
   lastQuestionnaireSubmission: {
     type: Date,
     default: null,

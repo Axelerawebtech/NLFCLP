@@ -2,6 +2,7 @@ import dbConnect from '../../../../lib/mongodb';
 import Patient from '../../../../models/Patient';
 import Questionnaire from '../../../../models/Questionnaire';
 import mongoose from 'mongoose';
+import { appendAttempt, ensureAttemptHistory } from '../../../../lib/questionnaireAttempts';
 
 export default async function handler(req, res) {
   await dbConnect();
@@ -41,6 +42,26 @@ export default async function handler(req, res) {
         return res.status(404).json({
           success: false,
           message: 'Patient not found'
+        });
+      }
+
+      await ensureAttemptHistory(patient);
+
+      const existingAttempts = Array.isArray(patient.questionnaireAttempts) ? patient.questionnaireAttempts.length : 0;
+      const nextAttemptNumber = existingAttempts + 1;
+      const maxAttempts = 2;
+
+      if (nextAttemptNumber > maxAttempts) {
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum number of questionnaire attempts reached'
+        });
+      }
+
+      if (nextAttemptNumber === 2 && patient.questionnaireRetakeStatus !== 'open') {
+        return res.status(403).json({
+          success: false,
+          message: 'Second attempt not currently available. Please wait for your care team to schedule it.'
         });
       }
 
@@ -92,19 +113,33 @@ export default async function handler(req, res) {
       console.log('[Submit API] Formatted', formattedAnswers.length, 'answers for storage');
 
       // Clear existing answers and add new ones
+      const submittedAt = new Date();
       patient.questionnaireAnswers = formattedAnswers;
-      patient.lastQuestionnaireSubmission = new Date();
-      
+      patient.lastQuestionnaireSubmission = submittedAt;
+
+      const recordedAttemptNumber = appendAttempt(patient, formattedAnswers, submittedAt);
+
+      if (recordedAttemptNumber === 1) {
+        patient.questionnaireEnabled = false;
+        patient.questionnaireRetakeStatus = 'none';
+      } else if (recordedAttemptNumber === 2) {
+        patient.questionnaireEnabled = false;
+        patient.questionnaireRetakeStatus = 'completed';
+        patient.questionnaireRetakeScheduledFor = null;
+        patient.questionnaireRetakeCompletedAt = submittedAt;
+      }
+
       await patient.save();
-      
-      console.log(`[Submit API] ✅ SUCCESS: Patient ${patient.patientId} saved ${formattedAnswers.length} answers`);
+
+      console.log(`[Submit API] ✅ SUCCESS: Patient ${patient.patientId} saved attempt #${recordedAttemptNumber} with ${formattedAnswers.length} answers`);
 
       res.status(200).json({
         success: true,
         message: 'Questionnaire submitted successfully',
         data: {
           submissionDate: patient.lastQuestionnaireSubmission,
-          answersCount: formattedAnswers.length
+          answersCount: formattedAnswers.length,
+          attemptNumber: recordedAttemptNumber
         }
       });
     } catch (error) {
