@@ -309,7 +309,7 @@ function extractLocalizedContent(content) {
   if (content.feelingQuestion) result.feelingQuestion = content.feelingQuestion;
   
   if (content.fieldType || content.placeholder || content.problemLabel || content.solutionLabel) {
-    result.fieldType = content.fieldType || 'text-input';
+    result.fieldType = content.fieldType || 'text';
     if (content.placeholder !== undefined) result.placeholder = content.placeholder;
     if (content.problemLabel !== undefined) result.problemLabel = content.problemLabel;
     if (content.solutionLabel !== undefined) result.solutionLabel = content.solutionLabel;

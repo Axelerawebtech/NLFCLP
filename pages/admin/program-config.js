@@ -190,18 +190,18 @@ export default function ProgramConfigPage() {
             >
               🗓️ Dynamic Day Content
             </button>
-            <button
+            {/* <button
               style={styles.tab(activeTab === 'program')}
               onClick={() => setActiveTab('program')}
             >
               📅 Legacy Program Content
-            </button>
-            <button
+            </button> */}
+            {/* <button
               style={styles.tab(activeTab === 'burden')}
               onClick={() => setActiveTab('burden')}
             >
               📋 Burden Assessment (Day 1)
-            </button>
+            </button> */}
           </div>
         </div>
 

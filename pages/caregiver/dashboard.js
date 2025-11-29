@@ -40,7 +40,7 @@ export default function CaregiverDashboard() {
   // Enhanced state management - combining all functionality
   const [caregiverData, setCaregiverData] = useState(null);
   const [programData, setProgramData] = useState(null);
-  const [currentView, setCurrentView] = useState('overview'); // overview, sevenDayProgram, notifications, day1PreTest
+  const [currentView, setCurrentView] = useState('sevenDayProgram'); // overview, sevenDayProgram, notifications, day1PreTest
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -442,13 +442,13 @@ export default function CaregiverDashboard() {
         {/* Navigation Tabs */}
         <Paper sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', gap: 1, p: 2, flexWrap: 'wrap' }}>
-            <Button
+            {/* <Button
               variant={currentView === 'overview' ? 'contained' : 'outlined'}
               onClick={() => setCurrentView('overview')}
               startIcon={<FaChartLine />}
             >
               Overview
-            </Button>
+            </Button> */}
             <Button
               variant={currentView === 'sevenDayProgram' ? 'contained' : 'outlined'}
               onClick={() => setCurrentView('sevenDayProgram')}
@@ -463,14 +463,14 @@ export default function CaregiverDashboard() {
             >
               7-Day Program
             </Button>
-            <Button
+            {/* <Button
               variant={currentView === 'notifications' ? 'contained' : 'outlined'}
               onClick={() => setCurrentView('notifications')}
               disabled={!day1PreTestCompleted}
               startIcon={<FaBell />}
             >
               Reminders
-            </Button>
+            </Button> */}
           </Box>
         </Paper>
 
