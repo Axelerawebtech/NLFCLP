@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getTranslation } from '../utils/translations';
 import VideoPlayer from './VideoPlayer';
@@ -8,6 +8,64 @@ import DailyAssessment from './DailyAssessment';
 import NotificationManager from './NotificationManager';
 import ReminderDisplayCard from './ReminderDisplayCard';
 import { getTaskDefaultTitle } from '../utils/taskMetadata';
+
+const parseScoreValue = (entry) => {
+  if (entry === null || entry === undefined) return undefined;
+  if (typeof entry === 'number' && !Number.isNaN(entry)) return entry;
+  if (typeof entry === 'string') {
+    const trimmed = entry.trim();
+    if (!trimmed) return undefined;
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  if (typeof entry === 'object') {
+    const scoreKeys = ['score', 'selectedScore', 'optionScore', 'value', 'answer'];
+    for (const key of scoreKeys) {
+      if (entry[key] !== undefined) {
+        const nested = parseScoreValue(entry[key]);
+        if (nested !== undefined) {
+          return nested;
+        }
+      }
+    }
+  }
+  return undefined;
+};
+
+const normalizeStoredAnswerArray = (raw) => {
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw)
+      .sort((a, b) => {
+        const getIndex = (key) => {
+          const match = String(key).match(/(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        };
+        return getIndex(a[0]) - getIndex(b[0]);
+      })
+      .map(([, value]) => value);
+  }
+  return [];
+};
+
+const deriveAnswerMapFromResult = (result) => {
+  if (!result) return {};
+  const rawAnswers = normalizeStoredAnswerArray(result.answers || result.raw?.answers || null);
+  const fallbackFromDetails = Array.isArray(result.answerDetails)
+    ? result.answerDetails.map(detail => detail?.selectedScore ?? detail?.optionScore ?? detail?.score ?? detail?.option?.score ?? detail?.value)
+    : [];
+  const source = rawAnswers.length > 0 ? rawAnswers : fallbackFromDetails;
+  const mapped = {};
+  source.forEach((entry, idx) => {
+    const value = parseScoreValue(entry);
+    if (typeof value === 'number' && !Number.isNaN(value)) {
+      mapped[idx] = value;
+    }
+  });
+  return mapped;
+};
 
 // Reflection Prompt Slider Component
 function ReflectionPromptSlider({ question }) {
@@ -1615,15 +1673,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   useEffect(() => {
     if (!programData) return;
     const activeModule = programData.dayModules?.find(m => m.day === selectedDay);
-    if (!activeModule) return;
+    if (!activeModule?.testCompleted) return;
 
-    const storedAnswers = activeModule.dynamicTestResult?.answers;
-    if (activeModule.testCompleted && Array.isArray(storedAnswers) && storedAnswers.length > 0 && Object.keys(testAnswers).length === 0) {
-      const seededAnswers = {};
-      storedAnswers.forEach((score, idx) => {
-        seededAnswers[idx] = score;
-      });
-      setTestAnswers(seededAnswers);
+    const hydrated = deriveAnswerMapFromResult(activeModule.dynamicTestResult || activeModule.dynamicTest || null);
+    if (Object.keys(hydrated).length > 0 && Object.keys(testAnswers).length === 0) {
+      setTestAnswers(hydrated);
     }
   }, [programData, selectedDay, testAnswers]);
 
@@ -2483,6 +2537,21 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     }
   };
 
+  const selectedDayData = programData?.dayModules?.find(m => m.day === selectedDay) || null;
+  const hasDynamicDayContent = Boolean(
+    (selectedDayData?.tasks && selectedDayData.tasks.length > 0) ||
+    selectedDayData?.test
+  );
+  const shouldUseLegacyBurdenFlow = selectedDay === 1 && !hasDynamicDayContent;
+  const isDynamicTestPending = !shouldUseLegacyBurdenFlow && Boolean(selectedDayData?.test && !selectedDayData?.testCompleted);
+  const burdenInfo = getBurdenLevelInfo(programData?.burdenLevel);
+  const selectedDayTestResult = selectedDayData?.dynamicTestResult || null;
+  const storedTestAnswerMap = useMemo(() => deriveAnswerMapFromResult(selectedDayTestResult), [selectedDayTestResult]);
+  const testCompletedAt = selectedDayTestResult?.completedAt ? new Date(selectedDayTestResult.completedAt) : null;
+  const inlineToastTone = inlineToast ? getToastToneStyles(inlineToast.tone) : null;
+  const shouldShowDynamicTest = Boolean(selectedDayData?.test && (!selectedDayData.testCompleted || showTestReview));
+  const isReviewOnlyMode = Boolean(selectedDayData?.testCompleted && showTestReview);
+
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
@@ -2504,18 +2573,6 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       </div>
     );
   }
-
-  const selectedDayData = programData.dayModules?.find(m => m.day === selectedDay);
-  const hasDynamicDayContent = Boolean(
-    (selectedDayData?.tasks && selectedDayData.tasks.length > 0) ||
-    selectedDayData?.test
-  );
-  const shouldUseLegacyBurdenFlow = selectedDay === 1 && !hasDynamicDayContent;
-  const isDynamicTestPending = !shouldUseLegacyBurdenFlow && Boolean(selectedDayData?.test && !selectedDayData?.testCompleted);
-  const burdenInfo = getBurdenLevelInfo(programData.burdenLevel);
-  const selectedDayTestResult = selectedDayData?.dynamicTestResult || null;
-  const testCompletedAt = selectedDayTestResult?.completedAt ? new Date(selectedDayTestResult.completedAt) : null;
-  const inlineToastTone = inlineToast ? getToastToneStyles(inlineToast.tone) : null;
 
   return (
     <div style={styles.container}>
@@ -3000,12 +3057,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       <div style={{ minWidth: isMobile ? '100%' : '240px' }}>
                         <button
                           onClick={() => {
-                            if (!showTestReview && Array.isArray(selectedDayTestResult?.answers)) {
-                              const seededAnswers = {};
-                              selectedDayTestResult.answers.forEach((score, idx) => {
-                                seededAnswers[idx] = score;
-                              });
-                              setTestAnswers(seededAnswers);
+                            if (!showTestReview && Object.keys(storedTestAnswerMap).length > 0) {
+                              setTestAnswers(storedTestAnswerMap);
                             }
                             setShowTestReview(prev => !prev);
                           }}
@@ -3022,10 +3075,10 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                             boxShadow: '0 4px 10px rgba(132, 204, 22, 0.35)'
                           }}
                         >
-                          {showTestReview ? t('hideAssessment') : t('reviewOrEditAnswers')}
+                          {showTestReview ? 'Hide assessment' : 'Review answers'}
                         </button>
                         <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#4d7c0f' }}>
-                          {t('needToMakeChanges')}
+                          You can revisit your submitted responses anytime for reference.
                         </p>
                       </div>
                     </div>
@@ -3033,19 +3086,26 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 )}
 
                 {/* Dynamic Test (active or review) */}
-                {selectedDayData.test && (!selectedDayData.testCompleted || showTestReview) && (
+                {shouldShowDynamicTest && (
                   <div style={{ marginBottom: '24px', padding: '20px', backgroundColor: '#fef3c7', borderRadius: '12px', border: '2px solid #fbbf24' }}>
                     <h4 style={{ ...styles.sectionTitle, color: '#92400e' }}>
-                      📊 {selectedDayData.test.testName || 'Assessment'}
+                      📊 {selectedDayData.test?.testName || 'Assessment'}
                     </h4>
                     <p style={{ fontSize: '14px', color: '#78350f', marginBottom: '16px' }}>
                       {selectedDayData.testCompleted
-                        ? 'Update your answers if anything has changed. Saving will instantly refresh today’s tasks.'
+                        ? (isReviewOnlyMode
+                          ? 'Review your submitted answers below. Editing is disabled to preserve your completed assessment.'
+                          : 'Update your answers if anything has changed. Saving will instantly refresh today’s tasks.')
                         : 'Please complete this assessment to personalize your content.'}
                     </p>
+                    {isReviewOnlyMode && Object.keys(storedTestAnswerMap).length === 0 && (
+                      <p style={{ fontSize: '13px', color: '#b45309', marginBottom: '16px' }}>
+                        We could not find saved answers for this assessment. If this looks incorrect, please contact support.
+                      </p>
+                    )}
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                      {selectedDayData.test.questions?.map((question, qIdx) => (
+                      {selectedDayData.test?.questions?.map((question, qIdx) => (
                         <div key={qIdx} style={{ padding: '16px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #fbbf24' }}>
                           <p style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: '#111827' }}>
                             {qIdx + 1}. {question.questionText}
@@ -3058,7 +3118,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                                   display: 'flex', 
                                   alignItems: 'center', 
                                   gap: '10px', 
-                                  cursor: 'pointer', 
+                                  cursor: isReviewOnlyMode ? 'default' : 'pointer', 
                                   padding: '10px', 
                                   backgroundColor: testAnswers[qIdx] === option.score ? '#fef08a' : '#fefce8', 
                                   borderRadius: '6px', 
@@ -3072,11 +3132,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                                   value={option.score}
                                   checked={testAnswers[qIdx] === option.score}
                                   onChange={(e) => {
+                                    if (isReviewOnlyMode) return;
                                     setTestAnswers(prev => ({
                                       ...prev,
                                       [qIdx]: parseInt(e.target.value)
                                     }));
                                   }}
+                                  disabled={isReviewOnlyMode}
                                   style={{ width: '18px', height: '18px' }}
                                 />
                                 <span style={{ fontSize: '14px', color: '#374151' }}>{option.optionText}</span>
@@ -3087,32 +3149,38 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       ))}
                     </div>
                     
-                    <button
-                      onClick={handleTestSubmit}
-                      disabled={submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length}
-                      style={{
-                        marginTop: '20px',
-                        padding: '12px 24px',
-                        backgroundColor: submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length ? '#d1d5db' : '#f59e0b',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        cursor: submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length ? 'not-allowed' : 'pointer',
-                        width: '100%',
-                        opacity: submittingTest || Object.keys(testAnswers).length !== selectedDayData.test.questions?.length ? 0.6 : 1
-                      }}
-                    >
-                      {submittingTest
-                        ? (selectedDayData.testCompleted ? 'Saving...' : 'Submitting...')
-                        : (selectedDayData.testCompleted ? 'Save Updated Answers' : 'Submit Assessment')}
-                    </button>
-                    
-                    {Object.keys(testAnswers).length < selectedDayData.test.questions?.length && (
-                      <p style={{ fontSize: '13px', color: '#92400e', marginTop: '8px', textAlign: 'center' }}>
-                        Please answer all questions ({Object.keys(testAnswers).length}/{selectedDayData.test.questions?.length} completed)
-                      </p>
+                    {!isReviewOnlyMode && (
+                      <>
+                        <button
+                          onClick={handleTestSubmit}
+                          disabled={
+                            submittingTest ||
+                            Object.keys(testAnswers).length !== (selectedDayData.test?.questions?.length || 0)
+                          }
+                          style={{
+                            marginTop: '20px',
+                            padding: '12px 24px',
+                            backgroundColor: submittingTest || Object.keys(testAnswers).length !== (selectedDayData.test?.questions?.length || 0) ? '#d1d5db' : '#f59e0b',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            cursor: submittingTest || Object.keys(testAnswers).length !== (selectedDayData.test?.questions?.length || 0) ? 'not-allowed' : 'pointer',
+                            width: '100%',
+                            opacity: submittingTest || Object.keys(testAnswers).length !== (selectedDayData.test?.questions?.length || 0) ? 0.6 : 1
+                          }}
+                        >
+                          {submittingTest
+                            ? (selectedDayData.testCompleted ? 'Saving...' : 'Submitting...')
+                            : (selectedDayData.testCompleted ? 'Save Updated Answers' : 'Submit Assessment')}
+                        </button>
+                        {Object.keys(testAnswers).length < (selectedDayData.test?.questions?.length || 0) && (
+                          <p style={{ fontSize: '13px', color: '#92400e', marginTop: '8px', textAlign: 'center' }}>
+                            Please answer all questions ({Object.keys(testAnswers).length}/{selectedDayData.test?.questions?.length || 0} completed)
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
