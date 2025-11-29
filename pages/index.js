@@ -1,22 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Container,
   Typography,
   Button,
   Card,
-  CardContent,
   Grid,
-  IconButton
+  IconButton,
+  Stack,
+  Divider
 } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaQrcode,
-  FaHeart,
-  FaUserMd,
-  FaUsers,
   FaSun,
-  FaMoon
+  FaMoon,
+  FaShieldAlt,
+  FaChartLine,
+  FaVideo,
+  FaPhoneAlt
 } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
 import { useTheme } from '../contexts/ThemeContext';
@@ -25,6 +27,14 @@ import { getTranslation } from '../utils/translations';
 import LanguageSelector from '../components/LanguageSelector';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
+
+const MotionCard = motion(Card);
+const MotionBox = motion(Box);
+
+const fadeSlide = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0 }
+};
 
 export default function Home() {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -36,644 +46,314 @@ export default function Home() {
 
   const t = (key) => getTranslation(currentLanguage, key);
 
-  // Helper for card styles
-  const cardStyle = {
-    backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-    transition: 'all 0.3s ease',
-    '&:hover': {
-      backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 1)' : 'rgba(255, 255, 255, 1)',
-      boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)'
-    }
-  };
+  const impactStats = [
+    { label: t('caregiversHelped') || 'Caregivers Supported', value: '2,100+', trend: '+32%' },
+    { label: t('dailyAssessments') || 'Daily Assessments', value: '18k', trend: '+18%' },
+    { label: t('videoSessions') || 'Video Guidance Minutes', value: '45k', trend: '+24%' }
+  ];
 
-  const textColor = isDarkMode ? '#f1f5f9' : '#1e40af';
+  const journeySteps = [
+    { title: t('stepOneTitle') || 'Enroll & personalize', copy: t('stepOneCopy') || 'Answer focused questions so we can tailor the program to your needs.' },
+    { title: t('stepTwoTitle') || 'Daily learning modules', copy: t('stepTwoCopy') || 'Digestible guidance, coping strategies, and reminders—all in one place.' },
+    { title: t('stepThreeTitle') || 'Track & celebrate progress', copy: t('stepThreeCopy') || 'Follow caregiver wellbeing improvements and stay connected with clinical experts.' }
+  ];
 
-  const features = [
-    {
-      icon: <FaUserMd style={{ fontSize: '3rem', color: isDarkMode ? '#60a5fa' : '#2563eb' }} />,
-      title: t('expertCaregivers') || 'Expert Caregivers',
-      description: t('expertCaregiversDesc') || 'Connect with trained caregivers who provide emotional support and guidance'
-    },
-    {
-      icon: <FaHeart style={{ fontSize: '3rem', color: isDarkMode ? '#f87171' : '#ef4444' }} />,
-      title: t('sevenDayProgram') || '7-Day Program',
-      description: t('sevenDayProgramDesc') || 'Comprehensive stress management and emotional support program'
-    },
-    {
-      icon: <FaUsers style={{ fontSize: '3rem', color: isDarkMode ? '#34d399' : '#10b981' }} />,
-      title: t('patientSupport') || 'Patient Support',
-      description: t('patientSupportDesc') || 'Personalized care and progress tracking for better outcomes'
-    }
+  const journeyCardBackgrounds = isDarkMode
+    ? ['linear-gradient(135deg, #0f172a, #1e293b)', 'linear-gradient(135deg, #111827, #1f2937)', 'linear-gradient(135deg, #0b1120, #1e1b4b)']
+    : ['linear-gradient(135deg, #fff7e0, #ffd89c)', 'linear-gradient(135deg, #ecfeff, #c6f6ff)', 'linear-gradient(135deg, #ede9fe, #c7d2fe)'];
+
+  const supportPillars = [
+    { icon: <FaShieldAlt size={20} />, label: t('secureCare') || 'Secure by design' },
+    { icon: <FaChartLine size={20} />, label: t('insightfulMetrics') || 'Insightful dashboards' },
+    { icon: <FaVideo size={20} />, label: t('guidedVideos') || 'Guided video library' },
+    { icon: <FaPhoneAlt size={20} />, label: t('humanSupport') || 'Nurse-on-call access' }
   ];
 
   return (
-    <Box 
+    <Box
       component="main"
       sx={{
         minHeight: '100vh',
         background: isDarkMode
-          ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
-          : 'linear-gradient(135deg, #efef46ff 0%, #ffcc02ff 100%)',
-        position: 'relative',
-        transition: 'background 0.3s ease'
-      }}>
-      {/* Corner Logos */}
-      <Box sx={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
-        <Image
-          src="/images/logo-1-nlfcp.png"
-          alt="Logo 1"
-          width={120}
-          height={100}
-          style={{
-            borderRadius: 0,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          ? 'radial-gradient(circle at top, #1e293b 0%, #0f172a 60%, #0b1120 100%)'
+          : 'radial-gradient(circle at top, #fff7d1 0%, #ffe076 45%, #ffc83a 100%)',
+        transition: 'background 0.4s ease',
+        position: 'relative'
+      }}
+    >
+      <Box sx={{ position: 'absolute', inset: 0, opacity: isDarkMode ? 0.15 : 0.25, pointerEvents: 'none' }}>
+        <Image src={isDarkMode ? '/images/texture-dark.png' : '/images/texture-light.png'} alt="Background texture" fill style={{ objectFit: 'cover' }} />
+      </Box>
+
+      <Box sx={{ position: 'sticky', top: 0, zIndex: 20, backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <Container
+          maxWidth="lg"
+          sx={{
+            py: 2,
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 1.5
           }}
-        />
-      </Box>
-      <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
-        <Image
-          src="/images/logo-2-nlfcp.png"
-          alt="Logo 2"
-          width={200}
-          height={100}
-          style={{
-            borderRadius: 0,
-           
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-          }}
-        />
-      </Box>
-
-      {/* Header with Controls */}
-      <Box sx={{
-        padding: '20px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        transition: 'background-color 0.3s ease'
-      }}>
-        <Box sx={{
-          display: 'flex',
-          gap: 2,
-          alignItems: 'center'
-        }}>
-          <LanguageSelector />
-          <IconButton
-            onClick={toggleTheme}
-            sx={{
-              color: 'white',
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.1)',
-              '&:hover': {
-                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.2)',
-              },
-              transition: 'all 0.3s ease'
-            }}
-          >
-            {isDarkMode ? <FaSun /> : <FaMoon />}
-          </IconButton>
-        </Box>
-      </Box>
-
-      <Container maxWidth="lg" sx={{ pt: 8, pb: 4 }}>
-        {/* Hero Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
         >
-          <Box textAlign="center" sx={{ mb: 8 }}>
-            <Typography
-              variant="h1"
-              sx={{
-                color: isDarkMode ? '#f1f5f9' : 'white',
-                mb: 3,
-                fontWeight: 800,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                transition: 'color 0.3s ease'
-              }}
-            >
-              {t('mainTitle') || 'Cancer Care Support- Nurse-Led Family Caregiver Program (NLFCP)'}
-            </Typography>
-            <Typography
-              variant="h4"
-              sx={{
-                color: isDarkMode ? 'rgba(241, 245, 249, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                mb: 4,
-                fontWeight: 300,
-                maxWidth: 600,
-                mx: 'auto',
-                transition: 'color 0.3s ease'
-              }}
-            >
-              {t('mainSubtitle') || 'Connecting patients with caregivers for emotional support and stress management'}
-            </Typography>
-
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  variant="contained"
-                  size="large"
-                  startIcon={<FaQrcode />}
-                  onClick={() => setShowQR(!showQR)}
-                  sx={{
-                    backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.2)' : 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    px: 4,
-                    py: 2,
-                    fontSize: '1.1rem',
-                    backdropFilter: 'blur(10px)',
-                    border: isDarkMode ? '1px solid rgba(96, 165, 250, 0.3)' : '1px solid rgba(255, 255, 255, 0.3)',
-                    '&:hover': {
-                      backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.3)' : 'rgba(255, 255, 255, 0.3)',
-                    },
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  {showQR ? t('hideQRCode') : t('showQRCode')}
-                </Button>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  variant="outlined"
-                  size="large"
-                  onClick={() => window.open('/admin/login', '_blank')}
-                  sx={{
-                    color: 'white',
-                    borderColor: isDarkMode ? 'rgba(96, 165, 250, 0.5)' : 'rgba(255, 255, 255, 0.5)',
-                    px: 4,
-                    py: 2,
-                    fontSize: '1.1rem',
-                    '&:hover': {
-                      borderColor: isDarkMode ? '#60a5fa' : 'white',
-                      backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.1)' : 'rgba(255, 255, 255, 0.1)',
-                    },
-                    mr: 2,
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  {t('adminLogin') || 'Admin Login'}
-                </Button>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={() => router.push('/login')}
-                  sx={{
-                    backgroundColor: isDarkMode ? '#60a5fa' : 'white',
-                    color: isDarkMode ? '#0f172a' : '#764ba2',
-                    px: 4,
-                    py: 2,
-                    fontSize: '1.1rem',
-                    '&:hover': {
-                      backgroundColor: isDarkMode ? '#3b82f6' : 'rgba(255, 255, 255, 0.9)',
-                    },
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  {t('userLogin') || 'User Login'}
-                </Button>
-              </motion.div>
-            </Box>
-          </Box>
-        </motion.div>
-
-        {/* QR Code Section */}
-        {showQR && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            justifyContent="center"
+            sx={{ flexWrap: 'wrap', flexGrow: 1, minWidth: 0 }}
           >
-            <Box textAlign="center" sx={{ mb: 8 }}>
-              <Card sx={{
-                maxWidth: 400,
-                mx: 'auto',
-                p: 4,
-                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)',
-                transition: 'all 0.3s ease'
-              }}>
-                <Typography variant="h5" sx={{ mb: 3, color: isDarkMode ? '#f1f5f9' : '#1e293b', transition: 'color 0.3s ease' }}>
-                  {t('scanToGetStarted')}
-                </Typography>
-                <Box sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  mb: 3,
-                  p: 2,
-                  backgroundColor: 'white',
-                  borderRadius: 2
-                }}>
-                  <QRCode value={qrValue} size={200} />
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  {t('scanQRCode')}
-                </Typography>
-              </Card>
+            <Box sx={{ position: 'relative', width: { xs: 60, sm: 70 }, height: { xs: 45, sm: 55 } }}>
+              <Image src="/images/logo-1-nlfcp.png" alt="NLFCP" fill sizes="70px" style={{ objectFit: 'contain' }} />
             </Box>
-          </motion.div>
-        )}
+            <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.2)', display: { xs: 'none', sm: 'block' } }} />
+            <Box sx={{ position: 'relative', width: { xs: 110, sm: 140 }, height: { xs: 45, sm: 55 } }}>
+              <Image src="/images/logo-2-nlfcp.png" alt="Partner" fill sizes="140px" style={{ objectFit: 'contain' }} />
+            </Box>
+          </Stack>
 
-        {/* Feature Tags - Top Row */}
-        <Grid container spacing={2} sx={{ mb: 0, px: 2 }}>
-          <Grid item xs={6} md={4}>
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Card sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                p: 1.5,
-                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-
-                }
-              }}>
-                <Box sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#f0fdf4',
-                  color: isDarkMode ? '#60a5fa' : '#3b82f6',
-                  fontSize: '1.3rem',
-                  transition: 'all 0.3s ease'
-                }}>
-                  🧠
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: isDarkMode ? '#60a5fa' : '#1e40af', transition: 'color 0.3s ease' }}>
-                  {t('assessment')}
-                </Typography>
-              </Card>
-            </motion.div>
-          </Grid>
-          <Grid item xs={6} md={4}>
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Card sx={{
-                ...cardStyle,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                p: 1.5,
-                borderRadius: '12px',
-                cursor: 'pointer',
-                  transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-
-                },
-                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-              }}>
-                <Box sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#f0fdf4',
-                  color: isDarkMode ? '#f87171' : '#ef4444',
-                  fontSize: '1.3rem',
-                  transition: 'all 0.3s ease'
-                }}>
-                  🎥
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: isDarkMode ? '#60a5fa' : '#1e40af', transition: 'color 0.3s ease'}}>
-                  {t('learningModules')}
-                </Typography>
-              </Card>
-            </motion.div>
-          </Grid>
-          <Grid item xs={6} md={4}>
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Card sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                p: 1.5,
-                
-                borderRadius: '12px',
-                cursor: 'pointer',
-                  transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-
-                },
-                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-              }}>
-                <Box sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#f0fdf4',
-                  color: '#22c55e',
-                  fontSize: '1.3rem'
-                }}>
-                  💬
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
-                  {t('nurseChat')}
-                </Typography>
-              </Card>
-            </motion.div>
-          </Grid>
-        </Grid>
-
-        {/* BG image between Learning Modules and Progress cards */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 2, width: '100%' }}>
-          <Box sx={{ width: { xs: '90%', sm: 400, md: 500 }, maxWidth: '100%' }}>
-            <Image
-              src="/images/bg.png"
-              alt="Background"
-              width={500}
-              height={100}
-              style={{
-                width: '100%',
-                height: 'auto',
-                borderRadius: 16,
-                objectFit: 'cover',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-              }}
-              priority
-            />
-          </Box>
-        </Box>
-
-        {/* Feature Tags - Bottom Row */}
-        <Box sx={{ mb: 8 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={6} md={4}>
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Card sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                p: 1.5,
-                
-                borderRadius: '12px',
-               cursor: 'pointer',
-                  transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-
-                },
-                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-              }}>
-                <Box sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#fff7ed',
-                  color: '#f97316',
-                  fontSize: '1.3rem'
-                }}>
-                  📅
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
-                  {t('reminders')}
-                </Typography>
-              </Card>
-            </motion.div>
-          </Grid>
-          <Grid item xs={6} md={4}>
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Card sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                p: 1.5,
-                
-                borderRadius: '12px',
-               cursor: 'pointer',
-                  transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-
-                },
-                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-              }}>
-                <Box sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#faf5ff',
-                  color: '#a855f7',
-                  fontSize: '1.3rem'
-                }}>
-                  📈
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e40af' }}>
-                  {t('progress')}
-                </Typography>
-              </Card>
-            </motion.div>
-          </Grid>
-          <Grid item xs={6} md={4}>
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Box
-                component="a"
-                href="tel:18008914416"
-                onClick={(e) => {
-                  const isMobile = /iPhone|iPad|iPod|Android/i.test(
-                    typeof navigator !== 'undefined' ? navigator.userAgent : ''
-                  );
-                  
-                  if (isMobile) {
-                    // Let the native mobile handling work directly
-                    // The href="tel:" will work automatically
-                    return true;
-                  } else {
-                    // Desktop handling
-                    e.preventDefault();
-                    const phoneNumber = '1800-89-14416';
-                    alert(`Please dial: ${phoneNumber}`);
-                  }
-                }}
-                sx={{
-                  display: 'block',
-                  textDecoration: 'none',
-                  WebkitTapHighlightColor: 'rgba(0,0,0,0)', // Remove tap highlight on mobile
-                  '&:active': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)' // Subtle feedback on tap
-                  }
-                }}
-              >
-                <Button
-                  fullWidth
-                  variant="contained"
-                  sx={{
-                    textTransform: 'none',
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    color: '#1e40af',
-                    p: 2, // Increased padding for better touch target
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    borderRadius: '12px',
-                    boxShadow: 'none',
-                    minHeight: '56px', // Ensure good touch target size
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 1)',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    },
-                    '&:active': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      transform: 'scale(0.98)',
-                    },
-                    '@media (max-width: 600px)': {
-                      p: 2.5, // Even more padding on mobile
-                    },
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  p: 1.5,
-                  border:1,
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  textDecoration: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-
-                },
-                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                }}>
-                <Box sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#ecfdf5',
-                  color: '#10b981',
-                  fontSize: '1.3rem'
-                }}>
-                  🔗
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {t('teleManas')}
-                </Typography>
-                <Typography variant="caption" sx={{ ml: 'auto', color: '#b1b3b6ff' }}>
-                  1800-89-14416
-                </Typography>
-              </Button>
-              </Box>
-            </motion.div>
-          </Grid>
-        </Grid>
-
-        {/* Call to Action */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-        >
-          <Box textAlign="center">
-            <Typography
-              variant="h3"
+          <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center">
+            <LanguageSelector />
+            <IconButton
+              onClick={toggleTheme}
               sx={{
-                color: 'white',
-                mb: 2,
-                fontWeight: 600
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                border: '1px solid rgba(255,255,255,0.25)',
+                color: isDarkMode ? '#f8fafc' : '#1f2937',
+                backgroundColor: isDarkMode ? 'rgba(148,163,184,0.18)' : 'rgba(255,255,255,0.4)',
+                transition: 'all 0.2s ease',
+                '&:hover': { transform: 'translateY(-1px)', borderColor: 'rgba(255,255,255,0.5)' }
               }}
             >
-              {getTranslation(currentLanguage, 'readyToBegin')}
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                color: 'rgba(255, 255, 255, 0.8)',
-                mb: 4,
-                maxWidth: 500,
-                mx: 'auto'
-              }}
-            >
-              {getTranslation(currentLanguage, 'joinCommunity')}
-            </Typography>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button
-                variant="contained"
-                size="large"
-                onClick={() => router.push('/onboarding')}
-                sx={{
-                  backgroundColor: '#f46f0aff',
-                  color: 'white',
-                  px: 6,
-                  py: 2,
-                  fontSize: '1.2rem',
-                  fontWeight: 600,
-                  '&:hover': {
-                    backgroundColor: '#eddc9fff',
-                  }
-                }}
-              >
-                {getTranslation(currentLanguage, 'startOnboarding')}
-              </Button>
-            </motion.div>
-          </Box>
-            </motion.div>
-          </Box>
+              {isDarkMode ? <FaSun /> : <FaMoon />}
+            </IconButton>
+          </Stack>
         </Container>
       </Box>
-    );
+
+      <Container
+        maxWidth="lg"
+        sx={{
+          position: 'relative',
+          zIndex: 5,
+          pt: { xs: 5, md: 8 },
+          pb: { xs: 2.5, md: 4 }
+        }}
+      >
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={7}>
+            <MotionBox initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+              <Typography variant="body2" sx={{ textTransform: 'uppercase', letterSpacing: 6, color: isDarkMode ? '#94a3b8' : '#6b4b00', mb: 2 }}>
+                {t('heroEyebrow') || 'nurse-led family caregiver program'}
+              </Typography>
+              <Typography variant="h2" sx={{ fontSize: { xs: '2.5rem', md: '3.8rem' }, fontWeight: 800, lineHeight: 1.1, color: isDarkMode ? '#f8fafc' : '#1f2937', mb: 3 }}>
+                {t('heroTitle') || 'Care that keeps caregivers resilient'}
+              </Typography>
+              <Typography variant="h6" sx={{ color: isDarkMode ? 'rgba(241,245,249,0.82)' : 'rgba(30,41,59,0.78)', mb: 4, maxWidth: 640 }}>
+                {t('heroCopy') || 'Guided onboarding, daily assessments, rich video coaching, and emotional support channels built specifically for family caregivers navigating cancer journeys.'}
+              </Typography>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 4 }}>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => router.push('/login')}
+                    sx={{
+                      px: 4,
+                      py: 1.8,
+                      background: isDarkMode ? 'linear-gradient(120deg, #60a5fa, #9333ea)' : 'linear-gradient(120deg, #d97706, #f97316)',
+                      boxShadow: '0 20px 30px rgba(0,0,0,0.15)',
+                      fontSize: '1.05rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    {t('ctaPrimary') || 'Enter caregiver/ Patient portal'}
+                  </Button>
+                </motion.div>
+
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={() => window.open('/admin/login', '_blank')}
+                    sx={{
+                      px: 4,
+                      py: 1.8,
+                      borderColor: isDarkMode ? 'rgba(148,163,184,0.5)' : 'rgba(30,41,59,0.4)',
+                      color: isDarkMode ? '#e2e8f0' : '#1f2937',
+                      fontSize: '1.05rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    {t('ctaSecondary') || 'Admin command center'}
+                  </Button>
+                </motion.div>
+              </Stack>
+
+              <Grid container spacing={2}>
+                {impactStats.map((stat, index) => (
+                  <Grid key={stat.label} item xs={12} sm={4}>
+                    <MotionCard
+                      variants={fadeSlide}
+                      initial="hidden"
+                      animate="visible"
+                      transition={{ delay: 0.15 * index }}
+                      sx={{
+                        p: 3,
+                        backgroundColor: isDarkMode ? 'rgba(15,23,42,0.9)' : 'rgba(255,255,255,0.85)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        backdropFilter: 'blur(18px)'
+                      }}
+                    >
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: isDarkMode ? '#f8fafc' : '#1f2937' }}>
+                        {stat.value}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: isDarkMode ? '#cbd5f5' : '#475569', mb: 1 }}>
+                        {stat.label}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: isDarkMode ? '#34d399' : '#15803d', fontWeight: 600 }}>
+                        {stat.trend}
+                      </Typography>
+                    </MotionCard>
+                  </Grid>
+                ))}
+              </Grid>
+            </MotionBox>
+          </Grid>
+
+          <Grid item xs={12} md={5}>
+            <MotionCard
+              variants={fadeSlide}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.7, delay: 0.2 }}
+              sx={{
+                p: 4,
+                borderRadius: 4,
+                background: isDarkMode ? 'rgba(15,23,42,0.92)' : 'rgba(255,255,255,0.95)',
+                border: '1px solid rgba(148,163,184,0.2)',
+                boxShadow: '0 30px 60px rgba(15,23,42,0.25)'
+              }}
+            >
+              <Stack spacing={3}>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  {t('snapshotTitle') || 'Caregiver snapshot'}
+                </Typography>
+                <Stack spacing={2}>
+                  {supportPillars.map((pillar) => (
+                    <Stack key={pillar.label} direction="row" spacing={2} alignItems="center" sx={{ p: 2, borderRadius: 2, backgroundColor: isDarkMode ? 'rgba(96,165,250,0.08)' : 'rgba(15,23,42,0.04)' }}>
+                      <Box sx={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? 'rgba(96,165,250,0.15)' : 'rgba(15,23,42,0.08)' }}>
+                        {pillar.icon}
+                      </Box>
+                      <Typography fontWeight={600}>{pillar.label}</Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+
+                <Divider sx={{ borderColor: 'rgba(148,163,184,0.3)' }} />
+
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    fullWidth
+                    onClick={() => setShowQR(true)}
+                    startIcon={<FaQrcode />}
+                    sx={{
+                      py: 1.5,
+                      backgroundColor: isDarkMode ? 'rgba(96,165,250,0.18)' : 'rgba(15,23,42,0.08)',
+                      borderRadius: 2,
+                      color: isDarkMode ? '#e2e8f0' : '#1f2937'
+                    }}
+                  >
+                    {t('getOnboardLink') || 'Get onboarding link'}
+                  </Button>
+                  <Button
+                    fullWidth
+                    onClick={() => router.push('/onboarding')}
+                    variant="contained"
+                    sx={{ py: 1.5, borderRadius: 2 }}
+                  >
+                    {t('startNow') || 'Start now'}
+                  </Button>
+                </Stack>
+
+                <AnimatePresence>
+                  {showQR && (
+                    <motion.div initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} style={{ display: 'flex', justifyContent: 'center' }}>
+                      <Box sx={{ p: 2, borderRadius: 3, backgroundColor: isDarkMode ? '#0b1120' : '#fff', border: '1px solid rgba(148,163,184,0.4)' }}>
+                        <QRCode value={qrValue} size={200} />
+                      </Box>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Stack>
+            </MotionCard>
+          </Grid>
+        </Grid>
+
+        <Grid container spacing={3} sx={{ mt: { xs: 8, md: 12 } }}>
+          {journeySteps.map((step, idx) => (
+            <Grid key={step.title} item xs={12} md={4}>
+              <MotionCard
+                variants={fadeSlide}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ delay: idx * 0.1 }}
+                sx={{
+                  p: 3,
+                  minHeight: 220,
+                  borderRadius: 3,
+                  background: journeyCardBackgrounds[idx],
+                  border: '1px solid rgba(148,163,184,0.2)'
+                }}
+              >
+                <Typography variant="overline" sx={{ letterSpacing: 3 }}>{`0${idx + 1}`}</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+                  {step.title}
+                </Typography>
+                <Typography variant="body1" sx={{ color: isDarkMode ? '#cbd5f5' : '#475569' }}>
+                  {step.copy}
+                </Typography>
+              </MotionCard>
+            </Grid>
+          ))}
+        </Grid>
+
+        <MotionCard
+          variants={fadeSlide}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          sx={{
+            mt: { xs: 3, md: 4 },
+            p: { xs: 4, md: 6 },
+            borderRadius: 4,
+            textAlign: 'center',
+            background: isDarkMode ? 'linear-gradient(130deg, rgba(14,116,144,0.9), rgba(15,23,42,0.95))' : 'linear-gradient(130deg, rgba(245,158,11,0.9), rgba(251,191,36,0.95))'
+          }}
+        >
+          <Typography variant="h4" sx={{ fontWeight: 800, color: '#fff', mb: 2 }}>
+            {t('ctaBannerTitle') || 'Give caregivers the clarity they deserve.'}
+          </Typography>
+          <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.85)', maxWidth: 640, mx: 'auto', mb: 4 }}>
+            {t('ctaBannerCopy') || 'This platform orchestrates structured onboarding, multilingual education, and expert phone support so every family feels guided.'}
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+            <Button size="large" variant="contained" color="secondary" onClick={() => router.push('/onboarding')} sx={{ px: 5 }}>
+              {t('ctaBannerPrimary') || 'Launch onboarding'}
+            </Button>
+            <Button size="large" variant="outlined" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} sx={{ px: 5, color: '#fff', borderColor: 'rgba(255,255,255,0.5)' }}>
+              {t('ctaBannerSecondary') || 'Explore modules'}
+            </Button>
+          </Stack>
+        </MotionCard>
+      </Container>
+    </Box>
+  );
 }
