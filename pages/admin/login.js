@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -26,7 +26,56 @@ export default function AdminLogin() {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPasswordManager, setShowPasswordManager] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    username: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
+  const [passwordValidationMessage, setPasswordValidationMessage] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const router = useRouter();
+
+  const passwordGuidelines = [
+    'Use at least 8 characters.',
+    'Include at least one letter (A-Z or a-z).',
+    'Include at least one number (0-9).',
+    'Include at least one symbol such as ! @ # $ %.'
+  ];
+
+  useEffect(() => {
+    if (showPasswordManager && !passwordForm.username && credentials.username) {
+      setPasswordForm(prev => ({ ...prev, username: credentials.username }));
+    }
+  }, [showPasswordManager, credentials.username, passwordForm.username]);
+
+  const validateNewPassword = (value = '') => {
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters long.';
+    }
+    if (!/[A-Za-z]/.test(value)) {
+      return 'Password must include at least one letter (A-Z or a-z).';
+    }
+    if (!/[0-9]/.test(value)) {
+      return 'Password must include at least one number (0-9).';
+    }
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(value)) {
+      return 'Password must include at least one valid symbol (e.g. ! @ # $ %).';
+    }
+    return '';
+  };
+
+  const handlePasswordFieldChange = (field, value) => {
+    setPasswordForm(prev => ({ ...prev, [field]: value }));
+    if (field === 'newPassword') {
+      setPasswordValidationMessage(validateNewPassword(value));
+    }
+    if (passwordStatus.type) {
+      setPasswordStatus({ type: '', message: '' });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,6 +102,55 @@ export default function AdminLogin() {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    setPasswordStatus({ type: '', message: '' });
+
+    const policyError = validateNewPassword(passwordForm.newPassword);
+    if (policyError) {
+      setPasswordStatus({ type: 'error', message: policyError });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordStatus({ type: 'error', message: 'New password and confirmation do not match.' });
+      return;
+    }
+
+    if (!passwordForm.username || !passwordForm.currentPassword) {
+      setPasswordStatus({ type: 'error', message: 'Username and current password are required.' });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const response = await fetch('/api/auth/admin-change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: passwordForm.username,
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setPasswordStatus({ type: 'success', message: data.message || 'Password updated successfully.' });
+        setCredentials(prev => ({ ...prev, username: passwordForm.username, password: '' }));
+        setPasswordForm(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+        setPasswordValidationMessage('');
+      } else {
+        setPasswordStatus({ type: 'error', message: data.message || 'Unable to update password.' });
+      }
+    } catch (err) {
+      setPasswordStatus({ type: 'error', message: 'Network error. Please try again.' });
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -234,6 +332,102 @@ export default function AdminLogin() {
                   Secure admin access to manage users and assignments
                 </Typography>
               </Box>
+
+              <Box textAlign="center" sx={{ mt: 3 }}>
+                <Button
+                  variant="text"
+                  onClick={() => setShowPasswordManager(prev => !prev)}
+                  sx={{ fontWeight: 600 }}
+                >
+                  {showPasswordManager ? 'Hide password tools' : 'Need to change your password?'}
+                </Button>
+              </Box>
+
+              {showPasswordManager && (
+                <Card sx={{ mt: 3, backgroundColor: 'rgba(37, 99, 235, 0.04)', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>Update Admin Password</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Your password must meet all of the following requirements:
+                    </Typography>
+                    <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+                      {passwordGuidelines.map(item => (
+                        <Typography key={item} component="li" variant="body2">
+                          {item}
+                        </Typography>
+                      ))}
+                    </Box>
+
+                    {passwordStatus.message && (
+                      <Alert severity={passwordStatus.type === 'success' ? 'success' : 'error'} sx={{ mb: 2 }}>
+                        {passwordStatus.message}
+                      </Alert>
+                    )}
+
+                    <form onSubmit={handlePasswordUpdate}>
+                      <Box sx={{ mb: 2 }}>
+                        <TextField
+                          fullWidth
+                          label="Username"
+                          variant="outlined"
+                          value={passwordForm.username}
+                          onChange={(e) => handlePasswordFieldChange('username', e.target.value)}
+                          required
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 2 }}>
+                        <TextField
+                          fullWidth
+                          label="Current Password"
+                          type="password"
+                          variant="outlined"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) => handlePasswordFieldChange('currentPassword', e.target.value)}
+                          required
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 2 }}>
+                        <TextField
+                          fullWidth
+                          label="New Password"
+                          type="password"
+                          variant="outlined"
+                          value={passwordForm.newPassword}
+                          onChange={(e) => handlePasswordFieldChange('newPassword', e.target.value)}
+                          required
+                          helperText={passwordForm.newPassword ? passwordValidationMessage || 'Looks good!' : 'Enter a password that meets the listed requirements.'}
+                          error={Boolean(passwordForm.newPassword && passwordValidationMessage)}
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 3 }}>
+                        <TextField
+                          fullWidth
+                          label="Confirm New Password"
+                          type="password"
+                          variant="outlined"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => handlePasswordFieldChange('confirmPassword', e.target.value)}
+                          required
+                        />
+                      </Box>
+
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        color="secondary"
+                        fullWidth
+                        disabled={passwordLoading}
+                        sx={{ fontWeight: 600 }}
+                      >
+                        {passwordLoading ? 'Updating...' : 'Update Password'}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
         </motion.div>

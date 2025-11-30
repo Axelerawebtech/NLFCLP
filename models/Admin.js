@@ -31,6 +31,10 @@ const AdminSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  passwordUpdatedAt: {
+    type: Date,
+    default: null,
+  },
 });
 
 export default mongoose.models.Admin || mongoose.model('Admin', AdminSchema);
