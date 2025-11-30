@@ -8,7 +8,8 @@ import {
   Grid,
   IconButton,
   Stack,
-  Divider
+  Divider,
+  TextField
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -18,7 +19,9 @@ import {
   FaShieldAlt,
   FaChartLine,
   FaVideo,
-  FaPhoneAlt
+  FaPhoneAlt,
+  FaRobot,
+  FaPaperPlane
 } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
 import { useTheme } from '../contexts/ThemeContext';
@@ -40,6 +43,11 @@ export default function Home() {
   const { isDarkMode, toggleTheme } = useTheme();
   const { currentLanguage } = useLanguage();
   const [showQR, setShowQR] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([
+    { sender: 'bot', text: 'Hi! I am the NLFCare assistant. How can I help today?' }
+  ]);
   const router = useRouter();
 
   const qrValue = `${typeof window !== 'undefined' ? window.location.origin : ''}/onboarding`;
@@ -85,12 +93,41 @@ export default function Home() {
       onClick: () => router.push('/login')
     },
     {
+      icon: <FaRobot size={20} />,
+      label: 'AI chat bot',
+      helper: 'Always-on caregiver assistant',
+      onClick: () => setIsChatOpen(true)
+    },
+    {
       icon: <FaPhoneAlt size={20} />,
       label: 'Tele MANAS helpline',
       helper: `Tap to call ${teleManasNumber}`,
       href: teleManasHref
     }
   ];
+
+  const handleSendMessage = () => {
+    if (!chatInput.trim()) return;
+    const trimmed = chatInput.trim();
+    const lower = trimmed.toLowerCase();
+    const reply = /\bhi\b|hello|hey/.test(lower)
+      ? 'Hello! Great to hear from you. Let me know how I can support your caregiver journey.'
+      : 'Thanks for reaching out! A caregiver specialist will follow up shortly.';
+
+    setChatMessages((prev) => [
+      ...prev,
+      { sender: 'user', text: trimmed },
+      { sender: 'bot', text: reply }
+    ]);
+    setChatInput('');
+  };
+
+  const handleChatKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   return (
     <Box
@@ -417,6 +454,102 @@ export default function Home() {
           </Stack>
         </MotionCard>
       </Container>
+
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 40,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: 2
+        }}
+      >
+        {isChatOpen && (
+          <Card
+            sx={{
+              width: 320,
+              borderRadius: 3,
+              boxShadow: '0 20px 45px rgba(15,23,42,0.35)',
+              border: '1px solid rgba(148,163,184,0.2)',
+              backgroundColor: isDarkMode ? 'rgba(15,23,42,0.95)' : '#fff'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box sx={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: isDarkMode ? 'rgba(96,165,250,0.3)' : 'rgba(15,23,42,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FaRobot />
+                </Box>
+                <Box>
+                  <Typography fontWeight={700} variant="subtitle1">NLF AI Companion</Typography>
+                  <Typography variant="caption" color="text.secondary">Always-on helper</Typography>
+                </Box>
+              </Stack>
+              <Button size="small" onClick={() => setIsChatOpen(false)}>Close</Button>
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(148,163,184,0.3)' }} />
+
+            <Box sx={{ maxHeight: 260, overflowY: 'auto', px: 2, py: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {chatMessages.map((message, index) => (
+                <Box
+                  key={`${message.sender}-${index}-${message.text}`}
+                  sx={{
+                    alignSelf: message.sender === 'user' ? 'flex-end' : 'flex-start',
+                    maxWidth: '80%',
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: 2,
+                    backgroundColor: message.sender === 'user'
+                      ? (isDarkMode ? 'rgba(96,165,250,0.25)' : 'rgba(59,130,246,0.15)')
+                      : (isDarkMode ? 'rgba(148,163,184,0.2)' : 'rgba(15,23,42,0.08)')
+                  }}
+                >
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {message.text}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(148,163,184,0.3)' }} />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 2 }}>
+              <TextField
+                fullWidth
+                placeholder="Say hi..."
+                size="small"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={handleChatKeyDown}
+              />
+              <IconButton color="primary" onClick={handleSendMessage}>
+                <FaPaperPlane size={14} />
+              </IconButton>
+            </Box>
+          </Card>
+        )}
+
+        <IconButton
+          onClick={() => setIsChatOpen((prev) => !prev)}
+          sx={{
+            width: 64,
+            height: 64,
+            borderRadius: '50%',
+            boxShadow: '0 20px 35px rgba(0,0,0,0.25)',
+            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+            color: '#fff',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 24px 45px rgba(0,0,0,0.35)'
+            }
+          }}
+        >
+          <FaRobot size={28} />
+        </IconButton>
+      </Box>
     </Box>
   );
 }
