@@ -46,6 +46,9 @@ export default function Home() {
 
   const t = (key) => getTranslation(currentLanguage, key);
 
+  const teleManasNumber = '18008914416';
+  const teleManasHref = `tel:${teleManasNumber}`;
+
   const impactStats = [
     { label: t('caregiversHelped') || 'Caregivers Supported', value: '2,100+', trend: '+32%' },
     { label: t('dailyAssessments') || 'Daily Assessments', value: '18k', trend: '+18%' },
@@ -63,10 +66,30 @@ export default function Home() {
     : ['linear-gradient(135deg, #fff7e0, #ffd89c)', 'linear-gradient(135deg, #ecfeff, #c6f6ff)', 'linear-gradient(135deg, #ede9fe, #c7d2fe)'];
 
   const supportPillars = [
-    { icon: <FaShieldAlt size={20} />, label: t('secureCare') || 'Secure by design' },
-    { icon: <FaChartLine size={20} />, label: t('insightfulMetrics') || 'Insightful dashboards' },
-    { icon: <FaVideo size={20} />, label: t('guidedVideos') || 'Guided video library' },
-    { icon: <FaPhoneAlt size={20} />, label: t('humanSupport') || 'Nurse-on-call access' }
+    {
+      icon: <FaShieldAlt size={20} />,
+      label: t('secureCare') || 'Secure by design',
+      helper: 'Enterprise-grade encryption & compliance',
+      onClick: () => router.push('/login')
+    },
+    {
+      icon: <FaChartLine size={20} />,
+      label: t('insightfulMetrics') || 'Insightful dashboards',
+      helper: 'Real-time caregiver progress tracking',
+      onClick: () => router.push('/login')
+    },
+    {
+      icon: <FaVideo size={20} />,
+      label: t('guidedVideos') || 'Guided video library',
+      helper: 'Daily bite-sized expert coaching',
+      onClick: () => router.push('/login')
+    },
+    {
+      icon: <FaPhoneAlt size={20} />,
+      label: 'Tele MANAS helpline',
+      helper: `Tap to call ${teleManasNumber}`,
+      href: teleManasHref
+    }
   ];
 
   return (
@@ -245,14 +268,54 @@ export default function Home() {
                   {t('snapshotTitle') || 'Caregiver snapshot'}
                 </Typography>
                 <Stack spacing={2}>
-                  {supportPillars.map((pillar) => (
-                    <Stack key={pillar.label} direction="row" spacing={2} alignItems="center" sx={{ p: 2, borderRadius: 2, backgroundColor: isDarkMode ? 'rgba(96,165,250,0.08)' : 'rgba(15,23,42,0.04)' }}>
-                      <Box sx={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? 'rgba(96,165,250,0.15)' : 'rgba(15,23,42,0.08)' }}>
-                        {pillar.icon}
-                      </Box>
-                      <Typography fontWeight={600}>{pillar.label}</Typography>
-                    </Stack>
-                  ))}
+                  {supportPillars.map((pillar) => {
+                    const buttonProps = pillar.href
+                      ? { component: 'a', href: pillar.href }
+                      : { onClick: pillar.onClick };
+
+                    return (
+                      <Button
+                        key={pillar.label}
+                        variant="outlined"
+                        {...buttonProps}
+                        fullWidth
+                        sx={{
+                          justifyContent: 'flex-start',
+                          textTransform: 'none',
+                          borderColor: 'transparent',
+                          color: isDarkMode ? '#e2e8f0' : '#1f2937',
+                          backgroundColor: isDarkMode ? 'rgba(96,165,250,0.08)' : 'rgba(15,23,42,0.04)',
+                          borderRadius: 2,
+                          py: 1.5,
+                          '&:hover': {
+                            borderColor: isDarkMode ? 'rgba(96,165,250,0.4)' : 'rgba(15,23,42,0.2)',
+                            backgroundColor: isDarkMode ? 'rgba(96,165,250,0.18)' : 'rgba(15,23,42,0.08)'
+                          }
+                        }}
+                      >
+                        <Box sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: isDarkMode ? 'rgba(96,165,250,0.15)' : 'rgba(15,23,42,0.08)',
+                          mr: 2
+                        }}>
+                          {pillar.icon}
+                        </Box>
+                        <Box textAlign="left">
+                          <Typography fontWeight={700}>{pillar.label}</Typography>
+                          {pillar.helper && (
+                            <Typography variant="caption" sx={{ color: isDarkMode ? '#cbd5f5' : '#475569' }}>
+                              {pillar.helper}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Button>
+                    );
+                  })}
                 </Stack>
 
                 <Divider sx={{ borderColor: 'rgba(148,163,184,0.3)' }} />
