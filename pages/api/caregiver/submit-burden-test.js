@@ -116,22 +116,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Get global program configuration
-    const config = await ProgramConfig.findOne({ configType: 'global' });
-    
-    let videoConfig = null;
-    let videoAvailable = false;
-    
-    // Check if video is configured for this burden level
-    if (config && config.day1 && config.day1.videos && config.day1.videos[burdenLevel]) {
-      videoConfig = config.day1.videos[burdenLevel];
-      // Check if video URLs are actually present (not empty objects)
-      if (videoConfig.videoUrl && 
-          (videoConfig.videoUrl.english || videoConfig.videoUrl.kannada || videoConfig.videoUrl.hindi)) {
-        videoAvailable = true;
-      }
-    }
-
     // Update Day 1 module - use enhanced model structure
     day1Module.dailyAssessment = {
       day: 1,
@@ -142,14 +126,9 @@ export default async function handler(req, res) {
       completedAt: new Date()
     };
     
-    // Only set video fields if video is available
-    if (videoAvailable) {
-      // Video content will be fetched dynamically by the frontend
-      day1Module.progressPercentage = 50; // Test completed, video pending
-    } else {
-      // Video not available - set progress to 50% (test done)
-      day1Module.progressPercentage = 50;
-    }
+    // Video content will be fetched from dynamicDayStructures via dynamic-day-content API
+    // Legacy day1.videos system removed
+    day1Module.progressPercentage = 50; // Test completed, video pending
 
     // Update program-level burden info - keep original burden level for frontend
     program.burdenLevel = burdenLevel; // Keep original (mild/moderate/severe) for video fetching

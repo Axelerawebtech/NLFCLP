@@ -50,61 +50,21 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Program configuration not found' });
     }
 
-    let videoContent = null;
-
-    if (dayNum === 0) {
-      // Day 0: Core module - same for all caregivers
-      if (config.day0IntroVideo) {
-        console.log('📹 Day 0 video URLs available:', Object.keys(config.day0IntroVideo.videoUrl || {}));
-        console.log(`🎯 Fetching Day 0 video for language: ${dbLanguage}`);
-        console.log(`📺 Video URL: ${config.day0IntroVideo.videoUrl?.[dbLanguage]?.substring(0, 80)}...`);
-        
-        videoContent = {
-          day: 0,
-          title: config.day0IntroVideo.title?.[dbLanguage] || config.day0IntroVideo.title?.english || 'Welcome Video',
-          videoUrl: config.day0IntroVideo.videoUrl?.[dbLanguage] || config.day0IntroVideo.videoUrl?.english || '',
-          description: config.day0IntroVideo.description?.[dbLanguage] || config.day0IntroVideo.description?.english || '',
-          type: 'core-module'
-        };
+    // Legacy video content system removed
+    // All video content now managed through dynamicDayStructures
+    // Use /api/caregiver/dynamic-day-content endpoint instead
+    
+    console.log('❌ This endpoint is deprecated');
+    return res.status(410).json({ 
+      error: 'Endpoint deprecated', 
+      message: 'This endpoint has been deprecated. Please use /api/caregiver/dynamic-day-content to fetch day content including videos.',
+      recommendedEndpoint: '/api/caregiver/dynamic-day-content',
+      parameters: {
+        caregiverId: 'required',
+        day: dayNum,
+        language: dbLanguage
       }
-    } else if (dayNum === 1) {
-      // Day 1: Post-burden assessment videos
-      if (!burdenLevel) {
-        return res.status(400).json({ error: 'Burden level required for Day 1' });
-      }
-
-      if (config.day1?.videos?.[burdenLevel]) {
-        const day1Video = config.day1.videos[burdenLevel];
-        videoContent = {
-          day: 1,
-          title: day1Video.videoTitle?.[dbLanguage] || day1Video.videoTitle?.english || 'Day 1 Video',
-          videoUrl: day1Video.videoUrl?.[dbLanguage] || day1Video.videoUrl?.english || '',
-          description: day1Video.description?.[dbLanguage] || day1Video.description?.english || '',
-          type: 'burden-specific',
-          burdenLevel
-        };
-      }
-    } else {
-      // Days 2-7: Dynamic content based on burden level
-      if (!burdenLevel) {
-        return res.status(400).json({ error: 'Burden level required for Days 2-7' });
-      }
-
-      if (config.contentRules?.[burdenLevel]?.days) {
-        const dayContent = config.contentRules[burdenLevel].days.get(dayNum.toString());
-        if (dayContent) {
-          videoContent = {
-            day: dayNum,
-            title: dayContent.videoTitle?.[dbLanguage] || dayContent.videoTitle?.english || `Day ${dayNum} Video`,
-            videoUrl: dayContent.videoUrl?.[dbLanguage] || dayContent.videoUrl?.english || '',
-            description: dayContent.content?.[dbLanguage] || dayContent.content?.english || '',
-            tasks: dayContent.tasks || [],
-            type: 'burden-specific',
-            burdenLevel
-          };
-        }
-      }
-    }
+    });
 
     if (!videoContent) {
       console.log(`❌ No video content found for Day ${dayNum}, Language: ${dbLanguage}, Burden: ${burdenLevel}`);

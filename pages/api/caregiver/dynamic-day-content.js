@@ -106,43 +106,7 @@ export default async function handler(req, res) {
         const translation = getTranslationForDay(config, dayNumber, lang);
         dayConfig = composeDayConfig(structure, translation);
         
-        // Special handling for Day 0: Inject video from day0IntroVideo if available
-        if (dayNumber === 0 && config.day0IntroVideo && dayConfig) {
-          console.log(`🎥 Injecting Day 0 video for language: ${lang}`);
-          const videoUrl = config.day0IntroVideo.videoUrl?.[lang] || config.day0IntroVideo.videoUrl?.english;
-          console.log(`📺 Day 0 video URL: ${videoUrl?.substring(0, 80)}...`);
-          
-          if (videoUrl) {
-            // Find or create a video task in the day config
-            if (!dayConfig.contentByLevel || !dayConfig.contentByLevel[0]) {
-              dayConfig.contentByLevel = [{ levelKey: 'default', levelLabel: 'Core Module', tasks: [] }];
-            }
-            
-            const levelConfig = dayConfig.contentByLevel[0];
-            if (!levelConfig.tasks) {
-              levelConfig.tasks = [];
-            }
-            
-            // Check if there's already a video task
-            let videoTask = levelConfig.tasks.find(t => t.taskType === 'video');
-            if (!videoTask) {
-              // Create a new video task
-              videoTask = {
-                taskId: `task_day0_intro_video`,
-                taskType: 'video',
-                taskOrder: 1,
-                title: config.day0IntroVideo.title?.[lang] || config.day0IntroVideo.title?.english || 'Introduction Video',
-                description: config.day0IntroVideo.description?.[lang] || config.day0IntroVideo.description?.english || '',
-                content: { videoUrl }
-              };
-              levelConfig.tasks.unshift(videoTask); // Add at the beginning
-            } else {
-              // Update existing video task with correct URL
-              if (!videoTask.content) videoTask.content = {};
-              videoTask.content.videoUrl = videoUrl;
-            }
-          }
-        }
+        // Legacy day0IntroVideo injection removed - Day 0 now fully managed via dynamicDayStructures
       } else {
         dayConfig = config.dynamicDays?.find(
           d => d.dayNumber === dayNumber && d.language === lang

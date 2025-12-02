@@ -60,35 +60,16 @@ export default async function handler(req, res) {
       }
     }
 
-    if (dayNum === 0) {
-      // Day 0: Core module
-      if (config.day0IntroVideo?.videoUrl?.[language]) {
-        config.day0IntroVideo.videoUrl[language] = '';
-        config.day0IntroVideo.title[language] = '';
-        config.day0IntroVideo.description[language] = '';
-        videoDeleted = true;
-      }
-    } else if (dayNum === 1) {
-      // Day 1: Burden assessment videos
-      if (config.day1?.videos?.[burdenLevel]?.videoUrl?.[language]) {
-        config.day1.videos[burdenLevel].videoUrl[language] = '';
-        config.day1.videos[burdenLevel].videoTitle[language] = '';
-        config.day1.videos[burdenLevel].description[language] = '';
-        videoDeleted = true;
-      }
-    } else {
-      // Days 2-7: Dynamic content
-      if (config.contentRules?.[burdenLevel]?.days) {
-        const dayContent = config.contentRules[burdenLevel].days.get(dayNum.toString());
-        if (dayContent?.videoUrl?.[language]) {
-          dayContent.videoUrl[language] = '';
-          dayContent.videoTitle[language] = '';
-          dayContent.content[language] = '';
-          config.contentRules[burdenLevel].days.set(dayNum.toString(), dayContent);
-          videoDeleted = true;
-        }
-      }
-    }
+    // Legacy delete logic removed
+    // All video deletion should now be handled through the admin dynamic-days API
+    // which manages the unified dynamicDayStructures system
+    
+    console.log('❌ This endpoint is deprecated. Use admin dynamic-days API for video management.');
+    return res.status(410).json({ 
+      error: 'Endpoint deprecated', 
+      message: 'This endpoint has been deprecated. Please use the admin dynamic-days API to manage videos in the unified dynamicDayStructures system.',
+      recommendedEndpoint: '/api/admin/dynamic-days/tasks'
+    });
 
     if (!videoDeleted) {
       return res.status(404).json({ error: 'Video not found for deletion' });

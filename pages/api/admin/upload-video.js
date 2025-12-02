@@ -166,181 +166,149 @@ export default async function handler(req, res) {
         throw new Error('Upload completed but no secure URL returned from Cloudinary');
       }
 
-      // Auto-save to database if day is specified
+      // Auto-save to unified dynamicDayStructures system
       let autoSaved = false;
+      let autoSaveError = null;
       
-      console.log('🔧 Auto-save logic starting - FIXED VERSION Dec 1, 2025');
-      console.log('📊 Params for auto-save:', { day, dayType: typeof day, language, burdenLevel });
-      
-      // Find or create global config
-      let config = await ProgramConfig.findOne({ 
-        configType: 'global', 
-        caregiverId: null 
-      });
-
-      if (!config) {
-        config = new ProgramConfig({
-          configType: 'global',
-          caregiverId: null,
-          isActive: true
-        });
-      }
-
-      // Auto-save for Day 0 (core module)
-      if (day === 0) {
+      if (day !== null && day >= 0 && day <= 7) {
         try {
-          console.log(`💾 Auto-saving Day 0 video to database for ${language}...`);
+          console.log('🔧 Auto-saving to dynamicDayStructures system...');
+          console.log('📊 Params:', { day, language, burdenLevel, videoTitle });
           
-          // Initialize day0IntroVideo if it doesn't exist
-          if (!config.day0IntroVideo) {
-            config.day0IntroVideo = {
-              title: {},
-              videoUrl: {},
-              description: {}
-            };
-          }
-
-          // Initialize language objects if needed
-          ['title', 'videoUrl', 'description'].forEach(field => {
-            if (!config.day0IntroVideo[field]) {
-              config.day0IntroVideo[field] = {};
-            }
+          // Find or create global config
+          let config = await ProgramConfig.findOne({ 
+            configType: 'global', 
+            caregiverId: null 
           });
 
-          // Save the video URL
-          config.day0IntroVideo.videoUrl[language] = uploadResult.secure_url;
-          
-          if (videoTitle) {
-            config.day0IntroVideo.title[language] = videoTitle;
-          }
-          
-          if (description) {
-            config.day0IntroVideo.description[language] = description;
+          if (!config) {
+            config = new ProgramConfig({
+              configType: 'global',
+              caregiverId: null,
+              isActive: true,
+              dynamicDayStructures: [],
+              dynamicDayTranslations: []
+            });
           }
 
+          // Initialize structures if needed
+          if (!config.dynamicDayStructures) {
+            config.dynamicDayStructures = [];
+          }
+          if (!config.dynamicDayTranslations) {
+            config.dynamicDayTranslations = [];
+          }
+
+          // Find or create day structure
+          let dayStructure = config.dynamicDayStructures.find(d => d.dayNumber === day);
+          if (!dayStructure) {
+            dayStructure = {
+              dayNumber: day,
+              enabled: true,
+              hasTest: day === 1, // Day 1 has burden test
+              contentByLevel: []
+            };
+            config.dynamicDayStructures.push(dayStructure);
+          }
+
+          // Determine level key
+          let levelKey = 'default';
+          if (day === 0) {
+            levelKey = 'default';
+          } else if (day === 1 && burdenLevel) {
+            levelKey = burdenLevel; // mild, moderate, severe
+          } else if (day >= 2 && burdenLevel) {
+            levelKey = burdenLevel;
+          }
+
+          // Find or create level
+          let levelContent = dayStructure.contentByLevel.find(l => l.levelKey === levelKey);
+          if (!levelContent) {
+            levelContent = {
+              levelKey: levelKey,
+              levelLabel: levelKey === 'default' ? 'Core Module' : 
+                         levelKey.charAt(0).toUpperCase() + levelKey.slice(1) + ' Level',
+              tasks: []
+            };
+            dayStructure.contentByLevel.push(levelContent);
+          }
+
+          // Find or create video task
+          let videoTask = levelContent.tasks.find(t => t.taskType === 'video' && t.taskOrder === 1);
+          if (!videoTask) {
+            videoTask = {
+              taskId: `task_day${day}_${levelKey}_intro_video`,
+              taskType: 'video',
+              taskOrder: 1,
+              enabled: true,
+              title: '', // Will be in translations
+              description: '',
+              content: {}
+            };
+            levelContent.tasks.push(videoTask);
+          }
+
+          // Update video URL in content
+          if (!videoTask.content) {
+            videoTask.content = {};
+          }
+          videoTask.content.videoUrl = uploadResult.secure_url;
+
+          // Update translation
+          let translation = config.dynamicDayTranslations.find(
+            t => t.dayNumber === day && t.language === language
+          );
+          if (!translation) {
+            translation = {
+              dayNumber: day,
+              language: language,
+              dayName: `Day ${day}`,
+              levelContent: []
+            };
+            config.dynamicDayTranslations.push(translation);
+          }
+
+          // Find or create level in translation
+          let translationLevel = translation.levelContent.find(l => l.levelKey === levelKey);
+          if (!translationLevel) {
+            translationLevel = {
+              levelKey: levelKey,
+              levelLabel: levelKey === 'default' ? 'Core Module' : 
+                         levelKey.charAt(0).toUpperCase() + levelKey.slice(1) + ' Level',
+              tasks: []
+            };
+            translation.levelContent.push(translationLevel);
+          }
+
+          // Find or create task translation
+          let taskTranslation = translationLevel.tasks.find(t => t.taskId === videoTask.taskId);
+          if (!taskTranslation) {
+            taskTranslation = {
+              taskId: videoTask.taskId,
+              title: videoTitle || `Day ${day} Video`,
+              description: description || ''
+            };
+            translationLevel.tasks.push(taskTranslation);
+          } else {
+            // Update existing translation
+            if (videoTitle) taskTranslation.title = videoTitle;
+            if (description) taskTranslation.description = description;
+          }
+
+          // Mark as modified and save
+          config.markModified('dynamicDayStructures');
+          config.markModified('dynamicDayTranslations');
           config.updatedAt = new Date();
-          config.markModified('day0IntroVideo');
           
           await config.save();
           autoSaved = true;
 
-          console.log(`✅ Day 0 video auto-saved to database for ${language}`);
+          console.log(`✅ Video auto-saved to dynamicDayStructures for Day ${day}, Level: ${levelKey}, Language: ${language}`);
 
         } catch (dbError) {
-          console.error('❌ Database save error for Day 0:', dbError);
-          // Don't fail the upload, just log the error
-        }
-      }
-      
-      // Auto-save for Day 1 with burden level
-      if (day === 1 && burdenLevel) {
-        try {
-          console.log(`💾 Auto-saving Day 1 ${burdenLevel} video to database...`);
-
-
-          // Initialize day1 structure if needed
-          if (!config.day1) {
-            config.day1 = {
-              videos: {
-                mild: { videoTitle: {}, videoUrl: {}, description: {} },
-                moderate: { videoTitle: {}, videoUrl: {}, description: {} },
-                severe: { videoTitle: {}, videoUrl: {}, description: {} }
-              }
-            };
-          }
-
-          if (!config.day1.videos) {
-            config.day1.videos = {
-              mild: { videoTitle: {}, videoUrl: {}, description: {} },
-              moderate: { videoTitle: {}, videoUrl: {}, description: {} },
-              severe: { videoTitle: {}, videoUrl: {}, description: {} }
-            };
-          }
-
-          if (!config.day1.videos[burdenLevel]) {
-            config.day1.videos[burdenLevel] = {
-              videoTitle: {},
-              videoUrl: {},
-              description: {}
-            };
-          }
-
-          // Initialize language objects if needed
-          ['videoTitle', 'videoUrl', 'description'].forEach(field => {
-            if (!config.day1.videos[burdenLevel][field]) {
-              config.day1.videos[burdenLevel][field] = {};
-            }
-          });
-
-          // Save the video data
-          config.day1.videos[burdenLevel].videoUrl[language] = uploadResult.secure_url;
-          
-          if (videoTitle) {
-            config.day1.videos[burdenLevel].videoTitle[language] = videoTitle;
-          }
-          
-          if (description) {
-            config.day1.videos[burdenLevel].description[language] = description;
-          }
-
-          config.updatedAt = new Date();
-          config.markModified('day1.videos');
-          
-          await config.save();
-          autoSaved = true;
-
-          console.log(`✅ Day 1 ${burdenLevel} video auto-saved to database for ${language}`);
-
-        } catch (dbError) {
-          console.error('❌ Database save error:', dbError);
-          // Don't fail the upload, just log the error
-        }
-      }
-
-      // Auto-save for Days 2-7 (all burden levels)
-      if (day >= 2 && day <= 7) {
-        try {
-          // Initialize contentRules if it doesn't exist
-          if (!config.contentRules) {
-            config.contentRules = {};
-          }
-
-          // Update the video URL for all burden levels for days 2-7
-          const burdenLevels = ['low', 'moderate', 'high'];
-          
-          for (const bLevel of burdenLevels) {
-            if (!config.contentRules[bLevel]) {
-              config.contentRules[bLevel] = { days: new Map() };
-            }
-            
-            if (!config.contentRules[bLevel].days) {
-              config.contentRules[bLevel].days = new Map();
-            }
-
-            // Get existing day data or create new
-            const existingDayData = config.contentRules[bLevel].days.get(day.toString()) || {};
-            
-            // Update video URL for this language
-            const updatedVideoUrl = existingDayData.videoUrl || {};
-            updatedVideoUrl[language] = uploadResult.secure_url;
-            
-            // Update the day data
-            const updatedDayData = {
-              ...existingDayData,
-              videoUrl: updatedVideoUrl
-            };
-
-            config.contentRules[bLevel].days.set(day.toString(), updatedDayData);
-          }
-          config.updatedAt = new Date();
-          await config.save();
-          autoSaved = true;
-
-          console.log(`✅ Day ${day} video auto-saved to database for all burden levels (${language})`);
-
-        } catch (dbError) {
-          console.error('❌ Database save error for Days 2-7:', dbError);
-          // Don't fail the upload, just log the error
+          console.error('❌ Auto-save error:', dbError);
+          autoSaveError = dbError.message;
+          // Don't fail the upload - video is still in Cloudinary
         }
       }
 
@@ -354,16 +322,16 @@ export default async function handler(req, res) {
         width: uploadResult.width || 0,
         height: uploadResult.height || 0,
         playbackUrl: uploadResult.playback_url || uploadResult.secure_url,
-        message: autoSaved
-          ? (day === 0)
-            ? `Video uploaded and saved for Day ${day} (core module) - ${language}`
-            : (day === 1 && burdenLevel)
-            ? `Video uploaded and saved for Day ${day} ${burdenLevel} burden level - ${language}`
-            : (day >= 2 && day <= 7)
-            ? `Video uploaded and saved for Day ${day} (all burden levels) - ${language}`
-            : 'Video uploaded successfully'
-          : 'Video uploaded successfully (auto-save skipped)',
-        autoSaved: (day === 0) || (day === 1 && burdenLevel) || (day >= 2 && day <= 7) ? true : false
+        message: autoSaved 
+          ? `Video uploaded and saved to Day ${day} (${language}) successfully!`
+          : 'Video uploaded to Cloudinary. Auto-save skipped or failed.',
+        autoSaved,
+        autoSaveError: autoSaveError || undefined,
+        savedTo: autoSaved ? {
+          day,
+          level: day === 0 ? 'default' : (burdenLevel || 'default'),
+          language
+        } : undefined
       });
 
     } catch (uploadError) {

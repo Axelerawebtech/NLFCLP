@@ -5,17 +5,17 @@ import ProgramConfig from '../../../models/ProgramConfig';
  * API: /api/admin/save-day1-video
  * Method: POST
  * 
- * Purpose: Save Day 1 burden-specific video URL to the correct location
- * This should be called after a video is uploaded via /api/admin/upload-video
+ * DEPRECATED: This endpoint is no longer used
+ * Use /api/admin/dynamic-days/tasks instead for video management
  */
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    await dbConnect();
+  // Endpoint deprecated - redirect to new system
+  return res.status(410).json({ 
+    error: 'Endpoint deprecated', 
+    message: 'This endpoint has been deprecated. Please use /api/admin/dynamic-days/tasks to manage videos in the unified dynamicDayStructures system.',
+    recommendedEndpoint: '/api/admin/dynamic-days/tasks'
+  });
 
     const { burdenLevel, language, videoUrl, videoTitle, description } = req.body;
 

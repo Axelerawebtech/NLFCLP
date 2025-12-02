@@ -81,6 +81,8 @@ export default function EnhancedCaregiverDashboard({ caregiverId }) {
                 queryParams.append('burdenLevel', burdenLevel);
               }
               
+              // NOTE: This component uses deprecated get-video-content API
+              // Consider migrating to SevenDayProgramDashboard.js which uses dynamic-day-content
               const contentResponse = await fetch(`/api/caregiver/get-video-content?${queryParams}`);
               
               if (contentResponse.ok) {

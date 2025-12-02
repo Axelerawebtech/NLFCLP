@@ -1327,6 +1327,8 @@ export default function DynamicDayManager() {
           <TaskEditorModal
             selectedLanguage={selectedLanguage}
             structureLocked={!isBaseLanguage}
+            selectedDay={selectedDay}
+            selectedLevel={selectedLevel}
             onSave={addTask}
             onClose={() => setShowAddTask(false)}
           />
@@ -1340,6 +1342,8 @@ export default function DynamicDayManager() {
             selectedLanguage={selectedLanguage}
             task={editingTask}
             structureLocked={!isBaseLanguage}
+            selectedDay={selectedDay}
+            selectedLevel={selectedLevel}
             onSave={handleTaskUpdate}
             onClose={() => setEditingTask(null)}
           />
@@ -1419,7 +1423,7 @@ export default function DynamicDayManager() {
 }
 
 // Task Editor Modal Component with Cloudinary Upload
-function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLocked = false }) {
+function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLocked = false, selectedDay = null, selectedLevel = 'default' }) {
   const [taskType, setTaskType] = useState(task?.taskType || '');
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
@@ -1630,6 +1634,21 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLoc
       const formData = new FormData();
       formData.append('video', file);
       formData.append('language', selectedLanguage);
+      
+      // Add day and burden level for auto-save
+      if (selectedDay !== null && selectedDay !== undefined) {
+        formData.append('day', selectedDay.toString());
+      }
+      if (selectedLevel && selectedLevel !== 'default') {
+        formData.append('burdenLevel', selectedLevel);
+      }
+      // Add title and description if available
+      if (title) {
+        formData.append('videoTitle', title);
+      }
+      if (description) {
+        formData.append('description', description);
+      }
 
       const xhr = new XMLHttpRequest();
 

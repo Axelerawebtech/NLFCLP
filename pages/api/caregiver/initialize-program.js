@@ -58,18 +58,9 @@ export default async function handler(req, res) {
       // Initialize day modules (0-7)
       program.initializeDayModules();
       
-      // Populate Day 0 with intro video content from ProgramConfig
-      if (programConfig && programConfig.day0IntroVideo) {
-        const day0Module = program.dayModules.find(m => m.day === 0);
-        if (day0Module) {
-          day0Module.videoTitle = programConfig.day0IntroVideo.title;
-          day0Module.videoUrl = programConfig.day0IntroVideo.videoUrl;
-          day0Module.content = programConfig.day0IntroVideo.description;
-          console.log('Day 0 content populated from ProgramConfig');
-        }
-      } else {
-        console.warn('No ProgramConfig found or Day 0 intro video not configured');
-      }
+      // Day 0 content will be fetched from dynamicDayStructures via dynamic-day-content API
+      // Legacy day0IntroVideo system removed
+      console.log('Day modules initialized - content loaded dynamically from dynamicDayStructures');
       
       await program.save();
       console.log('Program initialized successfully');

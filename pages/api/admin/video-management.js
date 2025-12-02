@@ -12,16 +12,20 @@ cloudinary.v2.config({
 /**
  * API: /api/admin/video-management
  * 
- * GET - Retrieve videos for specific day and burden level
- * POST - Save video metadata after upload
- * PUT - Replace existing video
- * DELETE - Delete video from both database and Cloudinary
- * 
- * Purpose: Complete video management with burden level support
+ * DEPRECATED: This endpoint is no longer used
+ * Use /api/admin/dynamic-days/tasks and /api/admin/dynamic-days/config instead
  */
 
 export default async function handler(req, res) {
-  await dbConnect();
+  // Endpoint deprecated - redirect to new system
+  return res.status(410).json({ 
+    error: 'Endpoint deprecated', 
+    message: 'This endpoint has been deprecated. Please use /api/admin/dynamic-days/tasks for video management and /api/admin/dynamic-days/config for day configuration.',
+    recommendedEndpoints: {
+      tasks: '/api/admin/dynamic-days/tasks',
+      config: '/api/admin/dynamic-days/config'
+    }
+  });
 
   if (req.method === 'GET') {
     try {
