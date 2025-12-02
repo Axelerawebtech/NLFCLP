@@ -1631,24 +1631,31 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLoc
       setUploading(true);
       setUploadProgress(0);
 
+      // Step 1: Get Cloudinary signature for direct upload
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signatureResponse = await fetch('/api/admin/get-cloudinary-signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timestamp,
+          folder: 'caregiver-program-videos'
+        })
+      });
+
+      if (!signatureResponse.ok) {
+        throw new Error('Failed to get upload signature');
+      }
+
+      const signatureData = await signatureResponse.json();
+
+      // Step 2: Upload directly to Cloudinary
       const formData = new FormData();
-      formData.append('video', file);
-      formData.append('language', selectedLanguage);
-      
-      // Add day and burden level for auto-save
-      if (selectedDay !== null && selectedDay !== undefined) {
-        formData.append('day', selectedDay.toString());
-      }
-      if (selectedLevel && selectedLevel !== 'default') {
-        formData.append('burdenLevel', selectedLevel);
-      }
-      // Add title and description if available
-      if (title) {
-        formData.append('videoTitle', title);
-      }
-      if (description) {
-        formData.append('description', description);
-      }
+      formData.append('file', file);
+      formData.append('timestamp', signatureData.timestamp);
+      formData.append('signature', signatureData.signature);
+      formData.append('api_key', signatureData.apiKey);
+      formData.append('folder', signatureData.folder);
+      formData.append('resource_type', 'video');
 
       const xhr = new XMLHttpRequest();
 
@@ -1661,18 +1668,48 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLoc
       });
 
       // Handle completion
-      xhr.addEventListener('load', () => {
+      xhr.addEventListener('load', async () => {
         if (xhr.status === 200) {
-          const data = JSON.parse(xhr.responseText);
-          if (data.success && data.url) {
-            // Update content with video URL (simple string, not multi-language)
+          const cloudinaryData = JSON.parse(xhr.responseText);
+          const videoUrl = cloudinaryData.secure_url;
+
+          // Step 3: Save to database via our API
+          try {
+            const saveResponse = await fetch('/api/admin/dynamic-days/save-video-metadata', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                videoUrl,
+                day: selectedDay,
+                level: selectedLevel === 'default' ? 'default' : selectedLevel,
+                language: selectedLanguage,
+                title: title || '',
+                description: description || ''
+              })
+            });
+
+            if (saveResponse.ok) {
+              // Update content with video URL
+              setContent(prev => ({
+                ...prev,
+                videoUrl: videoUrl
+              }));
+              alert('✅ Video uploaded and saved successfully!');
+            } else {
+              // Video uploaded but save failed
+              setContent(prev => ({
+                ...prev,
+                videoUrl: videoUrl
+              }));
+              alert('⚠️ Video uploaded but auto-save failed. URL: ' + videoUrl);
+            }
+          } catch (saveErr) {
+            console.error('Save error:', saveErr);
             setContent(prev => ({
               ...prev,
-              videoUrl: data.url
+              videoUrl: videoUrl
             }));
-            alert('✅ Video uploaded successfully!');
-          } else {
-            alert('❌ Upload failed: ' + (data.error || 'Unknown error'));
+            alert('⚠️ Video uploaded but auto-save failed. URL saved to task.');
           }
         } else {
           alert('❌ Upload failed with status: ' + xhr.status);
@@ -1688,13 +1725,13 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLoc
         setUploadProgress(0);
       });
 
-      // Send request
-      xhr.open('POST', '/api/admin/upload-video');
+      // Send request directly to Cloudinary
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/video/upload`);
       xhr.send(formData);
 
     } catch (err) {
       console.error('Upload error:', err);
-      alert('❌ Failed to upload video');
+      alert('❌ Failed to upload video: ' + err.message);
       setUploading(false);
       setUploadProgress(0);
     }
