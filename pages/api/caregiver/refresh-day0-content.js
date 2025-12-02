@@ -14,15 +14,4 @@ export default async function handler(req, res) {
       language: 'english|kannada|hindi'
     }
   });
-    } catch (error) {
-      console.error('Error refreshing Day 0 content:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Error refreshing Day 0 content',
-        error: error.message
-      });
-    }
-  }
-
-  return res.status(405).json({ success: false, message: 'Method not allowed' });
 }
