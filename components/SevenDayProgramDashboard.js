@@ -1971,11 +1971,14 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               const queryParams = new URLSearchParams({
                 caregiverId: caregiverId,
                 day: dayModule.day.toString(),
-                language: langKey
+                language: langKey,
+                _t: Date.now() // Cache buster to ensure fresh data
               });
               
               console.log(`🎯 Fetching dynamic content for Day ${dayModule.day} (${langKey})`);
-              const contentResponse = await fetch(`/api/caregiver/dynamic-day-content?${queryParams}`);
+              const contentResponse = await fetch(`/api/caregiver/dynamic-day-content?${queryParams}`, {
+                cache: 'no-store' // Disable caching
+              });
               
               if (contentResponse.ok) {
                 const contentData = await contentResponse.json();

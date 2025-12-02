@@ -34,6 +34,11 @@ export default async function handler(req, res) {
 
     const dbLanguage = languageMap[language] || 'english';
 
+    console.log('🌐 Language mapping:', { 
+      receivedLanguage: language, 
+      mappedDbLanguage: dbLanguage 
+    });
+
     // Find the global program configuration
     const config = await ProgramConfig.findOne({ 
       configType: 'global', 
@@ -50,6 +55,10 @@ export default async function handler(req, res) {
     if (dayNum === 0) {
       // Day 0: Core module - same for all caregivers
       if (config.day0IntroVideo) {
+        console.log('📹 Day 0 video URLs available:', Object.keys(config.day0IntroVideo.videoUrl || {}));
+        console.log(`🎯 Fetching Day 0 video for language: ${dbLanguage}`);
+        console.log(`📺 Video URL: ${config.day0IntroVideo.videoUrl?.[dbLanguage]?.substring(0, 80)}...`);
+        
         videoContent = {
           day: 0,
           title: config.day0IntroVideo.title?.[dbLanguage] || config.day0IntroVideo.title?.english || 'Welcome Video',

@@ -70,23 +70,30 @@ export default async function handler(req, res) {
 
     // Extract form data
     const videoFile = files.video;
-    const day = fields.day && fields.day[0] ? parseInt(fields.day[0]) : null;
+    let day = fields.day && fields.day[0] ? parseInt(fields.day[0]) : null;
     const burdenLevel = fields.burdenLevel && fields.burdenLevel[0] ? fields.burdenLevel[0] : null;
     const language = fields.language && fields.language[0] ? fields.language[0] : 'english';
     const videoTitle = fields.videoTitle && fields.videoTitle[0] ? fields.videoTitle[0] : '';
     const description = fields.description && fields.description[0] ? fields.description[0] : '';
+    
+    // Fallback: detect Day 0 from filename if day is not provided
+    const fileName = Array.isArray(videoFile) ? videoFile[0].originalFilename : videoFile.originalFilename;
+    if (day === null && fileName && /core.*module|day.*0/i.test(fileName)) {
+      console.log('🔍 Detected Day 0 from filename:', fileName);
+      day = 0;
+    }
 
     if (!videoFile) {
       return res.status(400).json({ error: 'No video file provided' });
     }
 
     const filePath = Array.isArray(videoFile) ? videoFile[0].filepath : videoFile.filepath;
-    const fileName = Array.isArray(videoFile) ? videoFile[0].originalFilename : videoFile.originalFilename;
     tempFilePath = filePath; // Store for cleanup
 
     console.log('📹 Uploading video to Cloudinary:', fileName);
     console.log('📁 Temp file path:', filePath);
     console.log('📋 Upload metadata:', { day, burdenLevel, language, videoTitle });
+    console.log('🔍 Day value check:', { day, type: typeof day, isNull: day === null, isZero: day === 0 });
 
     // Check if file exists before proceeding
     if (!fs.existsSync(filePath)) {
@@ -159,67 +166,77 @@ export default async function handler(req, res) {
         throw new Error('Upload completed but no secure URL returned from Cloudinary');
       }
 
-      // Auto-save to database if day and burden level are specified
-      if (day !== null && day === 1 && burdenLevel) {
+      // Auto-save to database if day is specified
+      let autoSaved = false;
+      
+      console.log('🔧 Auto-save logic starting - FIXED VERSION Dec 1, 2025');
+      console.log('📊 Params for auto-save:', { day, dayType: typeof day, language, burdenLevel });
+      
+      // Find or create global config
+      let config = await ProgramConfig.findOne({ 
+        configType: 'global', 
+        caregiverId: null 
+      });
+
+      if (!config) {
+        config = new ProgramConfig({
+          configType: 'global',
+          caregiverId: null,
+          isActive: true
+        });
+      }
+
+      // Auto-save for Day 0 (core module)
+      if (day === 0) {
         try {
-          console.log(`💾 Auto-saving Day 1 ${burdenLevel} video to database...`);
+          console.log(`💾 Auto-saving Day 0 video to database for ${language}...`);
           
-          // Find or create global config
-          let config = await ProgramConfig.findOne({ 
-            configType: 'global', 
-            caregiverId: null 
+          // Initialize day0IntroVideo if it doesn't exist
+          if (!config.day0IntroVideo) {
+            config.day0IntroVideo = {
+              title: {},
+              videoUrl: {},
+              description: {}
+            };
+          }
+
+          // Initialize language objects if needed
+          ['title', 'videoUrl', 'description'].forEach(field => {
+            if (!config.day0IntroVideo[field]) {
+              config.day0IntroVideo[field] = {};
+            }
           });
 
-          if (!config) {
-            config = new ProgramConfig({
-              configType: 'global',
-              caregiverId: null,
-              isActive: true
-            });
+          // Save the video URL
+          config.day0IntroVideo.videoUrl[language] = uploadResult.secure_url;
+          
+          if (videoTitle) {
+            config.day0IntroVideo.title[language] = videoTitle;
+          }
+          
+          if (description) {
+            config.day0IntroVideo.description[language] = description;
           }
 
-          // Auto-save for Day 0 (core module)
-          if (day === 0) {
-            try {
-              // Initialize day0IntroVideo if it doesn't exist
-              if (!config.day0IntroVideo) {
-                config.day0IntroVideo = {
-                  title: {},
-                  videoUrl: {},
-                  description: {}
-                };
-              }
+          config.updatedAt = new Date();
+          config.markModified('day0IntroVideo');
+          
+          await config.save();
+          autoSaved = true;
 
-              // Initialize language objects if needed
-              ['title', 'videoUrl', 'description'].forEach(field => {
-                if (!config.day0IntroVideo[field]) {
-                  config.day0IntroVideo[field] = {};
-                }
-              });
+          console.log(`✅ Day 0 video auto-saved to database for ${language}`);
 
-              // Save the video URL
-              config.day0IntroVideo.videoUrl[language] = uploadResult.secure_url;
-              
-              if (videoTitle) {
-                config.day0IntroVideo.title[language] = videoTitle;
-              }
-              
-              if (description) {
-                config.day0IntroVideo.description[language] = description;
-              }
+        } catch (dbError) {
+          console.error('❌ Database save error for Day 0:', dbError);
+          // Don't fail the upload, just log the error
+        }
+      }
+      
+      // Auto-save for Day 1 with burden level
+      if (day === 1 && burdenLevel) {
+        try {
+          console.log(`💾 Auto-saving Day 1 ${burdenLevel} video to database...`);
 
-              config.updatedAt = new Date();
-              config.markModified('day0IntroVideo');
-              
-              await config.save();
-
-              console.log(`✅ Day 0 video auto-saved to database for ${language}`);
-
-            } catch (dbError) {
-              console.error('❌ Database save error for Day 0:', dbError);
-              // Don't fail the upload, just log the error
-            }
-          }
 
           // Initialize day1 structure if needed
           if (!config.day1) {
@@ -270,6 +287,7 @@ export default async function handler(req, res) {
           config.markModified('day1.videos');
           
           await config.save();
+          autoSaved = true;
 
           console.log(`✅ Day 1 ${burdenLevel} video auto-saved to database for ${language}`);
 
@@ -314,9 +332,9 @@ export default async function handler(req, res) {
 
             config.contentRules[bLevel].days.set(day.toString(), updatedDayData);
           }
-
           config.updatedAt = new Date();
           await config.save();
+          autoSaved = true;
 
           console.log(`✅ Day ${day} video auto-saved to database for all burden levels (${language})`);
 
@@ -336,14 +354,15 @@ export default async function handler(req, res) {
         width: uploadResult.width || 0,
         height: uploadResult.height || 0,
         playbackUrl: uploadResult.playback_url || uploadResult.secure_url,
-        thumbnailUrl: uploadResult.secure_url ? uploadResult.secure_url.replace(/\.(mp4|mov|avi|mkv)$/i, '.jpg') : '',
-        message: (day === 0) ?
-          `Video uploaded and saved for Day ${day} (core module)` :
-          (day === 1 && burdenLevel) ? 
-          `Video uploaded and saved for Day ${day} ${burdenLevel} burden level` : 
-          (day >= 2 && day <= 7) ?
-          `Video uploaded and saved for Day ${day} (all burden levels)` :
-          'Video uploaded successfully',
+        message: autoSaved
+          ? (day === 0)
+            ? `Video uploaded and saved for Day ${day} (core module) - ${language}`
+            : (day === 1 && burdenLevel)
+            ? `Video uploaded and saved for Day ${day} ${burdenLevel} burden level - ${language}`
+            : (day >= 2 && day <= 7)
+            ? `Video uploaded and saved for Day ${day} (all burden levels) - ${language}`
+            : 'Video uploaded successfully'
+          : 'Video uploaded successfully (auto-save skipped)',
         autoSaved: (day === 0) || (day === 1 && burdenLevel) || (day >= 2 && day <= 7) ? true : false
       });
 
