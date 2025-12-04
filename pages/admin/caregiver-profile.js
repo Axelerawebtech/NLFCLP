@@ -1072,7 +1072,7 @@ export default function CaregiverProfile() {
           {/* Tabs */}
           <div style={styles.card}>
             <div style={styles.tabs}>
-              {['overview', 'progress', 'tasks', 'feedback', 'notes'].map((tab) => (
+              {['overview', 'progress', 'tasks', 'feedback', 'support', 'notes'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -1652,6 +1652,157 @@ export default function CaregiverProfile() {
                       <p style={{ fontSize: '1.125rem', color: '#6b7280', margin: 0 }}>📝 No feedback submissions yet</p>
                       <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '0.5rem' }}>
                         Feedback will appear here when the caregiver completes a feedback form
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Support Requests Tab */}
+              {activeTab === 'support' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={styles.sectionTitle}>Support Requests</h3>
+                    <button
+                      onClick={() => {
+                        console.log('🔍 Support Requests Debug:', {
+                          caregiverExists: !!caregiver,
+                          supportRequestsExists: !!caregiver?.supportRequests,
+                          supportRequestsLength: caregiver?.supportRequests?.length || 0,
+                          supportRequests: caregiver?.supportRequests
+                        });
+                        fetchProfileData();
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#2563eb'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = '#3b82f6'}
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
+                  {caregiver?.supportRequests && caregiver.supportRequests.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {caregiver.supportRequests.slice().reverse().map((request, index) => (
+                        <div 
+                          key={request._id || index} 
+                          style={{
+                            backgroundColor: request.status === 'resolved' ? '#f9fafb' : '#fef3c7',
+                            border: `2px solid ${request.status === 'resolved' ? '#e5e7eb' : '#fcd34d'}`,
+                            borderRadius: '12px',
+                            padding: '20px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '20px' }}>
+                                  {request.requestType === 'admin-call' ? '📞' : '🩺'}
+                                </span>
+                                <h4 style={{ margin: 0, color: '#1f2937', fontWeight: '600' }}>
+                                  {request.requestType === 'admin-call' ? 'Admin Call Request' : 'Contact Nurse PI'}
+                                </h4>
+                              </div>
+                              <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 8px 0' }}>
+                                Requested: {new Date(request.requestedAt).toLocaleString()}
+                              </p>
+                              {request.status === 'resolved' && (
+                                <p style={{ fontSize: '14px', color: '#16a34a', margin: '0 0 8px 0', fontWeight: '600' }}>
+                                  ✅ Resolved: {new Date(request.resolvedAt).toLocaleString()}
+                                  {request.resolvedBy && ` by ${request.resolvedBy}`}
+                                </p>
+                              )}
+                            </div>
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              backgroundColor: request.status === 'resolved' ? '#d1fae5' : '#fed7aa',
+                              color: request.status === 'resolved' ? '#065f46' : '#92400e'
+                            }}>
+                              {request.status === 'resolved' ? 'Resolved' : 'Pending'}
+                            </span>
+                          </div>
+                          
+                          {request.message && (
+                            <div style={{
+                              backgroundColor: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              padding: '12px',
+                              marginBottom: '12px'
+                            }}>
+                              <p style={{ fontSize: '13px', color: '#374151', margin: 0, whiteSpace: 'pre-wrap' }}>
+                                {request.message}
+                              </p>
+                            </div>
+                          )}
+
+                          {request.status === 'pending' && (
+                            <button
+                              onClick={async () => {
+                                if (confirm('Mark this support request as resolved?')) {
+                                  try {
+                                    const response = await fetch('/api/caregiver/resolve-support-request', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        caregiverId: caregiver.caregiverId,
+                                        requestId: request._id,
+                                        resolvedBy: 'admin'
+                                      })
+                                    });
+
+                                    if (response.ok) {
+                                      alert('Support request marked as resolved');
+                                      window.location.reload();
+                                    } else {
+                                      const errorData = await response.json();
+                                      alert(`Failed to resolve: ${errorData.message}`);
+                                    }
+                                  } catch (err) {
+                                    console.error('Error resolving support request:', err);
+                                    alert('Failed to resolve support request');
+                                  }
+                                }
+                              }}
+                              style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#16a34a',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = '#15803d'}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = '#16a34a'}
+                            >
+                              Mark as Resolved
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>📞</div>
+                      <p style={{ color: '#6b7280', fontSize: '16px', margin: 0 }}>
+                        No support requests submitted yet
                       </p>
                     </div>
                   )}

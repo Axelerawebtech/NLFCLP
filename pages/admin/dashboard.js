@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   AppBar,
   Alert,
+  Badge,
   Box,
   Button,
   Card,
@@ -17,7 +18,12 @@ import {
   Grid,
   IconButton,
   InputLabel,
+  List,
+  ListItem,
+  ListItemText,
+  Menu,
   MenuItem,
+  Paper,
   Select,
   Stack,
   Table,
@@ -32,6 +38,7 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
+  FaBell,
   FaChartBar,
   FaDownload,
   FaLink,
@@ -64,6 +71,10 @@ export default function AdminDashboard() {
   const [manualSelectedPatient, setManualSelectedPatient] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [supportNotifications, setSupportNotifications] = useState({ totalPending: 0, caregivers: [] });
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [supportReport, setSupportReport] = useState(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
   const router = useRouter();
 
   const surfaceColor = (lightColor, darkColor) => (theme.palette.mode === 'dark' ? darkColor : lightColor);
@@ -78,6 +89,30 @@ export default function AdminDashboard() {
     const percentage = (numerator / denominator) * 100;
     if (!Number.isFinite(percentage)) return '0';
     return Math.max(0, Math.min(100, percentage)).toFixed(0);
+  };
+
+  const fetchSupportRequests = async () => {
+    try {
+      const response = await fetch('/api/admin/pending-support-requests');
+      if (response.ok) {
+        const data = await response.json();
+        setSupportNotifications(data);
+      }
+    } catch (error) {
+      console.error('Error fetching support requests:', error);
+    }
+  };
+
+  const fetchSupportReport = async () => {
+    try {
+      const response = await fetch('/api/admin/support-request-report?weeks=4');
+      if (response.ok) {
+        const data = await response.json();
+        setSupportReport(data);
+      }
+    } catch (error) {
+      console.error('Error fetching support report:', error);
+    }
   };
 
   const metricCards = [
@@ -192,6 +227,18 @@ export default function AdminDashboard() {
 
     checkAuth();
   }, [router]);
+
+  // Fetch support requests on mount and set up polling
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchSupportRequests();
+      fetchSupportReport();
+      
+      // Poll every 30 seconds for new support requests
+      const interval = setInterval(fetchSupportRequests, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
 
   // Old useEffect that called fetchUsers - now integrated into auth check
 
@@ -467,6 +514,22 @@ export default function AdminDashboard() {
           </Box>
           <IconButton
             color="inherit"
+            onClick={(e) => setShowNotifications(e.currentTarget)}
+            sx={{
+              mr: 2,
+              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.08)'}`
+            }}
+          >
+            <Badge 
+              badgeContent={supportNotifications.totalPending} 
+              color="error"
+              max={99}
+            >
+              <FaBell />
+            </Badge>
+          </IconButton>
+          <IconButton
+            color="inherit"
             onClick={toggleTheme}
             sx={{
               mr: 2,
@@ -488,6 +551,123 @@ export default function AdminDashboard() {
           </Button>
         </Toolbar>
       </AppBar>
+
+      {/* Support Request Notifications Menu */}
+      <Menu
+        anchorEl={showNotifications}
+        open={Boolean(showNotifications)}
+        onClose={() => setShowNotifications(false)}
+        PaperProps={{
+          sx: {
+            mt: 1.5,
+            minWidth: 350,
+            maxWidth: 500,
+            maxHeight: 500,
+            backgroundColor: tileSurface,
+            border: `1px solid ${tileBorder}`,
+            boxShadow: tileShadow
+          }
+        }}
+      >
+        <Box sx={{ p: 2, borderBottom: `1px solid ${tileBorder}` }}>
+          <Typography variant="h6" fontWeight={600}>
+            Support Requests
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {supportNotifications.totalPending} pending request{supportNotifications.totalPending !== 1 ? 's' : ''}
+          </Typography>
+        </Box>
+        
+        {supportNotifications.caregivers.length === 0 ? (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="text.secondary">
+              No pending support requests
+            </Typography>
+          </Box>
+        ) : (
+          <List sx={{ p: 0 }}>
+            {supportNotifications.caregivers.map((caregiver, index) => (
+              <ListItem
+                key={caregiver.caregiverId}
+                button
+                onClick={() => {
+                  router.push(`/admin/caregiver-profile?id=${caregiver.caregiverId}`);
+                  setShowNotifications(false);
+                }}
+                sx={{
+                  borderBottom: index < supportNotifications.caregivers.length - 1 ? `1px solid ${tileBorder}` : 'none',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'
+                  }
+                }}
+              >
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        {caregiver.caregiverName}
+                      </Typography>
+                      <Chip
+                        label={`${caregiver.requests.length} request${caregiver.requests.length > 1 ? 's' : ''}`}
+                        size="small"
+                        color="warning"
+                        sx={{ height: 20, fontSize: '0.7rem' }}
+                      />
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ mt: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {caregiver.caregiverCode}
+                      </Typography>
+                      {caregiver.requests.map((req, idx) => (
+                        <Box key={req.id} sx={{ mt: 0.5 }}>
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            {req.type === 'admin-call' ? '📞' : '🩺'}
+                            {' '}
+                            {req.type === 'admin-call' ? 'Admin Call' : 'Nurse PI'}
+                            {' • '}
+                            {new Date(req.requestedAt).toLocaleString('en-IN', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </Typography>
+                          {req.message && (
+                            <Typography 
+                              variant="caption" 
+                              color="text.secondary"
+                              sx={{ 
+                                display: 'block',
+                                mt: 0.25,
+                                fontStyle: 'italic',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              "{req.message}"
+                            </Typography>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  }
+                />
+              </ListItem>
+            ))}
+          </List>
+        )}
+        
+        {supportNotifications.caregivers.length > 0 && (
+          <Box sx={{ p: 2, borderTop: `1px solid ${tileBorder}`, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary">
+              Click on a caregiver to view their profile
+            </Typography>
+          </Box>
+        )}
+      </Menu>
 
       <Container maxWidth="xl" sx={{ py: 5, position: 'relative', zIndex: 1 }}>
         {alert.show && (
@@ -564,6 +744,170 @@ export default function AdminDashboard() {
             })}
           </Grid>
         </Box>
+
+        {/* Support Request Weekly Report */}
+        {supportReport && (
+          <Box
+            sx={{
+              mb: 3,
+              p: { xs: 2, md: 3 },
+              borderRadius: 3,
+              backgroundColor: tileSurface,
+              border: `1px solid ${tileBorder}`,
+              boxShadow: tileShadow
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  📊 Support Request Report
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {supportReport.period} - Caregiver help-seeking activity
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setShowReportDialog(true)}
+                sx={{ textTransform: 'none' }}
+              >
+                View Details
+              </Button>
+            </Box>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ 
+                  p: 2, 
+                  backgroundColor: surfaceColor('#fef3c7', '#2d2410'),
+                  border: `1px solid ${surfaceColor('#fcd34d', '#92400e')}`
+                }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Total Requests
+                  </Typography>
+                  <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
+                    {supportReport.summary.totalRequests}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    From {supportReport.summary.uniqueCaregiversSought} caregiver{supportReport.summary.uniqueCaregiversSought !== 1 ? 's' : ''}
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ 
+                  p: 2, 
+                  backgroundColor: surfaceColor('#dbeafe', '#1e293b'),
+                  border: `1px solid ${surfaceColor('#60a5fa', '#3b82f6')}`
+                }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                    📞 Admin Calls
+                  </Typography>
+                  <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
+                    {supportReport.summary.totalAdminCalls}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {supportReport.summary.totalRequests > 0 
+                      ? Math.round((supportReport.summary.totalAdminCalls / supportReport.summary.totalRequests) * 100)
+                      : 0}% of total
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ 
+                  p: 2, 
+                  backgroundColor: surfaceColor('#fce7f3', '#2d1b2a'),
+                  border: `1px solid ${surfaceColor('#f472b6', '#ec4899')}`
+                }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                    🩺 Nurse PI Contacts
+                  </Typography>
+                  <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
+                    {supportReport.summary.totalNursePICalls}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {supportReport.summary.totalRequests > 0 
+                      ? Math.round((supportReport.summary.totalNursePICalls / supportReport.summary.totalRequests) * 100)
+                      : 0}% of total
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ 
+                  p: 2, 
+                  backgroundColor: surfaceColor('#d1fae5', '#1b2d26'),
+                  border: `1px solid ${surfaceColor('#34d399', '#10b981')}`
+                }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Resolution Rate
+                  </Typography>
+                  <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
+                    {supportReport.summary.totalRequests > 0 
+                      ? Math.round((supportReport.summary.totalResolved / supportReport.summary.totalRequests) * 100)
+                      : 0}%
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {supportReport.summary.totalResolved} resolved, {supportReport.summary.totalPending} pending
+                  </Typography>
+                </Card>
+              </Grid>
+            </Grid>
+
+            {/* Weekly Breakdown */}
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
+                Weekly Breakdown
+              </Typography>
+              <Grid container spacing={1.5}>
+                {supportReport.weeklyData.map((week, index) => (
+                  <Grid item xs={12} sm={6} md={3} key={index}>
+                    <Card sx={{ 
+                      p: 1.5, 
+                      backgroundColor: surfaceColor('#f9fafb', '#151921'),
+                      border: `1px solid ${tileBorder}`,
+                      '&:hover': {
+                        borderColor: theme.palette.primary.main,
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 4px 12px rgba(59,130,246,0.2)'
+                          : '0 4px 12px rgba(59,130,246,0.15)'
+                      }
+                    }}>
+                      <Typography variant="caption" fontWeight={600} color="primary">
+                        Week {week.weekNumber}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                        {week.weekLabel}
+                      </Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          {week.totalRequests} requests
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {week.uniqueCaregiversCount} CG{week.uniqueCaregiversCount !== 1 ? 's' : ''}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                        <Chip 
+                          label={`📞 ${week.adminCallRequests}`} 
+                          size="small" 
+                          sx={{ fontSize: '0.7rem', height: 20 }}
+                        />
+                        <Chip 
+                          label={`🩺 ${week.nursePIRequests}`} 
+                          size="small" 
+                          sx={{ fontSize: '0.7rem', height: 20 }}
+                        />
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          </Box>
+        )}
 
         <Box
           sx={{
@@ -1177,6 +1521,170 @@ export default function AdminDashboard() {
           <Button onClick={handleUnassign} color="warning" variant="contained">
             Confirm Unassign
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Support Request Report Details Dialog */}
+      <Dialog
+        open={showReportDialog}
+        onClose={() => setShowReportDialog(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: tileSurface,
+            border: `1px solid ${tileBorder}`,
+            boxShadow: tileShadow
+          }
+        }}
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                📊 Support Request Report
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {supportReport?.period}
+              </Typography>
+            </Box>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                const csvData = supportReport?.weeklyData.map(week => ({
+                  Week: week.weekNumber,
+                  Period: week.weekLabel,
+                  'Total Requests': week.totalRequests,
+                  'Admin Calls': week.adminCallRequests,
+                  'Nurse PI': week.nursePIRequests,
+                  'Caregivers': week.uniqueCaregiversCount,
+                  'Resolved': week.resolvedRequests,
+                  'Pending': week.pendingRequests
+                }));
+                
+                const csvContent = [
+                  Object.keys(csvData[0]).join(','),
+                  ...csvData.map(row => Object.values(row).join(','))
+                ].join('\n');
+                
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `support_request_report_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+              }}
+              startIcon={<FaDownload />}
+              sx={{ textTransform: 'none' }}
+            >
+              Export CSV
+            </Button>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {supportReport && (
+            <Box>
+              {/* Summary Cards */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={6} sm={3}>
+                  <Card sx={{ p: 2, textAlign: 'center', backgroundColor: surfaceColor('#fef3c7', '#2d2410') }}>
+                    <Typography variant="h4" fontWeight={700}>
+                      {supportReport.summary.totalRequests}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Total Requests
+                    </Typography>
+                  </Card>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Card sx={{ p: 2, textAlign: 'center', backgroundColor: surfaceColor('#dbeafe', '#1e293b') }}>
+                    <Typography variant="h4" fontWeight={700}>
+                      {supportReport.summary.uniqueCaregiversSought}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Caregivers
+                    </Typography>
+                  </Card>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Card sx={{ p: 2, textAlign: 'center', backgroundColor: surfaceColor('#d1fae5', '#1b2d26') }}>
+                    <Typography variant="h4" fontWeight={700}>
+                      {supportReport.summary.totalResolved}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Resolved
+                    </Typography>
+                  </Card>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Card sx={{ p: 2, textAlign: 'center', backgroundColor: surfaceColor('#fee2e2', '#2d1a1a') }}>
+                    <Typography variant="h4" fontWeight={700}>
+                      {supportReport.summary.totalPending}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Pending
+                    </Typography>
+                  </Card>
+                </Grid>
+              </Grid>
+
+              {/* Weekly Details Table */}
+              <TableContainer component={Paper} sx={{ backgroundColor: 'transparent' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Week</TableCell>
+                      <TableCell>Period</TableCell>
+                      <TableCell align="center">Total</TableCell>
+                      <TableCell align="center">📞 Admin</TableCell>
+                      <TableCell align="center">🩺 Nurse</TableCell>
+                      <TableCell align="center">Caregivers</TableCell>
+                      <TableCell align="center">Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {supportReport.weeklyData.map((week) => (
+                      <TableRow key={week.weekNumber} hover>
+                        <TableCell>Week {week.weekNumber}</TableCell>
+                        <TableCell>{week.weekLabel}</TableCell>
+                        <TableCell align="center">
+                          <Chip label={week.totalRequests} size="small" color="primary" />
+                        </TableCell>
+                        <TableCell align="center">{week.adminCallRequests}</TableCell>
+                        <TableCell align="center">{week.nursePIRequests}</TableCell>
+                        <TableCell align="center">{week.uniqueCaregiversCount}</TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                            <Chip 
+                              label={`✓ ${week.resolvedRequests}`} 
+                              size="small" 
+                              color="success"
+                              sx={{ fontSize: '0.7rem', height: 20 }}
+                            />
+                            {week.pendingRequests > 0 && (
+                              <Chip 
+                                label={`⏳ ${week.pendingRequests}`} 
+                                size="small" 
+                                color="warning"
+                                sx={{ fontSize: '0.7rem', height: 20 }}
+                              />
+                            )}
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowReportDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -128,6 +128,34 @@ const CaregiverSchema = new mongoose.Schema({
     submittedAt: Date,
     participantId: String
   }],
+  supportRequests: [{
+    requestType: {
+      type: String,
+      enum: ['admin-call', 'nurse-pi'],
+      required: true
+    },
+    message: {
+      type: String,
+      default: ''
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'resolved'],
+      default: 'pending'
+    },
+    resolvedAt: {
+      type: Date,
+      default: null
+    },
+    resolvedBy: {
+      type: String,
+      default: null
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

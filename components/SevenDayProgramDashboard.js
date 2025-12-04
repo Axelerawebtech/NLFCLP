@@ -146,6 +146,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [selectedActivities, setSelectedActivities] = useState({}); // { taskId: activityIndex }
   const [selectedFeelings, setSelectedFeelings] = useState({}); // { taskId: feelingIndex }
   const [sliderValues, setSliderValues] = useState({}); // { taskId: sliderValue }
+  
+  // Support Request state
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [supportRequestType, setSupportRequestType] = useState(null);
+  const [supportMessage, setSupportMessage] = useState('');
+  const [submittingSupportRequest, setSubmittingSupportRequest] = useState(false);
+  const [supportRequestSuccess, setSupportRequestSuccess] = useState(false)
 
   // Map language codes: en -> english, kn -> kannada, hi -> hindi
   const getLanguageKey = () => {
@@ -2688,6 +2695,41 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     }
   };
 
+  const handleSupportRequest = async (requestType) => {
+    try {
+      setSubmittingSupportRequest(true);
+      setSupportRequestType(requestType);
+      
+      const response = await fetch('/api/caregiver/support-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caregiverId,
+          requestType,
+          message: supportMessage
+        })
+      });
+
+      if (response.ok) {
+        setSupportRequestSuccess(true);
+        setSupportMessage('');
+        setTimeout(() => {
+          setShowSupportModal(false);
+          setSupportRequestSuccess(false);
+          setSupportRequestType(null);
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to submit support request: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Error submitting support request:', err);
+      alert('Failed to submit support request. Please try again.');
+    } finally {
+      setSubmittingSupportRequest(false);
+    }
+  };
+
   const handleTestSubmit = async () => {
     try {
       setSubmittingTest(true);
@@ -4485,6 +4527,195 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                 </>
               )}
             </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Support Request Section */}
+      <div style={{
+        backgroundColor: '#f0f9ff',
+        border: '2px solid #38bdf8',
+        borderRadius: '12px',
+        padding: '20px',
+        marginBottom: '20px'
+      }}>
+        <h4 style={{ fontWeight: '600', color: '#0369a1', marginTop: 0, marginBottom: '12px' }}>
+          📞 {currentLanguage === 'en' ? 'Need Support?' : currentLanguage === 'kn' ? 'ಬೆಂಬಲ ಬೇಕೇ?' : 'सहायता चाहिए?'}
+        </h4>
+        <p style={{ fontSize: '14px', color: '#0c4a6e', marginBottom: '16px' }}>
+          {currentLanguage === 'en' 
+            ? 'If you need assistance, you can request a call from our team or contact the Nurse PI.' 
+            : currentLanguage === 'kn' 
+            ? 'ನಿಮಗೆ ಸಹಾಯ ಬೇಕಾದರೆ, ನೀವು ನಮ್ಮ ತಂಡದಿಂದ ಕರೆಗಾಗಿ ವಿನಂತಿಸಬಹುದು ಅಥವಾ ನರ್ಸ್ PIಯನ್ನು ಸಂಪರ್ಕಿಸಬಹುದು.' 
+            : 'यदि आपको सहायता की आवश्यकता है, तो आप हमारी टीम से कॉल का अनुरोध कर सकते हैं या नर्स PI से संपर्क कर सकते हैं।'}
+        </p>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => {
+              setShowSupportModal(true);
+              setSupportRequestType('admin-call');
+            }}
+            style={{
+              flex: '1',
+              minWidth: '200px',
+              padding: '12px 16px',
+              backgroundColor: '#0ea5e9',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#0284c7'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#0ea5e9'}
+          >
+            📞 {currentLanguage === 'en' ? 'Request Admin Call' : currentLanguage === 'kn' ? 'ನಿರ್ವಾಹಕರ ಕರೆಗಾಗಿ ವಿನಂತಿಸಿ' : 'व्यवस्थापक कॉल का अनुरोध करें'}
+          </button>
+          <button
+            onClick={() => {
+              setShowSupportModal(true);
+              setSupportRequestType('nurse-pi');
+            }}
+            style={{
+              flex: '1',
+              minWidth: '200px',
+              padding: '12px 16px',
+              backgroundColor: '#06b6d4',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#0891b2'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#06b6d4'}
+          >
+            🩺 {currentLanguage === 'en' ? 'Contact Nurse PI' : currentLanguage === 'kn' ? 'ನರ್ಸ್ PI ಸಂಪರ್ಕಿಸಿ' : 'नर्स PI से संपर्क करें'}
+          </button>
+        </div>
+      </div>
+
+      {/* Support Request Modal */}
+      {showSupportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+          }}>
+            {supportRequestSuccess ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
+                <h3 style={{ color: '#16a34a', marginBottom: '8px' }}>
+                  {currentLanguage === 'en' ? 'Request Submitted!' : currentLanguage === 'kn' ? 'ವಿನಂತಿಯನ್ನು ಸಲ್ಲಿಸಲಾಗಿದೆ!' : 'अनुरोध सबमिट किया गया!'}
+                </h3>
+                <p style={{ color: '#4b5563' }}>
+                  {currentLanguage === 'en' 
+                    ? 'Our team will get back to you soon.' 
+                    : currentLanguage === 'kn' 
+                    ? 'ನಮ್ಮ ತಂಡ ಶೀಘ್ರದಲ್ಲೇ ನಿಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸುತ್ತದೆ.' 
+                    : 'हमारी टीम जल्द ही आपसे संपर्क करेगी।'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ marginTop: 0, marginBottom: '16px', color: '#0369a1' }}>
+                  {supportRequestType === 'admin-call' 
+                    ? (currentLanguage === 'en' ? 'Request Admin Call' : currentLanguage === 'kn' ? 'ನಿರ್ವಾಹಕರ ಕರೆಗಾಗಿ ವಿನಂತಿಸಿ' : 'व्यवस्थापक कॉल का अनुरोध करें')
+                    : (currentLanguage === 'en' ? 'Contact Nurse PI' : currentLanguage === 'kn' ? 'ನರ್ಸ್ PI ಸಂಪರ್ಕಿಸಿ' : 'नर्स PI से संपर्क करें')
+                  }
+                </h3>
+                <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
+                  {currentLanguage === 'en' 
+                    ? 'Please provide additional details (optional):' 
+                    : currentLanguage === 'kn' 
+                    ? 'ದಯವಿಟ್ಟು ಹೆಚ್ಚುವರಿ ವಿವರಗಳನ್ನು ನೀಡಿ (ಐಚ್ಛಿಕ):' 
+                    : 'कृपया अतिरिक्त विवरण प्रदान करें (वैकल्पिक):'}
+                </p>
+                <textarea
+                  value={supportMessage}
+                  onChange={(e) => setSupportMessage(e.target.value)}
+                  placeholder={currentLanguage === 'en' 
+                    ? 'Describe your issue or question...' 
+                    : currentLanguage === 'kn' 
+                    ? 'ನಿಮ್ಮ ಸಮಸ್ಯೆ ಅಥವಾ ಪ್ರಶ್ನೆಯನ್ನು ವಿವರಿಸಿ...' 
+                    : 'अपनी समस्या या प्रश्न का वर्णन करें...'}
+                  style={{
+                    width: '100%',
+                    minHeight: '100px',
+                    padding: '12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    marginBottom: '16px',
+                    resize: 'vertical',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => {
+                      setShowSupportModal(false);
+                      setSupportRequestType(null);
+                      setSupportMessage('');
+                    }}
+                    disabled={submittingSupportRequest}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#f3f4f6',
+                      color: '#374151',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: submittingSupportRequest ? 'not-allowed' : 'pointer',
+                      opacity: submittingSupportRequest ? 0.5 : 1
+                    }}
+                  >
+                    {currentLanguage === 'en' ? 'Cancel' : currentLanguage === 'kn' ? 'ರದ್ದುಮಾಡಿ' : 'रद्द करें'}
+                  </button>
+                  <button
+                    onClick={() => handleSupportRequest(supportRequestType)}
+                    disabled={submittingSupportRequest}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: submittingSupportRequest ? '#9ca3af' : '#0ea5e9',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: submittingSupportRequest ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {submittingSupportRequest 
+                      ? (currentLanguage === 'en' ? 'Submitting...' : currentLanguage === 'kn' ? 'ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ...' : 'सबमिट किया जा रहा है...')
+                      : (currentLanguage === 'en' ? 'Submit Request' : currentLanguage === 'kn' ? 'ವಿನಂತಿಯನ್ನು ಸಲ್ಲಿಸಿ' : 'अनुरोध सबमिट करें')
+                    }
+                  </button>
+                </div>
               </>
             )}
           </div>
