@@ -397,6 +397,7 @@ const ProgramConfigSchema = new mongoose.Schema({
             'audio-message',
             'healthcare-tip',
             'task-checklist',
+            'visual-cue',
             'feedback-form'
           ]
         },
