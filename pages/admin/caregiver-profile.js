@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import jsPDF from 'jspdf';
 
 const styles = {
   container: {
@@ -95,15 +96,17 @@ const styles = {
     fontSize: '0.875rem',
     fontWeight: '500',
     cursor: 'pointer',
-    borderBottom: '2px solid transparent',
     transition: 'all 0.2s',
     whiteSpace: 'nowrap',
     backgroundColor: 'transparent',
-    border: 'none',
+    borderTop: 'none',
+    borderLeft: 'none',
+    borderRight: 'none',
+    borderBottom: '2px solid transparent',
     outline: 'none',
   },
   tabActive: {
-    borderBottomColor: '#2563eb',
+    borderBottom: '2px solid #2563eb',
     color: '#2563eb',
   },
   tabInactive: {
@@ -428,6 +431,272 @@ export default function CaregiverProfile() {
     } catch (err) {
       alert('Failed to add note');
       console.error(err);
+    }
+  };
+
+  const downloadFeedbackPDF = async (submission, index) => {
+    // Check if submission contains non-Latin characters
+    const hasNonLatin = Object.values(submission.responses || {}).some(response => 
+      /[\u0900-\u097F\u0C80-\u0CFF]/.test(response) // Hindi/Kannada Unicode ranges
+    );
+    
+    if (hasNonLatin) {
+      const confirmDownload = window.confirm(
+        'Note: This feedback contains Kannada/Hindi text. PDF may not display these characters correctly. ' +
+        'Please use CSV export for proper Unicode support. Continue with PDF anyway?'
+      );
+      if (!confirmDownload) return;
+    }
+    
+    // Dynamically import jspdf-autotable
+    const autoTable = (await import('jspdf-autotable')).default;
+    
+    const doc = new jsPDF();
+    const caregiver = profileData?.caregiver;
+    
+    // Title
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('Feedback Form Response', 14, 20);
+    
+    // Caregiver Info
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Caregiver: ${caregiver?.name || 'N/A'}`, 14, 30);
+    doc.text(`Participant ID: ${submission.participantId || 'N/A'}`, 14, 36);
+    doc.text(`Day: ${submission.day}`, 14, 42);
+    doc.text(`Language: ${submission.language.charAt(0).toUpperCase() + submission.language.slice(1)}`, 14, 48);
+    doc.text(`Submitted: ${new Date(submission.submittedAt).toLocaleString()}`, 14, 54);
+    
+    // Responses Table
+    const tableData = Object.entries(submission.responses || {}).map(([fieldId, response]) => {
+      const fieldLabel = submission.fieldLabels?.[fieldId] || `Question ${fieldId}`;
+      return [fieldLabel, response || 'No response'];
+    });
+    
+    autoTable(doc, {
+      startY: 62,
+      head: [['Question', 'Response']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [251, 191, 36], textColor: 0 },
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 70 },
+        1: { cellWidth: 110 }
+      }
+    });
+    
+    // Save PDF
+    const filename = `feedback_${caregiver?.name?.replace(/\s+/g, '_')}_day${submission.day}_${index + 1}.pdf`;
+    doc.save(filename);
+  };
+
+  const downloadFeedbackCSV = (submission, index) => {
+    const caregiver = profileData?.caregiver;
+    
+    // CSV Headers with BOM for Excel compatibility
+    let csv = '\uFEFF'; // UTF-8 BOM
+    csv += 'Caregiver Name,Participant ID,Day,Language,Submitted At,Question,Response\n';
+    
+    // Add each response as a row
+    Object.entries(submission.responses || {}).forEach(([fieldId, response]) => {
+      const fieldLabel = submission.fieldLabels?.[fieldId] || `Question ${fieldId}`;
+      const row = [
+        caregiver?.name || 'N/A',
+        submission.participantId || 'N/A',
+        submission.day,
+        submission.language,
+        new Date(submission.submittedAt).toLocaleString(),
+        `"${fieldLabel.replace(/"/g, '""')}"`,
+        `"${(response || 'No response').replace(/"/g, '""')}"`
+      ];
+      csv += row.join(',') + '\n';
+    });
+    
+    // Create download using Blob with better browser support
+    try {
+      const filename = `feedback_${caregiver?.name?.replace(/\s+/g, '_')}_day${submission.day}_${index + 1}.csv`;
+      
+      // Create blob and force download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      
+      // Try modern download API first
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        // IE workaround
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+      } else {
+        // Modern browsers
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.style.display = 'none';
+        link.href = url;
+        link.download = filename;
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup with longer delay
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 250);
+      }
+      
+      console.log('CSV download initiated:', filename);
+    } catch (error) {
+      console.error('CSV download failed:', error);
+      alert('Failed to download CSV file: ' + error.message);
+    }
+  };
+
+  const downloadAllFeedbackPDF = async () => {
+    const caregiver = profileData?.caregiver;
+    const submissions = caregiver?.feedbackSubmissions || [];
+    
+    if (submissions.length === 0) return;
+    
+    // Check if any submission contains non-Latin characters
+    const hasNonLatin = submissions.some(submission =>
+      Object.values(submission.responses || {}).some(response => 
+        /[\u0900-\u097F\u0C80-\u0CFF]/.test(response) // Hindi/Kannada Unicode ranges
+      )
+    );
+    
+    if (hasNonLatin) {
+      const confirmDownload = window.confirm(
+        'Note: Some feedback contains Kannada/Hindi text. PDF may not display these characters correctly. ' +
+        'Please use CSV export for proper Unicode support. Continue with PDF anyway?'
+      );
+      if (!confirmDownload) return;
+    }
+    
+    // Dynamically import jspdf-autotable
+    const autoTable = (await import('jspdf-autotable')).default;
+    
+    const doc = new jsPDF();
+    
+    // Title Page
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('All Feedback Responses', 14, 20);
+    
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Caregiver: ${caregiver?.name || 'N/A'}`, 14, 30);
+    doc.text(`Total Submissions: ${submissions.length}`, 14, 36);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
+    
+    let yPosition = 52;
+    
+    // Loop through each submission
+    submissions.forEach((submission, index) => {
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      // Submission Header
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Feedback #${index + 1}`, 14, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Day: ${submission.day} | Language: ${submission.language} | Submitted: ${new Date(submission.submittedAt).toLocaleString()}`, 14, yPosition);
+      yPosition += 8;
+      
+      // Responses Table
+      const tableData = Object.entries(submission.responses || {}).map(([fieldId, response]) => {
+        const fieldLabel = submission.fieldLabels?.[fieldId] || `Question ${fieldId}`;
+        return [fieldLabel, response || 'No response'];
+      });
+      
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Question', 'Response']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [251, 191, 36], textColor: 0, fontSize: 9 },
+        styles: { fontSize: 8, cellPadding: 2 },
+        columnStyles: {
+          0: { cellWidth: 70 },
+          1: { cellWidth: 110 }
+        },
+        margin: { left: 14, right: 14 }
+      });
+      
+      yPosition = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : yPosition + 50;
+    });
+    
+    // Save PDF
+    const filename = `all_feedback_${caregiver?.name?.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
+  };
+
+  const downloadAllFeedbackCSV = () => {
+    const caregiver = profileData?.caregiver;
+    const submissions = caregiver?.feedbackSubmissions || [];
+    
+    if (submissions.length === 0) return;
+    
+    // CSV Headers with BOM for Excel compatibility
+    let csv = '\uFEFF'; // UTF-8 BOM
+    csv += 'Submission #,Caregiver Name,Participant ID,Day,Language,Submitted At,Question,Response\n';
+    
+    // Add each submission's responses
+    submissions.forEach((submission, index) => {
+      Object.entries(submission.responses || {}).forEach(([fieldId, response]) => {
+        const fieldLabel = submission.fieldLabels?.[fieldId] || `Question ${fieldId}`;
+        const row = [
+          index + 1,
+          caregiver?.name || 'N/A',
+          submission.participantId || 'N/A',
+          submission.day,
+          submission.language,
+          new Date(submission.submittedAt).toLocaleString(),
+          `"${fieldLabel.replace(/"/g, '""')}"`,
+          `"${(response || 'No response').replace(/"/g, '""')}"`
+        ];
+        csv += row.join(',') + '\n';
+      });
+    });
+    
+    // Create download using Blob with better browser support
+    try {
+      const filename = `all_feedback_${caregiver?.name?.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      // Create blob and force download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      
+      // Try modern download API first
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        // IE workaround
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+      } else {
+        // Modern browsers
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.style.display = 'none';
+        link.href = url;
+        link.download = filename;
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup with longer delay
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 250);
+      }
+      
+      console.log('CSV download initiated:', filename);
+    } catch (error) {
+      console.error('CSV download failed:', error);
+      alert('Failed to download CSV file: ' + error.message);
     }
   };
 
@@ -803,7 +1072,7 @@ export default function CaregiverProfile() {
           {/* Tabs */}
           <div style={styles.card}>
             <div style={styles.tabs}>
-              {['overview', 'progress', 'tasks', 'notes'].map((tab) => (
+              {['overview', 'progress', 'tasks', 'feedback', 'notes'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -1238,6 +1507,156 @@ export default function CaregiverProfile() {
 
               {/* Assessment Tab */}
              
+
+              {/* Feedback Tab */}
+              {activeTab === 'feedback' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div>
+                      <h3 style={styles.sectionTitle}>Feedback Submissions</h3>
+                      {caregiver?.feedbackSubmissions && caregiver.feedbackSubmissions.length > 0 && (
+                        <>
+                          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
+                            Total: {caregiver.feedbackSubmissions.length} submission{caregiver.feedbackSubmissions.length !== 1 ? 's' : ''}
+                          </p>
+                          <p style={{ fontSize: '0.75rem', color: '#f59e0b', margin: '0.5rem 0 0 0', fontStyle: 'italic' }}>
+                            ⚠️ For Kannada/Hindi responses, use CSV export for correct character display
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    {caregiver?.feedbackSubmissions && caregiver.feedbackSubmissions.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'right', marginBottom: '0.25rem' }}>
+                          Export All Submissions:
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => downloadAllFeedbackPDF()}
+                            style={{
+                              ...styles.button,
+                              backgroundColor: '#dc2626',
+                              color: 'white',
+                              padding: '0.625rem 1rem',
+                              fontSize: '0.875rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}
+                            onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                            onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+                          >
+                            📄 All as PDF
+                          </button>
+                          <button
+                            onClick={() => downloadAllFeedbackCSV()}
+                            style={{
+                              ...styles.button,
+                              backgroundColor: '#16a34a',
+                              color: 'white',
+                              padding: '0.625rem 1rem',
+                              fontSize: '0.875rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}
+                            onMouseOver={(e) => e.target.style.backgroundColor = '#15803d'}
+                            onMouseOut={(e) => e.target.style.backgroundColor = '#16a34a'}
+                          >
+                            📊 All as CSV
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {caregiver?.feedbackSubmissions && caregiver.feedbackSubmissions.length > 0 ? (
+                    <div>
+                      {caregiver.feedbackSubmissions.map((submission, index) => (
+                        <div key={index} style={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '0.5rem',
+                          padding: '1.5rem',
+                          marginBottom: '1rem',
+                          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                            <div>
+                              <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#111827', margin: '0 0 0.5rem 0' }}>
+                                📝 Feedback #{caregiver.feedbackSubmissions.length - index}
+                              </h4>
+                              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                                <span>📅 Day {submission.day}</span>
+                                <span>🌐 {submission.language.charAt(0).toUpperCase() + submission.language.slice(1)}</span>
+                                <span>🕒 {new Date(submission.submittedAt).toLocaleString()}</span>
+                                {submission.participantId && <span>👤 ID: {submission.participantId}</span>}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                onClick={() => downloadFeedbackPDF(submission, index)}
+                                style={{
+                                  ...styles.button,
+                                  backgroundColor: '#dc2626',
+                                  color: 'white',
+                                  padding: '0.5rem 1rem',
+                                  fontSize: '0.875rem'
+                                }}
+                                onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                                onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+                              >
+                                📄 PDF
+                              </button>
+                              <button
+                                onClick={() => downloadFeedbackCSV(submission, index)}
+                                style={{
+                                  ...styles.button,
+                                  backgroundColor: '#16a34a',
+                                  color: 'white',
+                                  padding: '0.5rem 1rem',
+                                  fontSize: '0.875rem'
+                                }}
+                                onMouseOver={(e) => e.target.style.backgroundColor = '#15803d'}
+                                onMouseOut={(e) => e.target.style.backgroundColor = '#16a34a'}
+                              >
+                                📊 CSV
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div style={{ marginTop: '1rem' }}>
+                            {Object.entries(submission.responses || {}).map(([fieldId, response], idx) => {
+                              const fieldLabel = submission.fieldLabels?.[fieldId] || `Question ${idx + 1}`;
+                              return (
+                                <div key={fieldId} style={{
+                                  padding: '1rem',
+                                  backgroundColor: '#f9fafb',
+                                  borderRadius: '0.5rem',
+                                  marginBottom: '0.75rem'
+                                }}>
+                                  <p style={{ fontWeight: '600', color: '#374151', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                                    {fieldLabel}
+                                  </p>
+                                  <p style={{ color: '#6b7280', margin: 0, fontSize: '0.875rem' }}>
+                                    {response || 'No response'}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
+                      <p style={{ fontSize: '1.125rem', color: '#6b7280', margin: 0 }}>📝 No feedback submissions yet</p>
+                      <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '0.5rem' }}>
+                        Feedback will appear here when the caregiver completes a feedback form
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Notes Tab */}
               {activeTab === 'notes' && (

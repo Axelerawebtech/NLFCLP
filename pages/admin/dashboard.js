@@ -129,6 +129,12 @@ export default function AdminDashboard() {
       emoji: '👥',
       route: '/admin/patient-profiles',
       background: surfaceColor('#ecfdf5', '#0a2a1f')
+    },
+    {
+      label: 'View Feedback Responses',
+      emoji: '💬',
+      route: '/admin/feedback',
+      background: surfaceColor('#fef3c7', '#2a1f0a')
     }
   ];
 

@@ -1,0 +1,37 @@
+PILOT STUDY PARTICIPANT FEEDBACK FORM
+Intervention: NLFCP – Caregiver Support App
+Participant ID: __________
+Date: __________
+1. Ease of Use
+Question	Rating
+The app was easy to use	☐ Very Easy ☐ Easy ☐ Neutral ☐ Difficult ☐ Very Difficult
+I could understand how to navigate	☐ Yes ☐ Somewhat ☐ No
+2. Learning Modules
+Question	Rating
+Content was easy to understand	☐ Yes ☐ Somewhat ☐ No
+The modules were useful	☐ Yes ☐ Somewhat ☐ No
+3. Assessments
+Question	Rating
+Questions were clear	☐ Yes ☐ Somewhat ☐ No
+Completing assessment was easy	☐ Yes ☐ Somewhat ☐ No
+4. Reminders / Progress
+Question	Rating
+Reminder feature was helpful	☐ Yes ☐ Somewhat ☐ No
+I liked seeing my progress	☐ Yes ☐ Somewhat ☐ No
+5. Overall Comfort
+Question	Rating
+I felt comfortable using the app	☐ Yes ☐ Somewhat ☐ No
+I would like to use this app in future	☐ Yes ☐ Maybe ☐ No
+6. Suggestions / Problems
+What did you like?
+________________________________________
+What was difficult or confusing?
+________________________________________
+What improvements do you suggest?
+________________________________________
+
+
+
+________________________________________
+
+

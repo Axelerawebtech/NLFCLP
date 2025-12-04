@@ -119,6 +119,15 @@ const CaregiverSchema = new mongoose.Schema({
     terminatedAt: { type: Date, default: null },
   },
   programAssignedAt: { type: Date, default: null },
+  feedbackSubmissions: [{
+    taskId: String,
+    day: Number,
+    language: String,
+    responses: Object,
+    fieldLabels: Object,
+    submittedAt: Date,
+    participantId: String
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

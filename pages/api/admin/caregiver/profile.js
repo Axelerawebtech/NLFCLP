@@ -389,7 +389,8 @@ export default async function handler(req, res) {
             isAssigned: caregiver.isAssigned,
             assignedPatient: caregiver.assignedPatient,
             createdAt: caregiver.createdAt,
-            lastLogin: caregiver.lastLogin
+            lastLogin: caregiver.lastLogin,
+            feedbackSubmissions: caregiver.feedbackSubmissions || []
           },
           program: program ? {
             currentDay: program.currentDay,

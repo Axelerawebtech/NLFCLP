@@ -14,7 +14,8 @@ const TASK_TYPE_ENUM = [
   'audio-message',
   'healthcare-tip',
   'task-checklist',
-  'visual-cue'
+  'visual-cue',
+  'feedback-form'
 ];
 
 const dynamicDayTaskStructureSchema = new mongoose.Schema({
@@ -395,7 +396,8 @@ const ProgramConfigSchema = new mongoose.Schema({
             'feeling-check',
             'audio-message',
             'healthcare-tip',
-            'task-checklist'
+            'task-checklist',
+            'feedback-form'
           ]
         },
         
@@ -520,6 +522,21 @@ const ProgramConfigSchema = new mongoose.Schema({
       },
       enabled: { type: Boolean, default: true },
       createdAt: { type: Date, default: Date.now }
+    }]
+  },
+  
+  // Feedback Form Template (for pilot study and program evaluation)
+  feedbackFormTemplate: {
+    templateName: { type: String, default: 'Pilot Study Feedback Form' },
+    feedbackFields: [{
+      label: { type: String },
+      fieldType: { 
+        type: String, 
+        enum: ['rating', 'yes-no', 'text', 'textarea'],
+        default: 'yes-no'
+      },
+      options: [{ type: String }],
+      category: { type: String }
     }]
   },
   

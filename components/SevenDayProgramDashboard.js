@@ -133,6 +133,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [submittingTest, setSubmittingTest] = useState(false);
   const [quickResponses, setQuickResponses] = useState({}); // { taskId: { qIdx: responseValue } }
   const [submittingQuick, setSubmittingQuick] = useState({});
+  const [feedbackResponses, setFeedbackResponses] = useState({}); // { taskId: { fieldIdx: responseValue } }
+  const [submittingFeedback, setSubmittingFeedback] = useState({});
   const [showTestReview, setShowTestReview] = useState(false);
   const [activeSubmission, setActiveSubmission] = useState(null);
   const [inlineToast, setInlineToast] = useState(null);
@@ -1614,6 +1616,188 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   style={{ padding: '10px 18px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
                 >
                   {submittingQuick[task.taskId] ? 'Submitting...' : 'Submit Answers'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'feedback-form':
+        return (
+          <div key={task.taskId || index} style={taskStyle}>
+            {taskHeader}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
+              {(task.content?.feedbackFields || []).map((field, fi) => {
+                const currentResponse = (feedbackResponses[task.taskId] && feedbackResponses[task.taskId][fi]) ?? null;
+                return (
+                  <div key={fi} style={{ padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                    <p style={{ margin: 0, fontWeight: '600', marginBottom: '8px' }}>{fi + 1}. {field.label}</p>
+                    
+                    {field.fieldType === 'rating' && (
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {(field.options || []).map((option, oi) => (
+                          <button
+                            key={oi}
+                            onClick={() => setFeedbackResponses(prev => ({
+                              ...prev,
+                              [task.taskId]: { ...prev[task.taskId], [fi]: option }
+                            }))}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: currentResponse === option ? '2px solid #f59e0b' : '1px solid #e5e7eb',
+                              background: currentResponse === option ? '#fff7ed' : 'white',
+                              cursor: 'pointer',
+                              fontSize: '14px'
+                            }}
+                          >{option}</button>
+                        ))}
+                      </div>
+                    )}
+
+                    {field.fieldType === 'yes-no' && (
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {(field.options || ['Yes', 'Somewhat', 'No']).map((option, oi) => (
+                          <button
+                            key={oi}
+                            onClick={() => setFeedbackResponses(prev => ({
+                              ...prev,
+                              [task.taskId]: { ...prev[task.taskId], [fi]: option }
+                            }))}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '8px',
+                              border: currentResponse === option ? '2px solid #10b981' : '1px solid #e5e7eb',
+                              background: currentResponse === option ? '#d1fae5' : 'white',
+                              cursor: 'pointer',
+                              fontSize: '14px'
+                            }}
+                          >{option}</button>
+                        ))}
+                      </div>
+                    )}
+
+                    {field.fieldType === 'text' && (
+                      <input
+                        type="text"
+                        value={currentResponse || ''}
+                        onChange={(e) => setFeedbackResponses(prev => ({
+                          ...prev,
+                          [task.taskId]: { ...prev[task.taskId], [fi]: e.target.value }
+                        }))}
+                        placeholder="Enter your response..."
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '14px'
+                        }}
+                      />
+                    )}
+
+                    {field.fieldType === 'textarea' && (
+                      <textarea
+                        value={currentResponse || ''}
+                        onChange={(e) => setFeedbackResponses(prev => ({
+                          ...prev,
+                          [task.taskId]: { ...prev[task.taskId], [fi]: e.target.value }
+                        }))}
+                        placeholder="Enter your detailed feedback..."
+                        rows={4}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '14px',
+                          resize: 'vertical'
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={async () => {
+                    const responsesObj = {};
+                    const fieldLabels = {};
+                    (task.content?.feedbackFields || []).forEach((field, fi) => {
+                      const resp = feedbackResponses[task.taskId] && feedbackResponses[task.taskId][fi];
+                      responsesObj[String(fi)] = resp;
+                      fieldLabels[String(fi)] = field.label;
+                    });
+
+                    // Validation
+                    const unanswered = Object.entries(responsesObj).filter(([k, v]) => !v || v === '');
+                    if (unanswered.length > 0) {
+                      showValidationPrompt('Please complete all feedback fields before submitting.');
+                      return;
+                    }
+
+                    try {
+                      showSubmissionToast({
+                        type: 'task',
+                        title: 'Submitting feedback',
+                        message: 'Thank you for your valuable feedback!',
+                        icon: '📋'
+                      });
+                      setSubmittingFeedback(prev => ({ ...prev, [task.taskId]: true }));
+                      
+                      // Save feedback to feedbackSubmissions array
+                      const feedbackResponse = await fetch('/api/caregiver/submit-feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          caregiverId,
+                          day: selectedDay,
+                          taskId: task.taskId,
+                          responses: responsesObj,
+                          fieldLabels,
+                          language: getLanguageKey()
+                        })
+                      });
+                      
+                      const feedbackData = await feedbackResponse.json();
+                      if (!feedbackData.success) {
+                        console.error('Feedback API error:', feedbackData);
+                        throw new Error(feedbackData.error || 'Failed to save feedback');
+                      }
+                      console.log('✅ Feedback saved successfully:', feedbackData);
+
+                      // Mark task as complete
+                      await handleTaskResponse(task.taskId, 'feedback-form', {
+                        responseText: 'Feedback submitted',
+                        responses: responsesObj,
+                        fieldLabels: fieldLabels,
+                        completed: true,
+                        suppressSubmissionToast: true
+                      });
+
+                      showSuccessToast('Feedback submitted successfully!');
+                    } catch (err) {
+                      console.error('Error submitting feedback', err);
+                      showErrorToast('Error submitting feedback. Please try again.');
+                    } finally {
+                      setSubmittingFeedback(prev => ({ ...prev, [task.taskId]: false }));
+                      hideSubmissionToast();
+                    }
+                  }}
+                  disabled={submittingFeedback[task.taskId]}
+                  style={{ 
+                    padding: '10px 18px', 
+                    backgroundColor: submittingFeedback[task.taskId] ? '#9ca3af' : '#f59e0b', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    cursor: submittingFeedback[task.taskId] ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                >
+                  {submittingFeedback[task.taskId] ? 'Submitting...' : 'Submit Feedback'}
                 </button>
               </div>
             </div>

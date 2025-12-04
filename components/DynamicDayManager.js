@@ -1442,8 +1442,58 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLoc
   const effectiveTaskType = structureLocked && task ? task.taskType : taskType;
   const titleIsRequired = isTitleRequired(effectiveTaskType);
   const descriptionIsRequired = isDescriptionRequired(effectiveTaskType);
+  const isBaseLanguage = selectedLanguage === 'english'; // Base language for structure edits
 
-  const handleTaskTypeChange = (nextType) => {
+  // Auto-load feedback template when modal opens with feedback-form type
+  useEffect(() => {
+    const loadFeedbackTemplate = async () => {
+      const hasNoFields = !content.feedbackFields || content.feedbackFields.length === 0;
+      console.log('🔍 useEffect triggered - taskType:', taskType, 'hasNoFields:', hasNoFields, 'feedbackFields:', content.feedbackFields);
+      
+      if (taskType === 'feedback-form' && hasNoFields) {
+        try {
+          console.log('🔄 Loading feedback template...');
+          const response = await fetch('/api/admin/get-feedback-template');
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.template && data.template.feedbackFields && data.template.feedbackFields.length > 0) {
+              console.log('✅ Template loaded:', data.template.feedbackFields.length, 'fields');
+              setContent(prev => ({
+                ...prev,
+                feedbackFields: data.template.feedbackFields
+              }));
+              return;
+            }
+            console.log('⚠️ Template exists but has 0 fields, will seed...');
+          }
+          
+          // Template not found, seed it
+          console.log('📦 Template not found, seeding...');
+          const seedResponse = await fetch('/api/admin/seed-feedback-template', { method: 'POST' });
+          
+          if (seedResponse.ok) {
+            const seedData = await seedResponse.json();
+            if (seedData.success && seedData.template && seedData.template.feedbackFields) {
+              console.log('✅ Template seeded:', seedData.template.feedbackFields.length, 'fields');
+              setContent(prev => ({
+                ...prev,
+                feedbackFields: seedData.template.feedbackFields
+              }));
+            }
+          } else {
+            console.error('❌ Failed to seed template:', seedResponse.status);
+          }
+        } catch (err) {
+          console.error('❌ Error loading feedback template:', err);
+        }
+      }
+    };
+
+    loadFeedbackTemplate();
+  }, [taskType]);
+
+  const handleTaskTypeChange = async (nextType) => {
     if (structureLocked) return;
     setTaskType(nextType);
     setShowTitleField(shouldShowTitleField(nextType, title));
@@ -1464,7 +1514,8 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLoc
     { value: 'audio-message', label: '🔊 Audio Message' },
     { value: 'healthcare-tip', label: '🏥 Healthcare Tip' },
     { value: 'task-checklist', label: '✅ Task Checklist' },
-    { value: 'visual-cue', label: '🖼️ Visual Cue with Image' }
+    { value: 'visual-cue', label: '🖼️ Visual Cue with Image' },
+    { value: 'feedback-form', label: '📋 Feedback Form' }
   ];
 
   // Handle image upload to Cloudinary
@@ -1825,6 +1876,19 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLoc
     if (typeForValidation === 'task-checklist') {
       if (!content.checklistQuestion) {
         alert('⚠️ Please enter a question before adding this task');
+        return;
+      }
+    }
+
+    if (typeForValidation === 'feedback-form') {
+      if (!content.feedbackFields || content.feedbackFields.length === 0) {
+        alert('⚠️ Please add at least one feedback field before adding this task');
+        return;
+      }
+      // Validate that all fields have labels
+      const emptyLabels = content.feedbackFields.filter(f => !f.label || f.label.trim() === '');
+      if (emptyLabels.length > 0) {
+        alert('⚠️ All feedback fields must have question labels');
         return;
       }
     }
@@ -3110,6 +3174,171 @@ function TaskEditorModal({ selectedLanguage, task, onSave, onClose, structureLoc
           </div>
         )}
 
+        {taskType === 'feedback-form' && (
+          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#fef3c7', border: '1px solid #fde047', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                📋 Feedback Form Fields ({(content.feedbackFields || []).length})
+              </label>
+              {!isBaseLanguage && (
+                <span style={{ fontSize: '12px', color: '#f59e0b', backgroundColor: '#fff7ed', padding: '4px 8px', borderRadius: '4px', fontWeight: '600' }}>
+                  🌐 Translation Mode: {selectedLanguage}
+                </span>
+              )}
+            </div>
+
+            {isBaseLanguage && (content.feedbackFields || []).length === 0 && (
+              <div style={{ padding: '12px', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px', marginBottom: '12px' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#92400e' }}>
+                  💡 Tip: The template will auto-load when you select feedback form type. If not, add fields manually or reload.
+                </p>
+              </div>
+            )}
+
+            {!isBaseLanguage && (
+              <div style={{ padding: '12px', backgroundColor: '#dbeafe', border: '1px solid #3b82f6', borderRadius: '6px', marginBottom: '12px' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#1e40af' }}>
+                  🌍 You are translating feedback form to <strong>{selectedLanguage}</strong>. Translate the question labels and options below. The structure (field types) is locked.
+                </p>
+              </div>
+            )}
+
+            {(content.feedbackFields || []).map((field, fi) => (
+              <div key={fi} style={{ marginBottom: '10px', padding: '10px', background: 'white', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ fontSize: '13px' }}>Field {fi + 1}</strong>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {isBaseLanguage ? (
+                      <>
+                        <select
+                          value={field.fieldType || 'rating'}
+                          onChange={(e) => {
+                            const updated = (content.feedbackFields || []).slice();
+                            updated[fi] = { ...updated[fi], fieldType: e.target.value };
+                            // Set options based on field type
+                            if (e.target.value === 'rating') {
+                              updated[fi].options = ['Very Easy', 'Easy', 'Neutral', 'Difficult', 'Very Difficult'];
+                            } else if (e.target.value === 'yes-no') {
+                              updated[fi].options = ['Yes', 'Somewhat', 'No'];
+                            }
+                            setContent(prev => ({ ...prev, feedbackFields: updated }));
+                          }}
+                          style={{ padding: '6px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                        >
+                          <option value="rating">Rating Scale</option>
+                          <option value="yes-no">Yes/No/Somewhat</option>
+                          <option value="text">Text Input</option>
+                          <option value="textarea">Long Text</option>
+                        </select>
+                        <button
+                          onClick={() => {
+                            if (!confirm('⚠️ Delete this field?')) return;
+                            const updated = (content.feedbackFields || []).filter((_, i) => i !== fi);
+                            setContent(prev => ({ ...prev, feedbackFields: updated }));
+                          }}
+                          style={{ padding: '6px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                          🗑️
+                        </button>
+                      </>
+                    ) : (
+                      <span style={{ padding: '6px 10px', backgroundColor: '#f3f4f6', color: '#6b7280', borderRadius: '6px', fontSize: '12px' }}>
+                        Type: {field.fieldType}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
+                  Question/Label ({selectedLanguage})
+                </label>
+                <textarea
+                  value={field.label || ''}
+                  onChange={(e) => {
+                    const updated = (content.feedbackFields || []).slice();
+                    updated[fi] = { ...updated[fi], label: e.target.value };
+                    setContent(prev => ({ ...prev, feedbackFields: updated }));
+                  }}
+                  placeholder={isBaseLanguage ? "e.g., The app was easy to use" : "Enter translation for this question"}
+                  rows={2}
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', marginBottom: '8px' }}
+                />
+
+                {(field.fieldType === 'rating' || field.fieldType === 'yes-no') && (
+                  <div style={{ marginLeft: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <strong style={{ fontSize: '13px' }}>Options ({selectedLanguage})</strong>
+                      {isBaseLanguage && (
+                        <button
+                          onClick={() => {
+                            const updated = (content.feedbackFields || []).slice();
+                            updated[fi] = { ...updated[fi], options: [...(updated[fi].options || []), ''] };
+                            setContent(prev => ({ ...prev, feedbackFields: updated }));
+                          }}
+                          style={{ padding: '6px 10px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >+ Add Option</button>
+                      )}
+                    </div>
+                    {(field.options || []).map((opt, oi) => (
+                      <div key={oi} style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+                        <input
+                          type="text"
+                          value={opt || ''}
+                          onChange={(e) => {
+                            const updated = (content.feedbackFields || []).slice();
+                            updated[fi].options = updated[fi].options.slice();
+                            updated[fi].options[oi] = e.target.value;
+                            setContent(prev => ({ ...prev, feedbackFields: updated }));
+                          }}
+                          placeholder={isBaseLanguage ? `Option ${oi + 1}` : `Translate option ${oi + 1}`}
+                          style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                        />
+                        {isBaseLanguage && (
+                          <button
+                            onClick={() => {
+                              const updated = (content.feedbackFields || []).slice();
+                              updated[fi].options = updated[fi].options.filter((_, i) => i !== oi);
+                              setContent(prev => ({ ...prev, feedbackFields: updated }));
+                            }}
+                            style={{ padding: '6px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                          >✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {field.category && (
+                  <div style={{ marginTop: '8px', padding: '6px 10px', backgroundColor: '#f3f4f6', borderRadius: '4px' }}>
+                    <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600' }}>
+                      Category: {field.category}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {isBaseLanguage && (
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    const field = { label: '', fieldType: 'rating', options: ['Very Easy', 'Easy', 'Neutral', 'Difficult', 'Very Difficult'], category: '' };
+                    setContent(prev => ({ ...prev, feedbackFields: [...(prev.feedbackFields || []), field] }));
+                  }}
+                  style={{ padding: '10px 14px', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                >+ Add Rating Field</button>
+                <button
+                  onClick={() => {
+                    const field = { label: '', fieldType: 'textarea', options: [], category: '' };
+                    setContent(prev => ({ ...prev, feedbackFields: [...(prev.feedbackFields || []), field] }));
+                  }}
+                  style={{ padding: '10px 14px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                >+ Add Text Field</button>
+              </div>
+            )}
+          </div>
+        )}
+
         {taskType === 'activity-selector' && (
           <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
@@ -3430,6 +3659,41 @@ function TaskCard({ task, selectedLanguage, onEdit, onDelete, canDelete = true }
                 }}>
                   👥 {(task.content.targetAudience || 'all') === 'all' ? 'All Caregivers' : `${(task.content.targetLevels || []).join(', ')} only`}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {task.taskType === 'feedback-form' && task.content?.feedbackFields && (
+            <div style={{ marginTop: '14px', padding: '12px', backgroundColor: '#fef3c7', border: '2px solid #fcd34d', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: '600', color: '#92400e' }}>
+                📝 Feedback Questions: {task.content.feedbackFields.length}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {task.content.feedbackFields.slice(0, 3).map((field, idx) => (
+                  <div key={idx} style={{ fontSize: '12px', padding: '8px', backgroundColor: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a' }}>
+                    <div style={{ fontWeight: '600', color: '#78350f', marginBottom: '4px' }}>
+                      {idx + 1}. {field.label}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#92400e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ padding: '2px 6px', backgroundColor: '#fde68a', borderRadius: '4px', fontWeight: '600' }}>
+                        {field.fieldType === 'rating' && '⭐ Rating'}
+                        {field.fieldType === 'yes-no' && '✓ Yes/No'}
+                        {field.fieldType === 'text' && '📝 Text'}
+                        {field.fieldType === 'textarea' && '📄 Long Text'}
+                      </span>
+                      {field.category && (
+                        <span style={{ color: '#a16207', fontStyle: 'italic' }}>
+                          • {field.category}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {task.content.feedbackFields.length > 3 && (
+                  <div style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic', textAlign: 'center', padding: '4px' }}>
+                    +{task.content.feedbackFields.length - 3} more question(s)
+                  </div>
+                )}
               </div>
             </div>
           )}
