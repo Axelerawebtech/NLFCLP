@@ -1804,6 +1804,165 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           </div>
         );
 
+      case 'visual-cue':
+        return (
+          <div key={task.taskId || index} style={{
+            padding: '32px',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '3px solid #a78bfa',
+            marginBottom: '24px',
+            boxShadow: '0 10px 25px -5px rgba(167, 139, 250, 0.3), 0 8px 10px -6px rgba(167, 139, 250, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Decorative pattern background */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.05,
+              pointerEvents: 'none',
+              background: `radial-gradient(circle, #a78bfa 1px, transparent 1px)`,
+              backgroundSize: '40px 40px'
+            }} />
+
+            {/* Content */}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {/* Title with icon */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '36px' }}>👁️</span>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '28px', 
+                  fontWeight: '700', 
+                  color: '#5b21b6',
+                  lineHeight: '1.2'
+                }}>
+                  {task.title}
+                </h3>
+              </div>
+
+              {/* Image if available */}
+              {task.content?.imageUrl && (
+                <div style={{
+                  marginBottom: '24px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}>
+                  <img 
+                    src={task.content.imageUrl} 
+                    alt={task.title}
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      maxHeight: '400px',
+                      objectFit: 'contain',
+                      display: 'block'
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      console.error('Failed to load visual cue image:', task.content.imageUrl);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Description/Message */}
+              {task.description && (
+                <div style={{
+                  marginBottom: '24px',
+                  padding: '20px',
+                  backgroundColor: '#faf5ff',
+                  borderRadius: '12px',
+                  border: '2px solid #e9d5ff'
+                }}>
+                  <p style={{ 
+                    margin: 0,
+                    fontSize: '18px',
+                    lineHeight: '1.6',
+                    color: '#5b21b6',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {task.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Additional message from content - check both textContent and message fields */}
+              {(task.content?.textContent || task.content?.message) && (
+                (task.content?.textContent !== task.description && task.content?.message !== task.description) && (
+                  <div style={{
+                    marginBottom: '24px',
+                    padding: '20px',
+                    backgroundColor: '#faf5ff',
+                    borderRadius: '12px',
+                    border: '2px solid #e9d5ff'
+                  }}>
+                    <p style={{ 
+                      margin: 0,
+                      fontSize: '18px',
+                      lineHeight: '1.6',
+                      color: '#5b21b6',
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      {task.content.textContent || task.content.message}
+                    </p>
+                  </div>
+                )
+              )}
+
+              {/* Proceed button */}
+              <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                <button
+                  onClick={() => handleTaskResponse(task.taskId, 'visual-cue', {
+                    responseText: 'Visual cue acknowledged',
+                    completed: true
+                  })}
+                  style={{
+                    fontSize: '18px',
+                    padding: '16px 48px',
+                    border: '3px solid #a78bfa',
+                    borderRadius: '12px',
+                    backgroundColor: '#7c3aed',
+                    color: 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s',
+                    boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)',
+                    fontWeight: '600',
+                    minWidth: '200px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.backgroundColor = '#6d28d9';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(124, 58, 237, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.backgroundColor = '#7c3aed';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(124, 58, 237, 0.3)';
+                  }}
+                >
+                  ✓ Proceed
+                </button>
+              </div>
+
+              {/* Decorative elements */}
+              <div style={{
+                marginTop: '24px',
+                textAlign: 'center',
+                fontSize: '20px',
+                opacity: 0.6
+              }}>
+                💜 ✨ 💜
+              </div>
+            </div>
+          </div>
+        );
+
       case 'reminder':
         // Reminders don't show as task cards on caregiver dashboard
         // They only appear as popup notifications via NotificationManager
