@@ -4798,6 +4798,26 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         </div>
       </div>
 
+      {/* Multi-Section Assessment - Loading Message */}
+      {questionnaireEnabled && (!questionnaireData || !questionnaireData.sections) && (
+        <div style={{
+          backgroundColor: '#fef3c7',
+          border: '2px solid #f59e0b',
+          borderRadius: '12px',
+          padding: '24px',
+          marginBottom: '20px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
+          <h3 style={{ fontWeight: '700', color: '#92400e', margin: '0 0 8px 0' }}>
+            {currentLanguage === 'en' ? 'Assessment Configuration Required' : currentLanguage === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಸಂರಚನೆ ಅಗತ್ಯವಿದೆ' : 'मूल्यांकन विन्यास आवश्यक है'}
+          </h3>
+          <p style={{ color: '#78350f', margin: 0 }}>
+            {currentLanguage === 'en' ? 'Please contact your administrator to complete the setup.' : currentLanguage === 'kn' ? 'ದಯವಿಟ್ಟು ಸೆಟಪ್ ಪೂರ್ಣಗೊಳಿಸಲು ನಿಮ್ಮ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.' : 'कृपया सेटअप पूर्ण करने के लिए अपने प्रशासक से संपर्क करें।'}
+          </p>
+        </div>
+      )}
+
       {/* Multi-Section Assessment - Zarit + DASS-7 + WHOQOL */}
       {questionnaireEnabled && questionnaireData && questionnaireData.sections && (
         <div style={{
