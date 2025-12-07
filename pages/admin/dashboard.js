@@ -160,6 +160,13 @@ export default function AdminDashboard() {
       background: surfaceColor('#f3edff', '#1f1231')
     },
     {
+      label: 'Configure Caregiver Questionnaire',
+      emoji: '📝',
+      route: '/admin/configure-patient-questionnaire',
+      background: surfaceColor('#fef3f2', '#2d0f0c'),
+      description: 'Same WHOQOL for both patients & caregivers'
+    },
+    {
       label: 'Patient Profiles',
       emoji: '👥',
       route: '/admin/patient-profiles',

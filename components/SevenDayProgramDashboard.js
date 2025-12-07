@@ -2063,7 +2063,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         
         // Check if already submitted
         const attempts = data.data.caregiver.questionnaireAttempts || [];
-        const maxAttempts = 2;
+        const sections = data.data.questionnaire?.sections || [];
         
         // If retake is open (second attempt scheduled), show fresh form regardless of previous attempts
         if (retakeStatus === 'open') {
@@ -2071,6 +2071,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           setQuestionnaireSubmitted(false);
           setQuestionnaireAnswers({});
           setIsEditingQuestionnaire(false);
+          setCurrentSection(0);
+          setCompletedSections([]);
+          setAssessmentAttemptNumber(2);
         } 
         // If retake is completed, show the second attempt
         else if (retakeStatus === 'completed' && attempts.length === 2) {
@@ -2079,10 +2082,25 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           const secondAttempt = attempts[1];
           if (secondAttempt && secondAttempt.answers && secondAttempt.answers.length > 0) {
             const answersMap = {};
-            secondAttempt.answers.forEach((ans, idx) => {
-              answersMap[idx] = ans.answer;
+            const completedSecs = new Set();
+            
+            secondAttempt.answers.forEach((ans) => {
+              if (ans.sectionId && ans.questionIndex !== undefined) {
+                // New format with section info
+                const key = `${ans.sectionId}_${ans.questionIndex}`;
+                answersMap[key] = ans.answer;
+                completedSecs.add(ans.sectionId);
+              } else {
+                // Legacy format without section info
+                answersMap[ans.questionIndex || Object.keys(answersMap).length] = ans.answer;
+              }
             });
+            
             setQuestionnaireAnswers(answersMap);
+            // Mark all sections as completed
+            setCompletedSections(sections.map((s, idx) => idx));
+            setCurrentSection(0);
+            setAssessmentAttemptNumber(2);
           }
         }
         // First attempt exists and no retake scheduled
@@ -2091,18 +2109,36 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           const latestAttempt = attempts[attempts.length - 1];
           if (latestAttempt && latestAttempt.answers && latestAttempt.answers.length > 0) {
             setQuestionnaireSubmitted(true);
-            // Pre-fill answers for review/edit
+            // Pre-fill answers for review/edit with section keys
             const answersMap = {};
-            latestAttempt.answers.forEach((ans, idx) => {
-              answersMap[idx] = ans.answer;
+            const completedSecs = new Set();
+            
+            latestAttempt.answers.forEach((ans) => {
+              if (ans.sectionId && ans.questionIndex !== undefined) {
+                // New format with section info
+                const key = `${ans.sectionId}_${ans.questionIndex}`;
+                answersMap[key] = ans.answer;
+                completedSecs.add(ans.sectionId);
+              } else {
+                // Legacy format without section info
+                answersMap[ans.questionIndex || Object.keys(answersMap).length] = ans.answer;
+              }
             });
+            
             setQuestionnaireAnswers(answersMap);
+            // Mark all sections as completed
+            setCompletedSections(sections.map((s, idx) => idx));
+            setCurrentSection(0);
+            setAssessmentAttemptNumber(1);
           }
         } else {
           // No attempts yet - clear any previous state
           console.log('[Questionnaire] No attempts yet - showing fresh form');
           setQuestionnaireSubmitted(false);
           setQuestionnaireAnswers({});
+          setCurrentSection(0);
+          setCompletedSections([]);
+          setAssessmentAttemptNumber(1);
         }
       }
     } catch (error) {
@@ -2118,35 +2154,53 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   };
 
   const handleQuestionnaireSubmit = async () => {
-    if (!questionnaireData || !questionnaireEnabled) return;
+    if (!questionnaireData || !questionnaireEnabled || !questionnaireData.sections) return;
     
-    // Validate all required questions are answered
-    const unansweredRequired = questionnaireData.questions.some((q, idx) => 
-      q.required && !questionnaireAnswers[idx]
-    );
+    // Validate ALL sections are completed
+    let allAnswered = true;
+    const formattedAnswers = [];
     
-    if (unansweredRequired) {
-      showErrorToast('Please answer all required questions');
+    questionnaireData.sections.forEach((section, sectionIdx) => {
+      section.questions.forEach((question, qIdx) => {
+        const questionKey = `${section.sectionId}_${qIdx}`;
+        const answer = questionnaireAnswers[questionKey];
+        
+        if (question.required && !answer) {
+          allAnswered = false;
+        }
+        
+        formattedAnswers.push({
+          sectionId: section.sectionId,
+          sectionTitle: section.sectionTitle?.english || `Section ${sectionIdx + 1}`,
+          questionIndex: qIdx,
+          questionId: question._id || questionKey,
+          questionText: question.questionText?.english || question.questionText,
+          answer: answer || '',
+          language: currentLanguage,
+          submittedAt: new Date()
+        });
+      });
+    });
+    
+    if (!allAnswered) {
+      showErrorToast(currentLanguage === 'en' 
+        ? 'Please complete all sections and answer all required questions' 
+        : currentLanguage === 'kn'
+        ? 'ದಯವಿಟ್ಟು ಎಲ್ಲಾ ವಿಭಾಗಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ ಮತ್ತು ಎಲ್ಲಾ ಅಗತ್ಯ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಿ'
+        : 'कृपया सभी अनुभागों को पूर्ण करें और सभी आवश्यक प्रश्नों के उत्तर दें');
       return;
     }
     
     setSubmittingQuestionnaire(true);
     
     try {
-      const formattedAnswers = questionnaireData.questions.map((question, idx) => ({
-        questionId: question._id,
-        questionText: question.questionText,
-        answer: questionnaireAnswers[idx] || '',
-        language: currentLanguage,
-        submittedAt: new Date()
-      }));
-      
       const response = await fetch('/api/caregiver/questionnaire/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           caregiverId,
-          answers: formattedAnswers
+          answers: formattedAnswers,
+          isMultiSection: true
         })
       });
       
@@ -2155,7 +2209,13 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       if (data.success) {
         setQuestionnaireSubmitted(true);
         setIsEditingQuestionnaire(false);
-        showSuccessToast('Assessment submitted successfully!');
+        setCurrentSection(0);
+        setCompletedSections([]);
+        showSuccessToast(currentLanguage === 'en' 
+          ? 'Complete assessment submitted successfully!' 
+          : currentLanguage === 'kn'
+          ? 'ಸಂಪೂರ್ಣ ಮೌಲ್ಯಮಾಪನವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸಲ್ಲಿಸಲಾಗಿದೆ!'
+          : 'संपूर्ण मूल्यांकन सफलतापूर्वक सबमिट किया गया!');
         fetchQuestionnaireData(); // Refresh data
       } else {
         showErrorToast(data.message || 'Failed to submit assessment');

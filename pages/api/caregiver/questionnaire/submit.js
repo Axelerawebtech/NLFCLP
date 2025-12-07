@@ -3,28 +3,10 @@ import Caregiver from '../../../../models/Caregiver';
 import Questionnaire from '../../../../models/Questionnaire';
 import mongoose from 'mongoose';
 
-// Helper function to ensure attempt history exists
+// Helper function to ensure attempt history exists (simplified - no migration needed)
 const ensureAttemptHistory = async (caregiver) => {
   if (!Array.isArray(caregiver.questionnaireAttempts)) {
     caregiver.questionnaireAttempts = [];
-  }
-  
-  if (caregiver.questionnaireAnswers && caregiver.questionnaireAnswers.length > 0) {
-    const hasAttempt1 = caregiver.questionnaireAttempts.some(a => a.attemptNumber === 1);
-    
-    if (!hasAttempt1) {
-      const oldestSubmission = caregiver.questionnaireAnswers.reduce((oldest, answer) => {
-        const answerDate = new Date(answer.submittedAt);
-        const oldestDate = new Date(oldest.submittedAt);
-        return answerDate < oldestDate ? answer : oldest;
-      }, caregiver.questionnaireAnswers[0]);
-      
-      caregiver.questionnaireAttempts.push({
-        attemptNumber: 1,
-        submittedAt: oldestSubmission.submittedAt,
-        answers: caregiver.questionnaireAnswers
-      });
-    }
   }
 };
 
@@ -85,23 +67,57 @@ export default async function handler(req, res) {
         });
       }
 
-      await ensureAttemptHistory(caregiver);
+      // Initialize questionnaireAttempts if not exists
+      if (!Array.isArray(caregiver.questionnaireAttempts)) {
+        caregiver.questionnaireAttempts = [];
+      }
 
-      const existingAttempts = Array.isArray(caregiver.questionnaireAttempts) ? caregiver.questionnaireAttempts.length : 0;
-      const nextAttemptNumber = existingAttempts + 1;
+      const existingAttempts = caregiver.questionnaireAttempts.length;
       const maxAttempts = 2;
+      
+      // Determine if this is an edit or new attempt
+      let attemptNumber;
+      let isEditingExisting = false;
+      
+      if (existingAttempts === 0) {
+        // First submission
+        attemptNumber = 1;
+      } else if (existingAttempts === 1) {
+        // Could be editing attempt 1 OR creating attempt 2
+        // Check retake status to determine
+        if (caregiver.questionnaireRetakeStatus === 'open') {
+          // Creating second attempt
+          attemptNumber = 2;
+        } else {
+          // Editing first attempt
+          attemptNumber = 1;
+          isEditingExisting = true;
+        }
+      } else {
+        // Already have 2 attempts - determine which one to edit based on retake status
+        if (caregiver.questionnaireRetakeStatus === 'completed') {
+          // Editing second attempt
+          attemptNumber = 2;
+          isEditingExisting = true;
+        } else {
+          // Editing first attempt
+          attemptNumber = 1;
+          isEditingExisting = true;
+        }
+      }
 
-      if (nextAttemptNumber > maxAttempts) {
+      console.log('[Caregiver Submit API] Attempt info:', {
+        existingAttempts,
+        attemptNumber,
+        isEditingExisting,
+        retakeStatus: caregiver.questionnaireRetakeStatus
+      });
+
+      // Only block if trying to create a third attempt
+      if (!isEditingExisting && attemptNumber > maxAttempts) {
         return res.status(400).json({
           success: false,
           message: 'Maximum number of questionnaire attempts reached'
-        });
-      }
-
-      if (nextAttemptNumber === 2 && caregiver.questionnaireRetakeStatus !== 'open') {
-        return res.status(403).json({
-          success: false,
-          message: 'Second attempt not currently available. Please wait for your care team to schedule it.'
         });
       }
 
@@ -148,8 +164,25 @@ export default async function handler(req, res) {
 
       console.log('[Caregiver Submit API] Formatted', formattedAnswers.length, 'answers for storage');
 
-      // Append this attempt to history
-      await appendAttempt(caregiver, formattedAnswers, nextAttemptNumber);
+      // Check if we're editing an existing attempt or creating a new one
+      const existingAttempt = caregiver.questionnaireAttempts.find(a => a.attemptNumber === attemptNumber);
+      
+      if (isEditingExisting && existingAttempt) {
+        // Update existing attempt (editing)
+        console.log('[Caregiver Submit API] Updating existing attempt', attemptNumber);
+        existingAttempt.answers = formattedAnswers;
+        existingAttempt.submittedAt = new Date();
+      } else {
+        // Create new attempt
+        console.log('[Caregiver Submit API] Creating new attempt', attemptNumber);
+        await appendAttempt(caregiver, formattedAnswers, attemptNumber);
+        
+        // Update retake status if this is the second attempt
+        if (attemptNumber === 2) {
+          caregiver.questionnaireRetakeStatus = 'completed';
+          caregiver.questionnaireRetakeCompletedAt = new Date();
+        }
+      }
 
       // Update current answers (for backward compatibility)
       caregiver.questionnaireAnswers = formattedAnswers;
@@ -157,13 +190,14 @@ export default async function handler(req, res) {
 
       await caregiver.save();
 
-      console.log('[Caregiver Submit API] SUCCESS: Saved attempt', nextAttemptNumber, 'with', formattedAnswers.length, 'answers');
+      console.log('[Caregiver Submit API] SUCCESS: Saved attempt', attemptNumber, 'with', formattedAnswers.length, 'answers');
 
       return res.status(200).json({
         success: true,
-        message: 'Questionnaire submitted successfully',
+        message: isEditingExisting ? 'Questionnaire updated successfully' : 'Questionnaire submitted successfully',
         data: {
-          attemptNumber: nextAttemptNumber,
+          attemptNumber,
+          isEdit: isEditingExisting,
           totalAttempts: caregiver.questionnaireAttempts.length,
           submittedAt: new Date()
         }

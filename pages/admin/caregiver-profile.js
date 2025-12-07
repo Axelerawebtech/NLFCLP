@@ -1827,7 +1827,7 @@ export default function CaregiverProfile() {
                               {attempt.attemptNumber === 1 ? '📝' : '📋'}
                             </div>
                             <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e40af', marginBottom: '4px' }}>
-                              {attempt.attemptNumber === 1 ? 'First Assessment' : 'Second Assessment'}
+                              {attempt.attemptNumber === 1 ? '⚡ Immediate Post-Test' : '📅 Scheduled Post-Test'}
                             </div>
                             <div style={{ fontSize: '13px', color: '#6b7280' }}>
                               Submitted: {new Date(attempt.submittedAt).toLocaleString()}
@@ -1871,7 +1871,10 @@ export default function CaregiverProfile() {
                       padding: '20px',
                       marginBottom: '20px'
                     }}>
-                      <h4 style={{ margin: '0 0 12px 0', color: '#92400e' }}>Schedule Second Assessment</h4>
+                      <h4 style={{ margin: '0 0 8px 0', color: '#92400e' }}>📅 Schedule Scheduled Post-Test (Second Assessment)</h4>
+                      <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#78350f' }}>
+                        The caregiver has completed the immediate post-test. Schedule the second assessment for a future date.
+                      </p>
                       
                       {caregiver.questionnaireRetakeStatus === 'scheduled' && (
                         <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#dbeafe', borderRadius: '8px' }}>
@@ -2377,31 +2380,37 @@ export default function CaregiverProfile() {
 
         {/* Questionnaire Comparison Dialog */}
         {compareQuestionnaireDialog && caregiver?.questionnaireAttempts && caregiver.questionnaireAttempts.length === 2 && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-            zIndex: 10000
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              padding: '24px',
-              maxWidth: '1200px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflow: 'auto'
-            }}>
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              zIndex: 10000
+            }}
+            onClick={() => setCompareQuestionnaireDialog(false)}
+          >
+            <div 
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '1200px',
+                width: '100%',
+                maxHeight: '90vh',
+                overflow: 'auto'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>
-                  📊 Assessment Comparison
+                  📊 Assessment Comparison: Immediate vs Scheduled Post-Test
                 </h3>
                 <button
                   onClick={() => setCompareQuestionnaireDialog(false)}
@@ -2434,7 +2443,7 @@ export default function CaregiverProfile() {
                         {attemptNum === 1 ? '📝' : '📋'}
                       </div>
                       <h4 style={{ margin: '0 0 8px 0', color: attemptNum === 1 ? '#1e40af' : '#065f46' }}>
-                        {attemptNum === 1 ? 'First Assessment' : 'Second Assessment'}
+                        {attemptNum === 1 ? '⚡ Immediate Post-Test' : '📅 Scheduled Post-Test'}
                       </h4>
                       <div style={{ fontSize: '13px', color: '#6b7280' }}>
                         {new Date(attempt.submittedAt).toLocaleString()}
@@ -2508,7 +2517,7 @@ export default function CaregiverProfile() {
                             border: '1px solid #bfdbfe'
                           }}>
                             <div style={{ fontSize: '12px', fontWeight: '600', color: '#1e40af', marginBottom: '6px' }}>
-                              First Assessment
+                              ⚡ Immediate Post-Test
                             </div>
                             <div style={{ fontSize: '14px', color: '#1e3a8a', wordWrap: 'break-word' }}>
                               {answer1}
@@ -2522,7 +2531,7 @@ export default function CaregiverProfile() {
                             border: '1px solid #6ee7b7'
                           }}>
                             <div style={{ fontSize: '12px', fontWeight: '600', color: '#065f46', marginBottom: '6px' }}>
-                              Second Assessment
+                              📅 Scheduled Post-Test
                             </div>
                             <div style={{ fontSize: '14px', color: '#064e3b', wordWrap: 'break-word' }}>
                               {answer2}
