@@ -1,5 +1,6 @@
 import dbConnect from '../../../lib/mongodb';
 import Caregiver from '../../../models/Caregiver';
+import Patient from '../../../models/Patient';
 import Questionnaire from '../../../models/Questionnaire';
 import mongoose from 'mongoose';
 

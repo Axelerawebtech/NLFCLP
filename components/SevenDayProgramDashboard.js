@@ -4648,7 +4648,75 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         </div>
       )}
 
-      {/* Independent Questionnaire Section */}
+      {/* Support Request Section */}
+      <div style={{
+        backgroundColor: '#f0f9ff',
+        border: '2px solid #38bdf8',
+        borderRadius: '12px',
+        padding: '20px',
+        marginBottom: '20px'
+      }}>
+        <h4 style={{ fontWeight: '600', color: '#0369a1', marginTop: 0, marginBottom: '12px' }}>
+          📞 {currentLanguage === 'en' ? 'Need Support?' : currentLanguage === 'kn' ? 'ಬೆಂಬಲ ಬೇಕೇ?' : 'सहायता चाहिए?'}
+        </h4>
+        <p style={{ fontSize: '14px', color: '#0c4a6e', marginBottom: '16px' }}>
+          {currentLanguage === 'en' 
+            ? 'If you need assistance, you can request a call from our team or contact the Nurse PI.' 
+            : currentLanguage === 'kn' 
+            ? 'ನಿಮಗೆ ಸಹಾಯ ಬೇಕಾದರೆ, ನೀವು ನಮ್ಮ ತಂಡದಿಂದ ಕರೆಗಾಗಿ ವಿನಂತಿಸಬಹುದು ಅಥವಾ ನರ್ಸ್ PIಯನ್ನು ಸಂಪರ್ಕಿಸಬಹುದು.' 
+            : 'यदि आपको सहायता की आवश्यकता है, तो आप हमारी टीम से कॉल का अनुरोध कर सकते हैं या नर्स PI से संपर्क कर सकते हैं।'}
+        </p>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => {
+              setShowSupportModal(true);
+              setSupportRequestType('admin-call');
+            }}
+            style={{
+              flex: '1',
+              minWidth: '200px',
+              padding: '12px 16px',
+              backgroundColor: '#0ea5e9',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#0284c7'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#0ea5e9'}
+          >
+            📞 {currentLanguage === 'en' ? 'Request Admin Call' : currentLanguage === 'kn' ? 'ನಿರ್ವಾಹಕರ ಕರೆಗಾಗಿ ವಿನಂತಿಸಿ' : 'व्यवस्थापक कॉल का अनुरोध करें'}
+          </button>
+          <button
+            onClick={() => {
+              setShowSupportModal(true);
+              setSupportRequestType('nurse-pi');
+            }}
+            style={{
+              flex: '1',
+              minWidth: '200px',
+              padding: '12px 16px',
+              backgroundColor: '#06b6d4',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#0891b2'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#06b6d4'}
+          >
+            🩺 {currentLanguage === 'en' ? 'Contact Nurse PI' : currentLanguage === 'kn' ? 'ನರ್ಸ್ PI ಸಂಪರ್ಕಿಸಿ' : 'नर्स PI से संपर्क करें'}
+          </button>
+        </div>
+      </div>
+
+      {/* Independent Questionnaire Section - WHOQOL Assessment */}
       {questionnaireEnabled && questionnaireData && (
         <div style={{
           backgroundColor: '#faf5ff',
@@ -4876,74 +4944,6 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           )}
         </div>
       )}
-
-      {/* Support Request Section */}
-      <div style={{
-        backgroundColor: '#f0f9ff',
-        border: '2px solid #38bdf8',
-        borderRadius: '12px',
-        padding: '20px',
-        marginBottom: '20px'
-      }}>
-        <h4 style={{ fontWeight: '600', color: '#0369a1', marginTop: 0, marginBottom: '12px' }}>
-          📞 {currentLanguage === 'en' ? 'Need Support?' : currentLanguage === 'kn' ? 'ಬೆಂಬಲ ಬೇಕೇ?' : 'सहायता चाहिए?'}
-        </h4>
-        <p style={{ fontSize: '14px', color: '#0c4a6e', marginBottom: '16px' }}>
-          {currentLanguage === 'en' 
-            ? 'If you need assistance, you can request a call from our team or contact the Nurse PI.' 
-            : currentLanguage === 'kn' 
-            ? 'ನಿಮಗೆ ಸಹಾಯ ಬೇಕಾದರೆ, ನೀವು ನಮ್ಮ ತಂಡದಿಂದ ಕರೆಗಾಗಿ ವಿನಂತಿಸಬಹುದು ಅಥವಾ ನರ್ಸ್ PIಯನ್ನು ಸಂಪರ್ಕಿಸಬಹುದು.' 
-            : 'यदि आपको सहायता की आवश्यकता है, तो आप हमारी टीम से कॉल का अनुरोध कर सकते हैं या नर्स PI से संपर्क कर सकते हैं।'}
-        </p>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => {
-              setShowSupportModal(true);
-              setSupportRequestType('admin-call');
-            }}
-            style={{
-              flex: '1',
-              minWidth: '200px',
-              padding: '12px 16px',
-              backgroundColor: '#0ea5e9',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#0284c7'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#0ea5e9'}
-          >
-            📞 {currentLanguage === 'en' ? 'Request Admin Call' : currentLanguage === 'kn' ? 'ನಿರ್ವಾಹಕರ ಕರೆಗಾಗಿ ವಿನಂತಿಸಿ' : 'व्यवस्थापक कॉल का अनुरोध करें'}
-          </button>
-          <button
-            onClick={() => {
-              setShowSupportModal(true);
-              setSupportRequestType('nurse-pi');
-            }}
-            style={{
-              flex: '1',
-              minWidth: '200px',
-              padding: '12px 16px',
-              backgroundColor: '#06b6d4',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#0891b2'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#06b6d4'}
-          >
-            🩺 {currentLanguage === 'en' ? 'Contact Nurse PI' : currentLanguage === 'kn' ? 'ನರ್ಸ್ PI ಸಂಪರ್ಕಿಸಿ' : 'नर्स PI से संपर्क करें'}
-          </button>
-        </div>
-      </div>
 
       {/* Support Request Modal */}
       {showSupportModal && (
