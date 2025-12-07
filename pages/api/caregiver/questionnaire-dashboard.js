@@ -20,27 +20,16 @@ const CaregiverAssessmentSchema = new mongoose.Schema({
       kannada: String
     },
     questions: [{
-      questionText: {
-        english: String,
-        hindi: String,
-        kannada: String
-      },
+      questionText: mongoose.Schema.Types.Mixed,
       type: String,
-      options: [{
-        value: Number,
-        label: {
-          english: String,
-          hindi: String,
-          kannada: String
-        }
-      }],
+      options: [mongoose.Schema.Types.Mixed],
       required: Boolean
     }]
   }],
   isActive: Boolean,
   createdAt: Date,
   updatedAt: Date
-});
+}, { strict: false });
 
 const CaregiverAssessment = mongoose.models.CaregiverAssessment || 
   mongoose.model('CaregiverAssessment', CaregiverAssessmentSchema);
