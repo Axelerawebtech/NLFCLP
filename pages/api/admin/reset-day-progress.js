@@ -95,20 +95,16 @@ export default async function handler(req, res) {
 
     const shouldResetDynamicAssessment = Boolean(resetDynamicTest || (day === 1 && resetBurdenTest));
 
-    // ALWAYS reset dynamic test fields to ensure clean state
-    // This fixes the issue where "Review Assessment" shows after reset
-    dayModule.dynamicTestCompleted = false;
-    dayModule.dynamicTest = null;
-    dayModule.contentLevel = null;
-
-    // Also clear any cached test results in taskResponses
-    if (Array.isArray(dayModule.taskResponses)) {
-      dayModule.taskResponses = dayModule.taskResponses.filter(resp => resp?.taskType !== 'dynamic-test');
-    }
-
-    // Additional Day 1 specific reset (only if explicitly requested)
-    if (shouldResetDynamicAssessment && day === 1) {
+    if (shouldResetDynamicAssessment) {
+      dayModule.dynamicTestCompleted = false;
+      dayModule.dynamicTest = null;
+      dayModule.contentLevel = null;
       dayModule.burdenTestCompleted = false;
+
+      // Also clear any cached test results in taskResponses
+      if (Array.isArray(dayModule.taskResponses)) {
+        dayModule.taskResponses = dayModule.taskResponses.filter(resp => resp?.taskType !== 'dynamic-test');
+      }
     }
 
     // Special handling for Day 1 - burden test reset
@@ -159,15 +155,14 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       success: true,
-      message: `Day ${day} progress has been reset successfully (including any assessments)`,
+      message: `Day ${day} progress has been reset successfully${shouldResetDynamicAssessment ? ' (including assessment)' : ''}`,
       data: {
         day,
-        resetDynamicTest: true, // Always reset dynamic tests
+        resetDynamicTest: shouldResetDynamicAssessment,
         progressPercentage: 0,
         videoWatched: false,
         audioCompleted: false,
-        dynamicTestCompleted: false,
-        burdenTestCompleted: day === 1 ? false : undefined
+        burdenTestCompleted: day === 1 ? !shouldResetDynamicAssessment && dayModule.burdenTestCompleted : undefined
       }
     });
 

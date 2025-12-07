@@ -391,7 +391,15 @@ export default async function handler(req, res) {
             createdAt: caregiver.createdAt,
             lastLogin: caregiver.lastLogin,
             feedbackSubmissions: caregiver.feedbackSubmissions || [],
-            supportRequests: caregiver.supportRequests || []
+            supportRequests: caregiver.supportRequests || [],
+            // Questionnaire fields
+            questionnaireEnabled: caregiver.questionnaireEnabled || false,
+            questionnaireAnswers: caregiver.questionnaireAnswers || [],
+            questionnaireAttempts: caregiver.questionnaireAttempts || [],
+            questionnaireRetakeStatus: caregiver.questionnaireRetakeStatus || 'none',
+            questionnaireRetakeScheduledFor: caregiver.questionnaireRetakeScheduledFor,
+            questionnaireRetakeCompletedAt: caregiver.questionnaireRetakeCompletedAt,
+            lastQuestionnaireSubmission: caregiver.lastQuestionnaireSubmission
           },
           program: program ? {
             currentDay: program.currentDay,

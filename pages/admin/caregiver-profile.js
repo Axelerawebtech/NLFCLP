@@ -310,6 +310,11 @@ export default function CaregiverProfile() {
   const [resetDialog, setResetDialog] = useState(false);
   const [resetDayData, setResetDayData] = useState(null);
   const [success, setSuccess] = useState('');
+  
+  // Questionnaire state
+  const [questionnaireRetakeSchedule, setQuestionnaireRetakeSchedule] = useState('');
+  const [schedulingQuestionnaire, setSchedulingQuestionnaire] = useState(false);
+  const [compareQuestionnaireDialog, setCompareQuestionnaireDialog] = useState(false);
 
   const formatHours = (value) => {
     const hours = Number(value) || 0;
@@ -856,6 +861,103 @@ export default function CaregiverProfile() {
     }
   };
 
+  // Questionnaire handlers
+  const toggleQuestionnaireEnabled = async () => {
+    const caregiver = profileData?.caregiver;
+    if (!caregiver) return;
+    
+    try {
+      const response = await fetch(`/api/admin/caregiver/update-questionnaire`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          caregiverId: caregiver.caregiverId, 
+          questionnaireEnabled: !caregiver.questionnaireEnabled 
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSuccess(`Questionnaire ${!caregiver.questionnaireEnabled ? 'enabled' : 'disabled'} successfully`);
+        setTimeout(() => setSuccess(''), 3000);
+        fetchProfileData();
+      } else {
+        alert(data.message || 'Failed to update questionnaire status');
+      }
+    } catch (error) {
+      console.error('Error toggling questionnaire:', error);
+      alert('Failed to update questionnaire status');
+    }
+  };
+
+  const handleScheduleQuestionnaireRetake = async () => {
+    const caregiver = profileData?.caregiver;
+    if (!caregiver || !questionnaireRetakeSchedule) {
+      alert('Please select a date and time');
+      return;
+    }
+    
+    const scheduleDate = new Date(questionnaireRetakeSchedule);
+    if (Number.isNaN(scheduleDate.getTime())) {
+      alert('Invalid date');
+      return;
+    }
+    
+    setSchedulingQuestionnaire(true);
+    try {
+      const response = await fetch(`/api/admin/caregiver/schedule-questionnaire-retake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          caregiverId: caregiver.caregiverId, 
+          scheduleAt: scheduleDate.toISOString() 
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Second assessment scheduled successfully');
+        setTimeout(() => setSuccess(''), 3000);
+        fetchProfileData();
+      } else {
+        alert(data.message || 'Failed to schedule retake');
+      }
+    } catch (error) {
+      console.error('Error scheduling retake:', error);
+      alert('Failed to schedule retake');
+    } finally {
+      setSchedulingQuestionnaire(false);
+    }
+  };
+
+  const handleCancelQuestionnaireRetake = async () => {
+    const caregiver = profileData?.caregiver;
+    if (!caregiver) return;
+    
+    setSchedulingQuestionnaire(true);
+    try {
+      const response = await fetch(`/api/admin/caregiver/cancel-questionnaire-retake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caregiverId: caregiver.caregiverId })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Scheduled retake cancelled');
+        setTimeout(() => setSuccess(''), 3000);
+        fetchProfileData();
+      } else {
+        alert(data.message || 'Failed to cancel retake');
+      }
+    } catch (error) {
+      console.error('Error cancelling retake:', error);
+      alert('Failed to cancel retake');
+    } finally {
+      setSchedulingQuestionnaire(false);
+    }
+  };
+
   const getProgressColor = (percentage) => {
     if (percentage >= 75) return '#16a34a';
     if (percentage >= 50) return '#eab308';
@@ -1072,7 +1174,7 @@ export default function CaregiverProfile() {
           {/* Tabs */}
           <div style={styles.card}>
             <div style={styles.tabs}>
-              {['overview', 'progress', 'tasks', 'feedback', 'support', 'notes'].map((tab) => (
+              {['overview', 'progress', 'tasks', 'feedback', 'questionnaire', 'support', 'notes'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -1658,6 +1760,240 @@ export default function CaregiverProfile() {
                 </div>
               )}
 
+              {/* Questionnaire Tab */}
+              {activeTab === 'questionnaire' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <h3 style={styles.sectionTitle}>Caregiver Assessment</h3>
+                    <button
+                      onClick={toggleQuestionnaireEnabled}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: caregiver?.questionnaireEnabled ? '#ef4444' : '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {caregiver?.questionnaireEnabled ? '🔒 Disable Assessment' : '✅ Enable Assessment'}
+                    </button>
+                  </div>
+
+                  {/* Assessment Status Card */}
+                  <div style={{
+                    backgroundColor: caregiver?.questionnaireEnabled ? '#d1fae5' : '#fee2e2',
+                    border: `2px solid ${caregiver?.questionnaireEnabled ? '#34d399' : '#fca5a5'}`,
+                    borderRadius: '12px',
+                    padding: '20px',
+                    marginBottom: '20px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '24px' }}>
+                        {caregiver?.questionnaireEnabled ? '✅' : '🔒'}
+                      </span>
+                      <h4 style={{ margin: 0, color: caregiver?.questionnaireEnabled ? '#065f46' : '#991b1b' }}>
+                        Assessment {caregiver?.questionnaireEnabled ? 'Enabled' : 'Disabled'}
+                      </h4>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '14px', color: caregiver?.questionnaireEnabled ? '#064e3b' : '#7f1d1d' }}>
+                      {caregiver?.questionnaireEnabled 
+                        ? 'The caregiver can now access and complete the assessment on their dashboard.'
+                        : 'Enable the assessment to allow this caregiver to complete it. This is independent of daily program modules.'}
+                    </p>
+                  </div>
+
+                  {/* Attempts Overview */}
+                  {caregiver?.questionnaireAttempts && caregiver.questionnaireAttempts.length > 0 && (
+                    <div style={{
+                      backgroundColor: '#eff6ff',
+                      border: '2px solid #93c5fd',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      marginBottom: '20px'
+                    }}>
+                      <h4 style={{ margin: '0 0 12px 0', color: '#1e40af' }}>Assessment Attempts</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                        {caregiver.questionnaireAttempts.map((attempt) => (
+                          <div key={attempt.attemptNumber} style={{
+                            backgroundColor: 'white',
+                            padding: '16px',
+                            borderRadius: '8px',
+                            border: '1px solid #bfdbfe'
+                          }}>
+                            <div style={{ fontSize: '32px', marginBottom: '8px' }}>
+                              {attempt.attemptNumber === 1 ? '📝' : '📋'}
+                            </div>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e40af', marginBottom: '4px' }}>
+                              {attempt.attemptNumber === 1 ? 'First Assessment' : 'Second Assessment'}
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                              Submitted: {new Date(attempt.submittedAt).toLocaleString()}
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+                              {attempt.answers?.length || 0} responses
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Compare Button */}
+                      {caregiver.questionnaireAttempts.length === 2 && (
+                        <button
+                          onClick={() => setCompareQuestionnaireDialog(true)}
+                          style={{
+                            marginTop: '16px',
+                            padding: '10px 20px',
+                            backgroundColor: '#8b5cf6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            width: '100%'
+                          }}
+                        >
+                          📊 Compare Both Assessments
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Schedule Second Assessment */}
+                  {caregiver?.questionnaireAttempts && caregiver.questionnaireAttempts.length === 1 && (
+                    <div style={{
+                      backgroundColor: '#fef3c7',
+                      border: '2px solid #fbbf24',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      marginBottom: '20px'
+                    }}>
+                      <h4 style={{ margin: '0 0 12px 0', color: '#92400e' }}>Schedule Second Assessment</h4>
+                      
+                      {caregiver.questionnaireRetakeStatus === 'scheduled' && (
+                        <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#dbeafe', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e40af', marginBottom: '4px' }}>
+                            📅 Scheduled For:
+                          </div>
+                          <div style={{ fontSize: '15px', color: '#1e3a8a' }}>
+                            {new Date(caregiver.questionnaireRetakeScheduledFor).toLocaleString()}
+                          </div>
+                        </div>
+                      )}
+
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#78350f' }}>
+                        Select Date & Time for Second Assessment:
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={questionnaireRetakeSchedule}
+                        onChange={(e) => setQuestionnaireRetakeSchedule(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          border: '1px solid #fbbf24',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          marginBottom: '12px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={handleScheduleQuestionnaireRetake}
+                          disabled={schedulingQuestionnaire || !questionnaireRetakeSchedule}
+                          style={{
+                            flex: 1,
+                            minWidth: '150px',
+                            padding: '10px 20px',
+                            backgroundColor: schedulingQuestionnaire || !questionnaireRetakeSchedule ? '#9ca3af' : '#f59e0b',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            cursor: schedulingQuestionnaire || !questionnaireRetakeSchedule ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          {schedulingQuestionnaire ? '⏳ Scheduling...' : '📅 Schedule Second Assessment'}
+                        </button>
+                        
+                        {caregiver.questionnaireRetakeStatus === 'scheduled' && (
+                          <button
+                            onClick={handleCancelQuestionnaireRetake}
+                            disabled={schedulingQuestionnaire}
+                            style={{
+                              flex: 1,
+                              minWidth: '150px',
+                              padding: '10px 20px',
+                              backgroundColor: schedulingQuestionnaire ? '#9ca3af' : '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              cursor: schedulingQuestionnaire ? 'not-allowed' : 'pointer'
+                            }}
+                          >
+                            ❌ Cancel Schedule
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detailed Responses */}
+                  {caregiver?.questionnaireAnswers && caregiver.questionnaireAnswers.length > 0 && (
+                    <div style={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '12px',
+                      padding: '20px'
+                    }}>
+                      <h4 style={{ margin: '0 0 16px 0', color: '#111827' }}>Latest Responses</h4>
+                      {caregiver.questionnaireAnswers.map((answer, idx) => (
+                        <div key={idx} style={{
+                          padding: '12px',
+                          backgroundColor: '#f9fafb',
+                          borderRadius: '8px',
+                          marginBottom: '12px',
+                          border: '1px solid #e5e7eb'
+                        }}>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                            Q{idx + 1}: {answer.questionText}
+                          </div>
+                          <div style={{ fontSize: '14px', color: '#6b7280', paddingLeft: '12px' }}>
+                            {Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!caregiver?.questionnaireAnswers || caregiver.questionnaireAnswers.length === 0 && (
+                    <div style={{
+                      backgroundColor: '#f9fafb',
+                      border: '2px dashed #d1d5db',
+                      borderRadius: '12px',
+                      padding: '40px',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>📋</div>
+                      <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>No Responses Yet</h4>
+                      <p style={{ margin: 0, fontSize: '14px', color: '#9ca3af' }}>
+                        {caregiver?.questionnaireEnabled 
+                          ? 'The caregiver has not submitted the assessment yet.'
+                          : 'Enable the assessment to allow the caregiver to submit responses.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Support Requests Tab */}
               {activeTab === 'support' && (
                 <div>
@@ -2033,6 +2369,230 @@ export default function CaregiverProfile() {
                   onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Questionnaire Comparison Dialog */}
+        {compareQuestionnaireDialog && caregiver?.questionnaireAttempts && caregiver.questionnaireAttempts.length === 2 && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            zIndex: 10000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '1200px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>
+                  📊 Assessment Comparison
+                </h3>
+                <button
+                  onClick={() => setCompareQuestionnaireDialog(false)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f3f4f6',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✕ Close
+                </button>
+              </div>
+
+              {/* Comparison Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                {[1, 2].map(attemptNum => {
+                  const attempt = caregiver.questionnaireAttempts.find(a => a.attemptNumber === attemptNum);
+                  return (
+                    <div key={attemptNum} style={{
+                      backgroundColor: attemptNum === 1 ? '#dbeafe' : '#d1fae5',
+                      border: `2px solid ${attemptNum === 1 ? '#93c5fd' : '#6ee7b7'}`,
+                      borderRadius: '10px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>
+                        {attemptNum === 1 ? '📝' : '📋'}
+                      </div>
+                      <h4 style={{ margin: '0 0 8px 0', color: attemptNum === 1 ? '#1e40af' : '#065f46' }}>
+                        {attemptNum === 1 ? 'First Assessment' : 'Second Assessment'}
+                      </h4>
+                      <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                        {new Date(attempt.submittedAt).toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+                        {attempt.answers?.length || 0} responses
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Question-by-Question Comparison */}
+              <div style={{
+                backgroundColor: '#f9fafb',
+                borderRadius: '8px',
+                padding: '20px',
+                maxHeight: '60vh',
+                overflow: 'auto'
+              }}>
+                <h4 style={{ margin: '0 0 16px 0', color: '#111827' }}>Response Comparison</h4>
+                
+                {(() => {
+                  const attempt1 = caregiver.questionnaireAttempts.find(a => a.attemptNumber === 1);
+                  const attempt2 = caregiver.questionnaireAttempts.find(a => a.attemptNumber === 2);
+                  
+                  if (!attempt1 || !attempt2) return <p>Unable to load comparison data</p>;
+                  
+                  const maxLength = Math.max(attempt1.answers?.length || 0, attempt2.answers?.length || 0);
+                  const rows = [];
+                  
+                  for (let i = 0; i < maxLength; i++) {
+                    const ans1 = attempt1.answers?.[i];
+                    const ans2 = attempt2.answers?.[i];
+                    
+                    if (!ans1 && !ans2) continue;
+                    
+                    const question = ans1?.questionText || ans2?.questionText || `Question ${i + 1}`;
+                    const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : ans1.answer) : '—';
+                    const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : ans2.answer) : '—';
+                    
+                    const hasChanged = answer1 !== answer2;
+                    
+                    rows.push(
+                      <div key={i} style={{
+                        backgroundColor: 'white',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        marginBottom: '12px',
+                        border: hasChanged ? '2px solid #fbbf24' : '1px solid #e5e7eb'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '8px',
+                          marginBottom: '12px'
+                        }}>
+                          {hasChanged && (
+                            <span style={{ fontSize: '18px', flexShrink: 0 }}>⚠️</span>
+                          )}
+                          <div style={{ fontSize: '15px', fontWeight: '600', color: '#374151' }}>
+                            Q{i + 1}: {question}
+                          </div>
+                        </div>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div style={{
+                            padding: '12px',
+                            backgroundColor: '#eff6ff',
+                            borderRadius: '6px',
+                            border: '1px solid #bfdbfe'
+                          }}>
+                            <div style={{ fontSize: '12px', fontWeight: '600', color: '#1e40af', marginBottom: '6px' }}>
+                              First Assessment
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#1e3a8a', wordWrap: 'break-word' }}>
+                              {answer1}
+                            </div>
+                          </div>
+                          
+                          <div style={{
+                            padding: '12px',
+                            backgroundColor: '#d1fae5',
+                            borderRadius: '6px',
+                            border: '1px solid #6ee7b7'
+                          }}>
+                            <div style={{ fontSize: '12px', fontWeight: '600', color: '#065f46', marginBottom: '6px' }}>
+                              Second Assessment
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#064e3b', wordWrap: 'break-word' }}>
+                              {answer2}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {hasChanged && (
+                          <div style={{
+                            marginTop: '12px',
+                            padding: '8px 12px',
+                            backgroundColor: '#fef3c7',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            color: '#92400e'
+                          }}>
+                            ⚠️ Response changed between assessments
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  
+                  return rows;
+                })()}
+              </div>
+
+              {/* Export Button */}
+              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  onClick={() => {
+                    const attempt1 = caregiver.questionnaireAttempts.find(a => a.attemptNumber === 1);
+                    const attempt2 = caregiver.questionnaireAttempts.find(a => a.attemptNumber === 2);
+                    
+                    const csvRows = [['Question', 'First Assessment', 'Second Assessment', 'Changed']];
+                    const maxLength = Math.max(attempt1.answers?.length || 0, attempt2.answers?.length || 0);
+                    
+                    for (let i = 0; i < maxLength; i++) {
+                      const ans1 = attempt1.answers?.[i];
+                      const ans2 = attempt2.answers?.[i];
+                      const question = ans1?.questionText || ans2?.questionText || `Question ${i + 1}`;
+                      const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : ans1.answer) : '—';
+                      const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : ans2.answer) : '—';
+                      const changed = answer1 !== answer2 ? 'Yes' : 'No';
+                      
+                      csvRows.push([question, answer1, answer2, changed]);
+                    }
+                    
+                    const csvContent = csvRows.map(row => 
+                      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+                    ).join('\n');
+                    
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `caregiver_${caregiver.caregiverId}_assessment_comparison_${Date.now()}.csv`;
+                    link.click();
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  📊 Export to CSV
                 </button>
               </div>
             </div>

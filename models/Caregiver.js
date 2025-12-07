@@ -156,6 +156,76 @@ const CaregiverSchema = new mongoose.Schema({
       default: null
     }
   }],
+  // Questionnaire System (Independent of Day Modules)
+  questionnaireEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  questionnaireAnswers: [{
+    questionId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+    questionText: {
+      type: String,
+    },
+    answer: {
+      type: mongoose.Schema.Types.Mixed,
+    },
+    language: {
+      type: String,
+      default: 'en',
+    },
+    submittedAt: {
+      type: Date,
+      default: Date.now,
+    }
+  }],
+  questionnaireAttempts: [{
+    attemptNumber: {
+      type: Number,
+      default: 1,
+    },
+    submittedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    answers: [{
+      questionId: {
+        type: mongoose.Schema.Types.ObjectId,
+      },
+      questionText: {
+        type: String,
+      },
+      answer: {
+        type: mongoose.Schema.Types.Mixed,
+      },
+      language: {
+        type: String,
+        default: 'en',
+      },
+      submittedAt: {
+        type: Date,
+        default: Date.now,
+      }
+    }],
+  }],
+  questionnaireRetakeStatus: {
+    type: String,
+    enum: ['none', 'scheduled', 'open', 'completed'],
+    default: 'none',
+  },
+  questionnaireRetakeScheduledFor: {
+    type: Date,
+    default: null,
+  },
+  questionnaireRetakeCompletedAt: {
+    type: Date,
+    default: null,
+  },
+  lastQuestionnaireSubmission: {
+    type: Date,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
