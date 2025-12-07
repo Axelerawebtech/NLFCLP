@@ -5043,8 +5043,9 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   return null;
                 }
                 
-                const sectionTitle = section.sectionTitle?.[currentLanguage] || section.sectionTitle?.english || `Section ${currentSection + 1}`;
-                const sectionDesc = section.sectionDescription?.[currentLanguage] || section.sectionDescription?.english || '';
+                const langKey = getLanguageKey();
+                const sectionTitle = section.sectionTitle?.[langKey] || section.sectionTitle?.english || `Section ${currentSection + 1}`;
+                const sectionDesc = section.sectionDescription?.[langKey] || section.sectionDescription?.english || '';
                 
                 return (
                   <>
@@ -5073,7 +5074,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                     {/* Questions for current section */}
                     {section.questions.map((question, qIdx) => {
                       const questionKey = `${section.sectionId}_${qIdx}`;
-                      const questionText = question.questionText?.[currentLanguage] || question.questionText?.english || question.questionText;
+                      const langKey = getLanguageKey();
+                      const questionText = question.questionText?.[langKey] || question.questionText?.english || question.questionText;
                       
                       return (
                       <div key={questionKey} style={{
@@ -5098,7 +5100,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                         {question.type === 'radio' && question.options && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {question.options.map((option, optIdx) => {
-                              const optionLabel = option.label?.[currentLanguage] || option.label?.english || option;
+                              const langKey = getLanguageKey();
+                              const optionLabel = option.label?.[langKey] || option.label?.english || option;
                               const optionValue = option.value !== undefined ? option.value : optIdx;
                               
                               return (

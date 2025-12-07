@@ -346,10 +346,14 @@ export default function CaregiverProfile() {
     }
   };
 
-  const getAnswerLabel = (answer) => {
+  const getAnswerLabel = (answer, language = null, returnBoth = false) => {
     if (!assessmentConfig || !assessmentConfig.sections) {
       return answer.answer;
     }
+    
+    // Use the language from the answer object if not provided
+    const lang = language || answer.language || 'en';
+    const langKey = lang === 'en' ? 'english' : lang === 'hi' ? 'hindi' : lang === 'kn' ? 'kannada' : 'english';
     
     // Extract section and question index from questionId (e.g., "zarit-burden_3")
     if (answer.questionId) {
@@ -366,7 +370,13 @@ export default function CaregiverProfile() {
             // Find the option with matching value
             const option = question.options.find(opt => opt.value === answer.answer);
             if (option && option.label) {
-              return option.label.english || option.label || answer.answer;
+              const localLabel = option.label[langKey] || option.label.english || option.label || answer.answer;
+              const englishLabel = option.label.english || option.label || answer.answer;
+              
+              if (returnBoth && langKey !== 'english') {
+                return `${localLabel} (${englishLabel})`;
+              }
+              return localLabel;
             }
           }
         }
@@ -385,8 +395,14 @@ export default function CaregiverProfile() {
       const option = question.options.find(opt => opt.value === answer.answer);
       if (!option) return answer.answer;
       
-      // Return English label
-      return option.label?.english || option.label || answer.answer;
+      // Return label in the requested language
+      const localLabel = option.label?.[langKey] || option.label?.english || option.label || answer.answer;
+      const englishLabel = option.label?.english || option.label || answer.answer;
+      
+      if (returnBoth && langKey !== 'english') {
+        return `${localLabel} (${englishLabel})`;
+      }
+      return localLabel;
     }
     
     // Fallback: Reconstruct using global index (for legacy data)
@@ -2641,9 +2657,11 @@ export default function CaregiverProfile() {
                     
                     if (!ans1 && !ans2) continue;
                     
+                    // Use the question text from the answer (already in the correct language)
                     const question = ans1?.questionText || ans2?.questionText || `Question ${i + 1}`;
-                    const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : getAnswerLabel(ans1)) : '—';
-                    const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : getAnswerLabel(ans2)) : '—';
+                    // Get the answer labels with both language and English (for admin)
+                    const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : getAnswerLabel(ans1, ans1.language, true)) : '—';
+                    const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : getAnswerLabel(ans2, ans2.language, true)) : '—';
                     
                     const hasChanged = answer1 !== answer2;
                     
@@ -2726,18 +2744,40 @@ export default function CaregiverProfile() {
                     const attempt1 = caregiver.questionnaireAttempts.find(a => a.attemptNumber === 1);
                     const attempt2 = caregiver.questionnaireAttempts.find(a => a.attemptNumber === 2);
                     
-                    const csvRows = [['Question', 'First Assessment', 'Second Assessment', 'Changed']];
+                    // Header section with caregiver details
+                    const csvRows = [
+                      ['Assessment Comparison Report'],
+                      [''],
+                      ['Caregiver Information'],
+                      ['Caregiver Name', caregiver.name || 'N/A'],
+                      ['Caregiver ID', caregiver.caregiverId || 'N/A'],
+                      ['Phone', caregiver.phoneNumber || 'N/A'],
+                      ['Email', caregiver.email || 'N/A'],
+                      [''],
+                      ['Assessment Details'],
+                      ['First Assessment (Immediate Post-Test)', attempt1?.submittedAt ? new Date(attempt1.submittedAt).toLocaleString() : 'N/A'],
+                      ['First Assessment Language', attempt1?.answers?.[0]?.language === 'en' ? 'English' : attempt1?.answers?.[0]?.language === 'hi' ? 'Hindi' : attempt1?.answers?.[0]?.language === 'kn' ? 'Kannada' : 'N/A'],
+                      ['Second Assessment (Scheduled Post-Test)', attempt2?.submittedAt ? new Date(attempt2.submittedAt).toLocaleString() : 'N/A'],
+                      ['Second Assessment Language', attempt2?.answers?.[0]?.language === 'en' ? 'English' : attempt2?.answers?.[0]?.language === 'hi' ? 'Hindi' : attempt2?.answers?.[0]?.language === 'kn' ? 'Kannada' : 'N/A'],
+                      ['Total Questions', Math.max(attempt1.answers?.length || 0, attempt2.answers?.length || 0)],
+                      ['Report Generated', new Date().toLocaleString()],
+                      [''],
+                      ['Question Responses'],
+                      ['Question #', 'Question Text', 'First Assessment', 'Second Assessment', 'Changed']
+                    ];
+                    
                     const maxLength = Math.max(attempt1.answers?.length || 0, attempt2.answers?.length || 0);
                     
                     for (let i = 0; i < maxLength; i++) {
                       const ans1 = attempt1.answers?.[i];
                       const ans2 = attempt2.answers?.[i];
                       const question = ans1?.questionText || ans2?.questionText || `Question ${i + 1}`;
-                      const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : getAnswerLabel(ans1)) : '—';
-                      const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : getAnswerLabel(ans2)) : '—';
+                      // For CSV, use only English labels
+                      const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : getAnswerLabel(ans1, 'en', false)) : '—';
+                      const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : getAnswerLabel(ans2, 'en', false)) : '—';
                       const changed = answer1 !== answer2 ? 'Yes' : 'No';
                       
-                      csvRows.push([question, answer1, answer2, changed]);
+                      csvRows.push([`Q${i + 1}`, question, answer1, answer2, changed]);
                     }
                     
                     const csvContent = csvRows.map(row => 
