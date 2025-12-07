@@ -154,14 +154,17 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [submittingSupportRequest, setSubmittingSupportRequest] = useState(false);
   const [supportRequestSuccess, setSupportRequestSuccess] = useState(false);
   
-  // Questionnaire state
+  // Questionnaire state - Multi-section assessment
   const [questionnaireData, setQuestionnaireData] = useState(null);
   const [questionnaireEnabled, setQuestionnaireEnabled] = useState(false);
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState({});
   const [submittingQuestionnaire, setSubmittingQuestionnaire] = useState(false);
   const [questionnaireSubmitted, setQuestionnaireSubmitted] = useState(false);
   const [isEditingQuestionnaire, setIsEditingQuestionnaire] = useState(false);
-  const [questionnaireRetakeStatus, setQuestionnaireRetakeStatus] = useState('none')
+  const [questionnaireRetakeStatus, setQuestionnaireRetakeStatus] = useState('none');
+  const [currentSection, setCurrentSection] = useState(0);
+  const [completedSections, setCompletedSections] = useState([]);
+  const [assessmentAttemptNumber, setAssessmentAttemptNumber] = useState(1)
 
   // Map language codes: en -> english, kn -> kannada, hi -> hindi
   const getLanguageKey = () => {
@@ -2055,32 +2058,51 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       if (data.success) {
         setQuestionnaireEnabled(data.data.caregiver.questionnaireEnabled);
         setQuestionnaireData(data.data.questionnaire);
-        setQuestionnaireRetakeStatus(data.data.caregiver.questionnaireRetakeStatus || 'none');
+        const retakeStatus = data.data.caregiver.questionnaireRetakeStatus || 'none';
+        setQuestionnaireRetakeStatus(retakeStatus);
         
         // Check if already submitted
         const attempts = data.data.caregiver.questionnaireAttempts || [];
-        const currentAttemptNumber = attempts.length + 1;
         const maxAttempts = 2;
         
-        if (currentAttemptNumber === 1 && data.data.caregiver.questionnaireAnswers && data.data.caregiver.questionnaireAnswers.length > 0) {
+        // If retake is open (second attempt scheduled), show fresh form regardless of previous attempts
+        if (retakeStatus === 'open') {
+          console.log('[Questionnaire] Retake is open - showing fresh form for second attempt');
+          setQuestionnaireSubmitted(false);
+          setQuestionnaireAnswers({});
+          setIsEditingQuestionnaire(false);
+        } 
+        // If retake is completed, show the second attempt
+        else if (retakeStatus === 'completed' && attempts.length === 2) {
+          console.log('[Questionnaire] Both attempts completed - showing second attempt');
           setQuestionnaireSubmitted(true);
-          // Pre-fill answers for review/edit
-          const answersMap = {};
-          data.data.caregiver.questionnaireAnswers.forEach((ans, idx) => {
-            answersMap[idx] = ans.answer;
-          });
-          setQuestionnaireAnswers(answersMap);
-        } else if (currentAttemptNumber === 2 && attempts.length === 2) {
-          setQuestionnaireSubmitted(true);
-          // Show second attempt
-          const secondAttempt = attempts.find(a => a.attemptNumber === 2);
-          if (secondAttempt) {
+          const secondAttempt = attempts[1];
+          if (secondAttempt && secondAttempt.answers && secondAttempt.answers.length > 0) {
             const answersMap = {};
             secondAttempt.answers.forEach((ans, idx) => {
               answersMap[idx] = ans.answer;
             });
             setQuestionnaireAnswers(answersMap);
           }
+        }
+        // First attempt exists and no retake scheduled
+        else if (attempts.length > 0) {
+          console.log('[Questionnaire] First attempt completed - showing review/edit option');
+          const latestAttempt = attempts[attempts.length - 1];
+          if (latestAttempt && latestAttempt.answers && latestAttempt.answers.length > 0) {
+            setQuestionnaireSubmitted(true);
+            // Pre-fill answers for review/edit
+            const answersMap = {};
+            latestAttempt.answers.forEach((ans, idx) => {
+              answersMap[idx] = ans.answer;
+            });
+            setQuestionnaireAnswers(answersMap);
+          }
+        } else {
+          // No attempts yet - clear any previous state
+          console.log('[Questionnaire] No attempts yet - showing fresh form');
+          setQuestionnaireSubmitted(false);
+          setQuestionnaireAnswers({});
         }
       }
     } catch (error) {
@@ -4716,8 +4738,8 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         </div>
       </div>
 
-      {/* Independent Questionnaire Section - WHOQOL Assessment */}
-      {questionnaireEnabled && questionnaireData && (
+      {/* Multi-Section Assessment - Zarit + DASS-7 + WHOQOL */}
+      {questionnaireEnabled && questionnaireData && questionnaireData.sections && (
         <div style={{
           backgroundColor: '#faf5ff',
           border: '2px solid #a78bfa',
@@ -4725,11 +4747,46 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           padding: '24px',
           marginBottom: '20px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <span style={{ fontSize: '28px' }}>📋</span>
-            <h3 style={{ fontWeight: '700', color: '#6b21a8', margin: 0 }}>
-              {currentLanguage === 'en' ? 'Caregiver Assessment' : currentLanguage === 'kn' ? 'ಆರೈಕೆದಾರರ ಮೌಲ್ಯಮಾಪನ' : 'देखभालकर्ता मूल्यांकन'}
-            </h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '28px' }}>📋</span>
+              <div>
+                <h3 style={{ fontWeight: '700', color: '#6b21a8', margin: 0 }}>
+                  {questionnaireData?.title || (currentLanguage === 'en' ? 'Caregiver Comprehensive Assessment' : currentLanguage === 'kn' ? 'ಆರೈಕೆದಾರರ ಸಮಗ್ರ ಮೌಲ್ಯಮಾಪನ' : 'देखभालकर्ता व्यापक मूल्यांकन')}
+                </h3>
+                {questionnaireRetakeStatus === 'open' && (
+                  <p style={{ fontSize: '12px', color: '#92400e', margin: '4px 0 0 0', fontWeight: '600' }}>
+                    {currentLanguage === 'en' ? '📝 Scheduled Post-Test Assessment' : currentLanguage === 'kn' ? '📝 ನಿಗದಿತ ಪೋಸ್ಟ್-ಟೆಸ್ಟ್ ಮೌಲ್ಯಮಾಪನ' : '📝 निर्धारित पोस्ट-टेस्ट मूल्यांकन'}
+                  </p>
+                )}
+                {questionnaireRetakeStatus === 'none' && !questionnaireSubmitted && (
+                  <p style={{ fontSize: '12px', color: '#6b21a8', margin: '4px 0 0 0' }}>
+                    {currentLanguage === 'en' ? '📝 Immediate Post-Test Assessment' : currentLanguage === 'kn' ? '📝 ತತ್ಕ್ಷಣ ಪೋಸ್ಟ್-ಟೆಸ್ಟ್ ಮೌಲ್ಯಮಾಪನ' : '📝 तत्काल पोस्ट-टेस्ट मूल्यांकन'}
+                  </p>
+                )}
+              </div>
+            </div>
+            {/* Section Progress Indicator */}
+            {!questionnaireSubmitted && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {questionnaireData.sections.map((_, idx) => (
+                  <div key={idx} style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: completedSections.includes(idx) ? '#10b981' : idx === currentSection ? '#8b5cf6' : '#e9d5ff',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: '700'
+                  }}>
+                    {completedSections.includes(idx) ? '✓' : idx + 1}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           {questionnaireSubmitted && !isEditingQuestionnaire ? (
@@ -4742,7 +4799,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             }}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
               <h4 style={{ color: '#065f46', marginBottom: '8px' }}>
-                {currentLanguage === 'en' ? 'Assessment Completed' : currentLanguage === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣಗೊಂಡಿದೆ' : 'मूल्यांकन पूर्ण हुआ'}
+                {currentLanguage === 'en' 
+                  ? (questionnaireRetakeStatus === 'completed' ? '✅ Both Assessments Completed' : 'Assessment Completed')
+                  : currentLanguage === 'kn' 
+                  ? (questionnaireRetakeStatus === 'completed' ? '✅ ಎರಡೂ ಮೌಲ್ಯಮಾಪನಗಳು ಪೂರ್ಣಗೊಂಡವು' : 'ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣಗೊಂಡಿದೆ')
+                  : (questionnaireRetakeStatus === 'completed' ? '✅ दोनों मूल्यांकन पूर्ण हुए' : 'मूल्यांकन पूर्ण हुआ')}
               </h4>
               <p style={{ color: '#064e3b', marginBottom: '16px' }}>
                 {currentLanguage === 'en' 
@@ -4769,176 +4830,219 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
             </div>
           ) : (
             <div>
-              <p style={{ fontSize: '14px', color: '#581c87', marginBottom: '20px' }}>
-                {questionnaireData.description || (currentLanguage === 'en' 
-                  ? 'Please answer all questions below. This assessment is independent of your daily program modules.' 
-                  : currentLanguage === 'kn' 
-                  ? 'ದಯವಿಟ್ಟು ಕೆಳಗಿನ ಎಲ್ಲಾ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಿ. ಈ ಮೌಲ್ಯಮಾಪನವು ನಿಮ್ಮ ದೈನಂದಿನ ಕಾರ್ಯಕ್ರಮ ಮಾಡ್ಯೂಲ್‌ಗಳಿಂದ ಸ್ವತಂತ್ರವಾಗಿದೆ.' 
-                  : 'कृपया नीचे सभी प्रश्नों के उत्तर दें। यह मूल्यांकन आपके दैनिक कार्यक्रम मॉड्यूल से स्वतंत्र है।')}
-              </p>
-              
-              {questionnaireData.questions.map((question, idx) => (
-                <div key={idx} style={{
-                  backgroundColor: 'white',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  marginBottom: '16px',
-                  border: '1px solid #e9d5ff'
-                }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '15px',
-                    fontWeight: '600',
-                    color: '#4c1d95'
-                  }}>
-                    {idx + 1}. {question.questionText}
-                    {question.required && <span style={{ color: '#dc2626' }}> *</span>}
-                  </label>
-                  
-                  {question.type === 'text' && (
-                    <input
-                      type="text"
-                      value={questionnaireAnswers[idx] || ''}
-                      onChange={(e) => handleQuestionnaireAnswerChange(idx, e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        border: '1px solid #d8b4fe',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box'
-                      }}
-                      placeholder={currentLanguage === 'en' ? 'Your answer...' : currentLanguage === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ...' : 'आपका उत्तर...'}
-                    />
-                  )}
-                  
-                  {question.type === 'textarea' && (
-                    <textarea
-                      value={questionnaireAnswers[idx] || ''}
-                      onChange={(e) => handleQuestionnaireAnswerChange(idx, e.target.value)}
-                      style={{
-                        width: '100%',
-                        minHeight: '100px',
-                        padding: '10px',
-                        border: '1px solid #d8b4fe',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        fontFamily: 'inherit',
-                        resize: 'vertical',
-                        boxSizing: 'border-box'
-                      }}
-                      placeholder={currentLanguage === 'en' ? 'Your answer...' : currentLanguage === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ...' : 'आपका उत्तर...'}
-                    />
-                  )}
-                  
-                  {question.type === 'radio' && question.options && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {question.options.map((option, optIdx) => (
-                        <label key={optIdx} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '8px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          backgroundColor: questionnaireAnswers[idx] === option ? '#f3e8ff' : 'transparent',
-                          border: `1px solid ${questionnaireAnswers[idx] === option ? '#a78bfa' : '#e9d5ff'}`
+              {/* Section Title and Description */}
+              {(() => {
+                const section = questionnaireData.sections[currentSection];
+                if (!section) return null;
+                
+                const sectionTitle = section.sectionTitle?.[currentLanguage] || section.sectionTitle?.english || `Section ${currentSection + 1}`;
+                const sectionDesc = section.sectionDescription?.[currentLanguage] || section.sectionDescription?.english || '';
+                
+                return (
+                  <>
+                    <div style={{
+                      backgroundColor: '#ede9fe',
+                      border: '2px solid #a78bfa',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      marginBottom: '20px'
+                    }}>
+                      <h4 style={{ fontSize: '18px', fontWeight: '700', color: '#6b21a8', margin: '0 0 8px 0' }}>
+                        {sectionTitle}
+                      </h4>
+                      <p style={{ fontSize: '14px', color: '#581c87', margin: 0 }}>
+                        {sectionDesc}
+                      </p>
+                      <div style={{ marginTop: '12px', fontSize: '12px', color: '#7c3aed', fontWeight: '600' }}>
+                        {currentLanguage === 'en' 
+                          ? `${section.questions.length} questions • Complete all to proceed`
+                          : currentLanguage === 'kn'
+                          ? `${section.questions.length} ಪ್ರಶ್ನೆಗಳು • ಮುಂದುವರಿಯಲು ಎಲ್ಲವನ್ನೂ ಪೂರ್ಣಗೊಳಿಸಿ`
+                          : `${section.questions.length} प्रश्न • आगे बढ़ने के लिए सभी पूर्ण करें`}
+                      </div>
+                    </div>
+                    
+                    {/* Questions for current section */}
+                    {section.questions.map((question, qIdx) => {
+                      const questionKey = `${section.sectionId}_${qIdx}`;
+                      const questionText = question.questionText?.[currentLanguage] || question.questionText?.english || question.questionText;
+                      
+                      return (
+                      <div key={questionKey} style={{
+                        backgroundColor: 'white',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        marginBottom: '16px',
+                        border: '1px solid #e9d5ff'
+                      }}>
+                        <label style={{
+                          display: 'block',
+                          marginBottom: '12px',
+                          fontSize: '15px',
+                          fontWeight: '600',
+                          color: '#4c1d95',
+                          lineHeight: '1.5'
                         }}>
-                          <input
-                            type="radio"
-                            name={`question-${idx}`}
-                            value={option}
-                            checked={questionnaireAnswers[idx] === option}
-                            onChange={(e) => handleQuestionnaireAnswerChange(idx, e.target.value)}
-                            style={{ cursor: 'pointer' }}
-                          />
-                          <span style={{ fontSize: '14px', color: '#4c1d95' }}>{option}</span>
+                          {qIdx + 1}. {questionText}
+                          {question.required && <span style={{ color: '#dc2626' }}> *</span>}
                         </label>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {question.type === 'checkbox' && question.options && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {question.options.map((option, optIdx) => {
-                        const currentAnswers = Array.isArray(questionnaireAnswers[idx]) ? questionnaireAnswers[idx] : [];
-                        const isChecked = currentAnswers.includes(option);
                         
-                        return (
-                          <label key={optIdx} style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '8px',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            backgroundColor: isChecked ? '#f3e8ff' : 'transparent',
-                            border: `1px solid ${isChecked ? '#a78bfa' : '#e9d5ff'}`
-                          }}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                const newAnswers = e.target.checked
-                                  ? [...currentAnswers, option]
-                                  : currentAnswers.filter(a => a !== option);
-                                handleQuestionnaireAnswerChange(idx, newAnswers);
-                              }}
-                              style={{ cursor: 'pointer' }}
-                            />
-                            <span style={{ fontSize: '14px', color: '#4c1d95' }}>{option}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
+                        {question.type === 'radio' && question.options && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {question.options.map((option, optIdx) => {
+                              const optionLabel = option.label?.[currentLanguage] || option.label?.english || option;
+                              const optionValue = option.value !== undefined ? option.value : optIdx;
+                              
+                              return (
+                                <label key={optIdx} style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '12px',
+                                  padding: '12px',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  backgroundColor: questionnaireAnswers[questionKey] === optionValue ? '#f3e8ff' : 'transparent',
+                                  border: `2px solid ${questionnaireAnswers[questionKey] === optionValue ? '#8b5cf6' : '#e9d5ff'}`,
+                                  transition: 'all 0.2s'
+                                }}>
+                                  <input
+                                    type="radio"
+                                    name={questionKey}
+                                    value={optionValue}
+                                    checked={questionnaireAnswers[questionKey] === optionValue}
+                                    onChange={(e) => handleQuestionnaireAnswerChange(questionKey, optionValue)}
+                                    style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                                  />
+                                  <span style={{ fontSize: '14px', color: '#4c1d95', flex: 1 }}>{optionLabel}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                        
+                        {question.type === 'text' && (
+                          <input
+                            type="text"
+                            value={questionnaireAnswers[questionKey] || ''}
+                            onChange={(e) => handleQuestionnaireAnswerChange(questionKey, e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '10px',
+                              border: '1px solid #d8b4fe',
+                              borderRadius: '6px',
+                              fontSize: '14px',
+                              boxSizing: 'border-box'
+                            }}
+                            placeholder={currentLanguage === 'en' ? 'Your answer...' : currentLanguage === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ...' : 'आपका उत्तर...'}
+                          />
+                        )}
+                        
+                        {question.type === 'textarea' && (
+                          <textarea
+                            value={questionnaireAnswers[questionKey] || ''}
+                            onChange={(e) => handleQuestionnaireAnswerChange(questionKey, e.target.value)}
+                            style={{
+                              width: '100%',
+                              minHeight: '100px',
+                              padding: '10px',
+                              border: '1px solid #d8b4fe',
+                              borderRadius: '6px',
+                              fontSize: '14px',
+                              fontFamily: 'inherit',
+                              resize: 'vertical',
+                              boxSizing: 'border-box'
+                            }}
+                            placeholder={currentLanguage === 'en' ? 'Your answer...' : currentLanguage === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ...' : 'आपका उत्तर...'}
+                          />
+                        )}
+                      </div>
+                    );
+                    })}
+                  </>
+                );
+              })()}
+              
+              {/* Section Navigation Buttons */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {currentSection > 0 && (
+                    <button
+                      onClick={() => setCurrentSection(currentSection - 1)}
+                      style={{
+                        padding: '12px 24px',
+                        backgroundColor: '#f3f4f6',
+                        color: '#374151',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ← {currentLanguage === 'en' ? 'Previous Section' : currentLanguage === 'kn' ? 'ಹಿಂದಿನ ವಿಭಾಗ' : 'पिछला अनुभाग'}
+                    </button>
                   )}
                 </div>
-              ))}
-              
-              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-                {isEditingQuestionnaire && (
-                  <button
-                    onClick={() => {
-                      setIsEditingQuestionnaire(false);
-                      fetchQuestionnaireData();
-                    }}
-                    style={{
-                      padding: '12px 24px',
-                      backgroundColor: '#f3f4f6',
-                      color: '#374151',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '15px',
-                      fontWeight: '600',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {currentLanguage === 'en' ? 'Cancel' : currentLanguage === 'kn' ? 'ರದ್ದುಮಾಡಿ' : 'रद्द करें'}
-                  </button>
-                )}
-                <button
-                  onClick={handleQuestionnaireSubmit}
-                  disabled={submittingQuestionnaire}
-                  style={{
-                    padding: '12px 24px',
-                    backgroundColor: submittingQuestionnaire ? '#9ca3af' : '#8b5cf6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '15px',
-                    fontWeight: '600',
-                    cursor: submittingQuestionnaire ? 'not-allowed' : 'pointer',
-                    opacity: submittingQuestionnaire ? 0.6 : 1
-                  }}
-                >
-                  {submittingQuestionnaire 
-                    ? (currentLanguage === 'en' ? 'Submitting...' : currentLanguage === 'kn' ? 'ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ...' : 'सबमिट किया जा रहा है...')
-                    : isEditingQuestionnaire
-                    ? (currentLanguage === 'en' ? 'Save Changes' : currentLanguage === 'kn' ? 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ' : 'परिवर्तन सहेजें')
-                    : (currentLanguage === 'en' ? 'Submit Assessment' : currentLanguage === 'kn' ? 'ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸಿ' : 'मूल्यांकन सबमिट करें')
-                  }
-                </button>
+                
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {currentSection < questionnaireData.sections.length - 1 ? (
+                    <button
+                      onClick={() => {
+                        // Validate current section before proceeding
+                        const section = questionnaireData.sections[currentSection];
+                        const unanswered = section.questions.some((q, idx) => {
+                          const key = `${section.sectionId}_${idx}`;
+                          return q.required && !questionnaireAnswers[key];
+                        });
+                        
+                        if (unanswered) {
+                          showErrorToast(currentLanguage === 'en' ? 'Please answer all required questions in this section' : currentLanguage === 'kn' ? 'ದಯವಿಟ್ಟು ಈ ವಿಭಾಗದಲ್ಲಿ ಎಲ್ಲಾ ಅಗತ್ಯ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಿ' : 'कृपया इस अनुभाग में सभी आवश्यक प्रश्नों के उत्तर दें');
+                          return;
+                        }
+                        
+                        // Mark section as completed and move to next
+                        if (!completedSections.includes(currentSection)) {
+                          setCompletedSections([...completedSections, currentSection]);
+                        }
+                        setCurrentSection(currentSection + 1);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      style={{
+                        padding: '12px 24px',
+                        backgroundColor: '#8b5cf6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {currentLanguage === 'en' ? 'Next Section' : currentLanguage === 'kn' ? 'ಮುಂದಿನ ವಿಭಾಗ' : 'अगला अनुभाग'} →
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleQuestionnaireSubmit}
+                      disabled={submittingQuestionnaire}
+                      style={{
+                        padding: '12px 32px',
+                        backgroundColor: submittingQuestionnaire ? '#9ca3af' : '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '15px',
+                        fontWeight: '700',
+                        cursor: submittingQuestionnaire ? 'not-allowed' : 'pointer',
+                        opacity: submittingQuestionnaire ? 0.6 : 1
+                      }}
+                    >
+                      {submittingQuestionnaire 
+                        ? (currentLanguage === 'en' ? 'Submitting...' : currentLanguage === 'kn' ? 'ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ...' : 'सबमिट किया जा रहा है...')
+                        : '✓ ' + (currentLanguage === 'en' ? 'Submit Complete Assessment' : currentLanguage === 'kn' ? 'ಸಂಪೂರ್ಣ ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸಿ' : 'संपूर्ण मूल्यांकन सबमिट करें')
+                      }
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
