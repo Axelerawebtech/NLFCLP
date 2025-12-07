@@ -1,8 +1,49 @@
 import dbConnect from '../../../lib/mongodb';
 import Caregiver from '../../../models/Caregiver';
 import Patient from '../../../models/Patient';
-import Questionnaire from '../../../models/Questionnaire';
 import mongoose from 'mongoose';
+
+// Import CaregiverAssessment model
+const CaregiverAssessmentSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  sections: [{
+    sectionId: String,
+    sectionTitle: {
+      english: String,
+      hindi: String,
+      kannada: String
+    },
+    sectionDescription: {
+      english: String,
+      hindi: String,
+      kannada: String
+    },
+    questions: [{
+      questionText: {
+        english: String,
+        hindi: String,
+        kannada: String
+      },
+      type: String,
+      options: [{
+        value: Number,
+        label: {
+          english: String,
+          hindi: String,
+          kannada: String
+        }
+      }],
+      required: Boolean
+    }]
+  }],
+  isActive: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+});
+
+const CaregiverAssessment = mongoose.models.CaregiverAssessment || 
+  mongoose.model('CaregiverAssessment', CaregiverAssessmentSchema);
 
 export default async function handler(req, res) {
   await dbConnect();
@@ -47,45 +88,20 @@ export default async function handler(req, res) {
       });
     }
 
-    // Only return questionnaire if enabled for this caregiver
-    let questionnaire = null;
+    // Only return assessment if enabled for this caregiver
+    let assessment = null;
     if (caregiver.questionnaireEnabled) {
-      console.log('[Caregiver Dashboard API] Questionnaire enabled, fetching...');
-      // Fetch the most recent active questionnaire
-      questionnaire = await Questionnaire.findOne({ isActive: true })
+      console.log('[Caregiver Dashboard API] Questionnaire enabled, fetching multi-section assessment...');
+      // Fetch the active multi-section caregiver assessment
+      assessment = await CaregiverAssessment.findOne({ isActive: true })
         .sort({ updatedAt: -1 });
       
-      // If no active questionnaire, try to find any questionnaire
-      if (!questionnaire) {
-        console.log('[Caregiver Dashboard API] No active questionnaire, finding any');
-        questionnaire = await Questionnaire.findOne()
-          .sort({ updatedAt: -1 });
-      }
-
-      if (questionnaire) {
-        console.log('[Caregiver Dashboard API] Questionnaire found: ${questionnaire.title} with ${questionnaire.questions?.length} questions');
-        // Map questions to include translated text/options if available
-        const mappedQuestions = (questionnaire.questions || []).map((q, idx) => {
-          const qObj = typeof q.toObject === 'function' ? q.toObject() : q;
-          return {
-            ...qObj,
-            _id: qObj._id || `question-${idx}`,
-            questionText: qObj.questionText || '',
-            type: qObj.type || 'text',
-            options: qObj.options || [],
-            required: qObj.required !== false
-          };
-        });
-
-        questionnaire = {
-          _id: questionnaire._id,
-          title: questionnaire.title || 'Caregiver Assessment',
-          description: questionnaire.description || '',
-          questions: mappedQuestions,
-          isActive: questionnaire.isActive
-        };
+      if (assessment) {
+        console.log('[Caregiver Dashboard API] Assessment found with ${assessment.sections?.length} sections');
+        // Convert to plain object to ensure all data is serializable
+        assessment = assessment.toObject ? assessment.toObject() : assessment;
       } else {
-        console.log('[Caregiver Dashboard API] No questionnaire found in database');
+        console.log('[Caregiver Dashboard API] No active assessment found - will be created on first config access');
       }
     } else {
       console.log('[Caregiver Dashboard API] Questionnaire not enabled for this caregiver');
@@ -127,7 +143,8 @@ export default async function handler(req, res) {
           lastQuestionnaireSubmission: caregiver.lastQuestionnaireSubmission,
           programProgress: caregiver.programProgress
         },
-        questionnaire
+        assessment,  // Changed from 'questionnaire' to 'assessment' for multi-section
+        questionnaire: assessment  // Keep backward compatibility
       }
     });
 
