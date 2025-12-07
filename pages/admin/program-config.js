@@ -153,7 +153,7 @@ export default function ProgramConfigPage() {
   return (
     <>
       <Head>
-        <title>7-Day Program Configuration - Admin</title>
+        <title>NLFCP Program Configuration - Admin</title>
       </Head>
       
       <div style={styles.pageContainer}>
@@ -171,7 +171,7 @@ export default function ProgramConfigPage() {
                   ← Back to Dashboard
                 </button>
                 <h1 style={styles.title}>
-                  7-Day Program Configuration
+                  NLFCP Program Configuration
                 </h1>
                 <p style={styles.subtitle}>
                   Configure wait times and dynamic content for caregiver programs

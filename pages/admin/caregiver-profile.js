@@ -1428,7 +1428,7 @@ export default function CaregiverProfile() {
               {/* Progress Tab */}
               {activeTab === 'progress' && (
                 <div>
-                  <h3 style={styles.sectionTitle}>7-Day Program Progress</h3>
+                  <h3 style={styles.sectionTitle}>NLFCP Program Progress</h3>
                   
                   <div>
                     {statistics.daysProgress.map((day) => {

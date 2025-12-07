@@ -953,19 +953,19 @@ export default function PatientDashboard() {
 
         {retakeStatus === 'scheduled' && scheduledDateLabel && (
           <Alert severity="info" sx={{ mb: 3 }}>
-            Second assessment scheduled for {scheduledDateLabel}. Access will reopen automatically at that time.
+            {t('secondAssessmentScheduled').replace('{date}', scheduledDateLabel)}
           </Alert>
         )}
 
         {retakeStatus === 'open' && (
           <Alert severity="success" sx={{ mb: 3 }}>
-            Your second assessment is now available. Attempt {activeAttemptNumber} of {maxQuestionnaireAttempts}.
+            {t('secondAssessmentAvailable').replace('{current}', activeAttemptNumber).replace('{total}', maxQuestionnaireAttempts)}
           </Alert>
         )}
 
         {retakeStatus === 'completed' && (
           <Alert severity="success" sx={{ mb: 3 }}>
-            You have completed both assessments{completedDateLabel ? ` (${completedDateLabel})` : ''}.
+            {t('bothAssessmentsCompleted')}{completedDateLabel ? ` (${completedDateLabel})` : ''}.
           </Alert>
         )}
 
@@ -988,7 +988,7 @@ export default function PatientDashboard() {
                     {t('youHaveSubmittedThePreTest')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Attempt {Math.min(questionnaireAttempts.length, maxQuestionnaireAttempts)} of {maxQuestionnaireAttempts}
+                    {t('attemptOf').replace('{current}', Math.min(questionnaireAttempts.length, maxQuestionnaireAttempts)).replace('{total}', maxQuestionnaireAttempts)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
                     {t('submittedOn')}: {submittedAnswers?.[0]?.submittedAt ? new Date(submittedAnswers[0].submittedAt).toLocaleString() : t('today')}
@@ -1020,7 +1020,7 @@ export default function PatientDashboard() {
                         {questionnaire?.description}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Attempt {activeAttemptNumber} of {maxQuestionnaireAttempts}
+                        {t('attemptOf').replace('{current}', activeAttemptNumber).replace('{total}', maxQuestionnaireAttempts)}
                       </Typography>
                     </Box>
                   </Box>

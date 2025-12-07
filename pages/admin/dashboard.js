@@ -148,7 +148,7 @@ export default function AdminDashboard() {
 
   const primaryActions = [
     {
-      label: 'Configure 7-Day Program',
+      label: 'Configure NLFCP Program',
       emoji: '🎯',
       route: '/admin/program-config',
       background: surfaceColor('#fff4e6', '#2d1b0c')

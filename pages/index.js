@@ -83,25 +83,25 @@ export default function Home() {
     {
       icon: <FaChartLine size={20} />,
       label: t('insightfulMetrics') || 'Insightful dashboards',
-      helper: 'Real-time caregiver progress tracking',
+      helper: t('realTimeProgressTracking') || 'Real-time caregiver progress tracking',
       onClick: () => router.push('/login')
     },
     {
       icon: <FaVideo size={20} />,
       label: t('guidedVideos') || 'Guided video library',
-      helper: 'Daily bite-sized expert coaching',
+      helper: t('dailyBiteSizedCoaching') || 'Daily bite-sized expert coaching',
       onClick: () => router.push('/login')
     },
     {
       icon: <FaRobot size={20} />,
-      label: 'AI chat bot',
-      helper: 'Always-on caregiver assistant',
+      label: t('aiChatBot') || 'AI chat bot',
+      helper: t('alwaysOnCaregiverAssistant') || 'Always-on caregiver assistant',
       onClick: () => setIsChatOpen(true)
     },
     {
       icon: <FaPhoneAlt size={20} />,
-      label: 'Tele MANAS helpline',
-      helper: `Tap to call ${teleManasNumber}`,
+      label: t('teleManas') || 'Tele MANAS helpline',
+      helper: (t('tapToCall') || 'Tap to call {number}').replace('{number}', teleManasNumber),
       href: teleManasHref
     }
   ];

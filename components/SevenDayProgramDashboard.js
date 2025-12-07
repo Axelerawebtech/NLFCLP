@@ -3394,6 +3394,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       <div style={styles.dayGrid}>
         {programData.dayModules
           ?.sort((a, b) => a.day - b.day)  // Sort by day number to ensure proper order
+          ?.filter((dayModule) => dayModule.day !== 6 && dayModule.day !== 7)  // Comment out Day 6 & 7
           ?.map((dayModule) => {
           const isUnlocked = dayModule.adminPermissionGranted;
           const isCompleted = dayModule.progressPercentage === 100;
