@@ -315,6 +315,7 @@ export default function CaregiverProfile() {
   const [questionnaireRetakeSchedule, setQuestionnaireRetakeSchedule] = useState('');
   const [schedulingQuestionnaire, setSchedulingQuestionnaire] = useState(false);
   const [compareQuestionnaireDialog, setCompareQuestionnaireDialog] = useState(false);
+  const [assessmentConfig, setAssessmentConfig] = useState(null);
 
   const formatHours = (value) => {
     const hours = Number(value) || 0;
@@ -324,9 +325,93 @@ export default function CaregiverProfile() {
   useEffect(() => {
     if (id) {
       fetchProfileData();
+      fetchAssessmentConfig();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const fetchAssessmentConfig = async () => {
+    try {
+      const response = await fetch('/api/admin/caregiver-assessment/config');
+      const data = await response.json();
+      if (data.success && data.data) {
+        console.log('[Assessment Config] Full config:', data.data);
+        console.log('[Assessment Config] First section:', data.data.sections?.[0]);
+        console.log('[Assessment Config] First question:', data.data.sections?.[0]?.questions?.[0]);
+        console.log('[Assessment Config] First question options:', data.data.sections?.[0]?.questions?.[0]?.options);
+        setAssessmentConfig(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching assessment config:', error);
+    }
+  };
+
+  const getAnswerLabel = (answer) => {
+    if (!assessmentConfig || !assessmentConfig.sections) {
+      return answer.answer;
+    }
+    
+    // Extract section and question index from questionId (e.g., "zarit-burden_3")
+    if (answer.questionId) {
+      const parts = answer.questionId.split('_');
+      if (parts.length === 2) {
+        const sectionId = parts[0];
+        const questionIndex = parseInt(parts[1]);
+        
+        // Find the section
+        const section = assessmentConfig.sections.find(s => s.sectionId === sectionId);
+        if (section && section.questions && section.questions[questionIndex]) {
+          const question = section.questions[questionIndex];
+          if (question.options) {
+            // Find the option with matching value
+            const option = question.options.find(opt => opt.value === answer.answer);
+            if (option && option.label) {
+              return option.label.english || option.label || answer.answer;
+            }
+          }
+        }
+      }
+    }
+    
+    // If answer has sectionId and questionIndex, use them directly (for newer data)
+    if (answer.sectionId && answer.questionIndex !== undefined) {
+      const section = assessmentConfig.sections.find(s => s.sectionId === answer.sectionId);
+      if (!section || !section.questions) return answer.answer;
+      
+      const question = section.questions[answer.questionIndex];
+      if (!question || !question.options) return answer.answer;
+      
+      // Find the option with matching value
+      const option = question.options.find(opt => opt.value === answer.answer);
+      if (!option) return answer.answer;
+      
+      // Return English label
+      return option.label?.english || option.label || answer.answer;
+    }
+    
+    // Fallback: Reconstruct using global index (for legacy data)
+    let currentGlobalIndex = 0;
+    for (const section of assessmentConfig.sections) {
+      if (!section.questions) continue;
+      
+      for (let qIdx = 0; qIdx < section.questions.length; qIdx++) {
+        if (currentGlobalIndex === answer.questionIndex) {
+          const question = section.questions[qIdx];
+          if (!question.options) return answer.answer;
+          
+          // Find the option with matching value
+          const option = question.options.find(opt => opt.value === answer.answer);
+          if (!option) return answer.answer;
+          
+          // Return English label
+          return option.label?.english || option.label || answer.answer;
+        }
+        currentGlobalIndex++;
+      }
+    }
+    
+    return answer.answer;
+  };
 
   const fetchProfileData = async () => {
     try {
@@ -349,7 +434,14 @@ export default function CaregiverProfile() {
           caregiverName: data.data.caregiver?.name,
           oneTimeAssessments: data.data.assessments?.oneTimeAssessments?.length || 0,
           quickAssessments: data.data.assessments?.quickAssessments?.length || 0,
-          burdenLevel: data.data.program?.burdenLevel
+          burdenLevel: data.data.program?.burdenLevel,
+          questionnaireAttempts: data.data.caregiver?.questionnaireAttempts?.length || 0,
+          questionnaireAnswers: data.data.caregiver?.questionnaireAnswers?.length || 0
+        });
+        
+        console.log('🔍 Full caregiver questionnaire data:', {
+          attempts: data.data.caregiver?.questionnaireAttempts,
+          answers: data.data.caregiver?.questionnaireAnswers
         });
         
         setProfileData(data.data);
@@ -955,6 +1047,49 @@ export default function CaregiverProfile() {
       alert('Failed to cancel retake');
     } finally {
       setSchedulingQuestionnaire(false);
+    }
+  };
+
+  const handleResetQuestionnaire = async () => {
+    const caregiver = profileData?.caregiver;
+    if (!caregiver) return;
+    
+    console.log('[Admin] Reset button clicked for caregiver:', caregiver.caregiverId);
+    
+    const confirmed = window.confirm(
+      '⚠️ WARNING: This will permanently delete all assessment attempts and responses for this caregiver.\n\n' +
+      'This action cannot be undone. The caregiver will need to complete the assessments from scratch.\n\n' +
+      'Are you sure you want to continue?'
+    );
+    
+    if (!confirmed) {
+      console.log('[Admin] Reset cancelled by user');
+      return;
+    }
+    
+    try {
+      console.log('[Admin] Calling reset API for caregiver:', caregiver.caregiverId);
+      const response = await fetch(`/api/admin/caregiver/reset-questionnaire`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caregiverId: caregiver.caregiverId })
+      });
+      
+      const data = await response.json();
+      console.log('[Admin] Reset API response:', data);
+      
+      if (data.success) {
+        console.log('[Admin] ✅ Reset successful, verification:', data.data?.verification);
+        setSuccess('Assessment data reset successfully - caregiver can now start fresh');
+        setTimeout(() => setSuccess(''), 4000);
+        fetchProfileData();
+      } else {
+        console.error('[Admin] Reset failed:', data.message);
+        alert(data.message || 'Failed to reset assessment');
+      }
+    } catch (error) {
+      console.error('[Admin] Error resetting assessment:', error);
+      alert('Failed to reset assessment');
     }
   };
 
@@ -1859,6 +1994,25 @@ export default function CaregiverProfile() {
                           📊 Compare Both Assessments
                         </button>
                       )}
+
+                      {/* Reset Button */}
+                      <button
+                        onClick={handleResetQuestionnaire}
+                        style={{
+                          marginTop: '12px',
+                          padding: '10px 20px',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          width: '100%'
+                        }}
+                      >
+                        🗑️ Reset All Assessment Data
+                      </button>
                     </div>
                   )}
 
@@ -1958,22 +2112,28 @@ export default function CaregiverProfile() {
                       padding: '20px'
                     }}>
                       <h4 style={{ margin: '0 0 16px 0', color: '#111827' }}>Latest Responses</h4>
-                      {caregiver.questionnaireAnswers.map((answer, idx) => (
-                        <div key={idx} style={{
-                          padding: '12px',
-                          backgroundColor: '#f9fafb',
-                          borderRadius: '8px',
-                          marginBottom: '12px',
-                          border: '1px solid #e5e7eb'
-                        }}>
-                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
-                            Q{idx + 1}: {answer.questionText}
+                      {caregiver.questionnaireAnswers.map((answer, idx) => {
+                        const displayAnswer = Array.isArray(answer.answer) 
+                          ? answer.answer.join(', ')
+                          : getAnswerLabel(answer);
+                        
+                        return (
+                          <div key={idx} style={{
+                            padding: '12px',
+                            backgroundColor: '#f9fafb',
+                            borderRadius: '8px',
+                            marginBottom: '12px',
+                            border: '1px solid #e5e7eb'
+                          }}>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                              Q{idx + 1}: {answer.questionText}
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#6b7280', paddingLeft: '12px' }}>
+                              {displayAnswer}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '14px', color: '#6b7280', paddingLeft: '12px' }}>
-                            {Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
@@ -2482,8 +2642,8 @@ export default function CaregiverProfile() {
                     if (!ans1 && !ans2) continue;
                     
                     const question = ans1?.questionText || ans2?.questionText || `Question ${i + 1}`;
-                    const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : ans1.answer) : '—';
-                    const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : ans2.answer) : '—';
+                    const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : getAnswerLabel(ans1)) : '—';
+                    const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : getAnswerLabel(ans2)) : '—';
                     
                     const hasChanged = answer1 !== answer2;
                     
@@ -2573,8 +2733,8 @@ export default function CaregiverProfile() {
                       const ans1 = attempt1.answers?.[i];
                       const ans2 = attempt2.answers?.[i];
                       const question = ans1?.questionText || ans2?.questionText || `Question ${i + 1}`;
-                      const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : ans1.answer) : '—';
-                      const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : ans2.answer) : '—';
+                      const answer1 = ans1 ? (Array.isArray(ans1.answer) ? ans1.answer.join(', ') : getAnswerLabel(ans1)) : '—';
+                      const answer2 = ans2 ? (Array.isArray(ans2.answer) ? ans2.answer.join(', ') : getAnswerLabel(ans2)) : '—';
                       const changed = answer1 !== answer2 ? 'Yes' : 'No';
                       
                       csvRows.push([question, answer1, answer2, changed]);

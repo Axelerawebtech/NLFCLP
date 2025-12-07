@@ -82,13 +82,23 @@ export default async function handler(req, res) {
     if (caregiver.questionnaireEnabled) {
       console.log('[Caregiver Dashboard API] Questionnaire enabled, fetching multi-section assessment...');
       // Fetch the active multi-section caregiver assessment
+      // Use .lean() to get raw data without Mongoose transformations
       assessment = await CaregiverAssessment.findOne({ isActive: true })
-        .sort({ updatedAt: -1 });
+        .sort({ updatedAt: -1 })
+        .lean();
       
       if (assessment) {
         console.log(`[Caregiver Dashboard API] Assessment found with ${assessment.sections?.length} sections`);
-        // Convert to plain object to ensure all data is serializable
-        assessment = assessment.toObject ? assessment.toObject() : assessment;
+        
+        // Log assessment structure
+        console.log('[Caregiver Dashboard API] Assessment structure:', {
+          hasAssessment: !!assessment,
+          hasSections: !!assessment?.sections,
+          sectionsLength: assessment?.sections?.length || 0,
+          firstSectionKeys: assessment?.sections?.[0] ? Object.keys(assessment.sections[0]) : [],
+          firstSectionHasQuestions: !!assessment?.sections?.[0]?.questions,
+          firstSectionQuestionsCount: assessment?.sections?.[0]?.questions?.length || 0
+        });
       } else {
         console.log('[Caregiver Dashboard API] ⚠️ No active assessment found!');
         console.log('[Caregiver Dashboard API] Admin needs to access /api/admin/caregiver-assessment/config to create it');
@@ -111,6 +121,13 @@ export default async function handler(req, res) {
       }
     }
     
+    console.log('[Caregiver Dashboard API] Returning data with:', {
+      caregiverId: caregiver.caregiverId,
+      answersCount: caregiver.questionnaireAnswers?.length || 0,
+      attemptsCount: caregiver.questionnaireAttempts?.length || 0,
+      retakeStatus: caregiver.questionnaireRetakeStatus || 'none'
+    });
+
     res.status(200).json({ 
       success: true, 
       data: {

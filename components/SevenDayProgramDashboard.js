@@ -165,6 +165,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
   const [currentSection, setCurrentSection] = useState(0);
   const [completedSections, setCompletedSections] = useState([]);
   const [assessmentAttemptNumber, setAssessmentAttemptNumber] = useState(1)
+  const questionnaireRef = useRef(null);
 
   // Map language codes: en -> english, kn -> kannada, hi -> hindi
   const getLanguageKey = () => {
@@ -2050,20 +2051,70 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
     }
   }, [caregiverId]);
 
-  const fetchQuestionnaireData = async () => {
+  const fetchQuestionnaireData = async (preserveAnswers = false) => {
     try {
-      const response = await fetch(`/api/caregiver/questionnaire-dashboard?caregiverId=${caregiverId}`);
+      // Add cache-busting timestamp to ensure fresh data after reset
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/caregiver/questionnaire-dashboard?caregiverId=${caregiverId}&_t=${timestamp}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await response.json();
+      
+      console.log('[fetchQuestionnaireData] Raw API response:', {
+        success: data.success,
+        hasQuestionnaire: !!data.data?.questionnaire,
+        hasAssessment: !!data.data?.assessment,
+        questionnaireSections: data.data?.questionnaire?.sections?.length || 0,
+        assessmentSections: data.data?.assessment?.sections?.length || 0
+      });
       
       if (data.success) {
         setQuestionnaireEnabled(data.data.caregiver.questionnaireEnabled);
-        setQuestionnaireData(data.data.questionnaire);
+        // Try both field names
+        const questionnaireDataFromAPI = data.data.questionnaire || data.data.assessment;
+        console.log('[fetchQuestionnaireData] Setting questionnaireData:', {
+          hasData: !!questionnaireDataFromAPI,
+          sectionsCount: questionnaireDataFromAPI?.sections?.length || 0
+        });
+        setQuestionnaireData(questionnaireDataFromAPI);
         const retakeStatus = data.data.caregiver.questionnaireRetakeStatus || 'none';
         setQuestionnaireRetakeStatus(retakeStatus);
         
         // Check if already submitted
         const attempts = data.data.caregiver.questionnaireAttempts || [];
         const sections = data.data.questionnaire?.sections || [];
+        
+        console.log('[fetchQuestionnaireData] Received data:', {
+          attemptsCount: attempts.length,
+          legacyAnswersCount: data.data.caregiver.questionnaireAnswers?.length || 0,
+          retakeStatus: retakeStatus,
+          hasQuestionnaire: !!data.data.questionnaire,
+          sectionsCount: sections.length,
+          attemptDetails: attempts.map(a => ({ 
+            answersCount: a.answers?.length || 0, 
+            submittedAt: a.submittedAt 
+          }))
+        });
+        
+        if (!data.data.questionnaire || !sections.length) {
+          console.error('[fetchQuestionnaireData] ❌ No questionnaire or sections found!');
+        }
+        
+        // If preserveAnswers is true, keep current state and just update submitted status
+        if (preserveAnswers) {
+          console.log('[fetchQuestionnaireData] Preserving existing answers in state');
+          if (attempts.length > 0) {
+            setQuestionnaireSubmitted(true);
+            // Keep existing questionnaireAnswers state
+            // Keep existing completedSections
+            setAssessmentAttemptNumber(attempts.length);
+          }
+          return;
+        }
         
         // If retake is open (second attempt scheduled), show fresh form regardless of previous attempts
         if (retakeStatus === 'open') {
@@ -2082,19 +2133,22 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           const secondAttempt = attempts[1];
           if (secondAttempt && secondAttempt.answers && secondAttempt.answers.length > 0) {
             const answersMap = {};
-            const completedSecs = new Set();
             
-            secondAttempt.answers.forEach((ans) => {
-              if (ans.sectionId && ans.questionIndex !== undefined) {
-                // New format with section info
-                const key = `${ans.sectionId}_${ans.questionIndex}`;
-                answersMap[key] = ans.answer;
-                completedSecs.add(ans.sectionId);
-              } else {
-                // Legacy format without section info
-                answersMap[ans.questionIndex || Object.keys(answersMap).length] = ans.answer;
-              }
-            });
+            // Reconstruct answer keys by matching questions to sections
+            let globalQuestionIndex = 0;
+            if (sections && sections.length > 0) {
+              sections.forEach((section, sectionIdx) => {
+                if (!section || !section.questions) return;
+                section.questions.forEach((question, qIdx) => {
+                  if (globalQuestionIndex < secondAttempt.answers.length) {
+                    const ans = secondAttempt.answers[globalQuestionIndex];
+                    const key = `${section.sectionId}_${qIdx}`;
+                    answersMap[key] = ans.answer;
+                    globalQuestionIndex++;
+                  }
+                });
+              });
+            }
             
             setQuestionnaireAnswers(answersMap);
             // Mark all sections as completed
@@ -2105,30 +2159,62 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         }
         // First attempt exists and no retake scheduled
         else if (attempts.length > 0) {
-          console.log('[Questionnaire] First attempt completed - showing review/edit option');
           const latestAttempt = attempts[attempts.length - 1];
-          if (latestAttempt && latestAttempt.answers && latestAttempt.answers.length > 0) {
+          // Only show as submitted if attempt has valid answers (at least 50 questions to be considered complete)
+          if (latestAttempt && latestAttempt.answers && latestAttempt.answers.length >= 50) {
+            console.log('[Questionnaire] First attempt completed - showing review/edit option');
             setQuestionnaireSubmitted(true);
             // Pre-fill answers for review/edit with section keys
             const answersMap = {};
             const completedSecs = new Set();
             
-            latestAttempt.answers.forEach((ans) => {
-              if (ans.sectionId && ans.questionIndex !== undefined) {
-                // New format with section info
-                const key = `${ans.sectionId}_${ans.questionIndex}`;
-                answersMap[key] = ans.answer;
-                completedSecs.add(ans.sectionId);
-              } else {
-                // Legacy format without section info
-                answersMap[ans.questionIndex || Object.keys(answersMap).length] = ans.answer;
-              }
+            // Reconstruct answer keys by matching questions to sections
+            let globalQuestionIndex = 0;
+            if (sections && sections.length > 0) {
+              sections.forEach((section, sectionIdx) => {
+                if (!section || !section.questions) return;
+                section.questions.forEach((question, qIdx) => {
+                  if (globalQuestionIndex < latestAttempt.answers.length) {
+                  const ans = latestAttempt.answers[globalQuestionIndex];
+                  const key = `${section.sectionId}_${qIdx}`;
+                  answersMap[key] = ans.answer;
+                  
+                  if (globalQuestionIndex < 3) {
+                    console.log('[fetchQuestionnaireData] Reconstructing answer:', {
+                      globalIdx: globalQuestionIndex,
+                      key: key,
+                      answer: ans.answer,
+                      questionText: ans.questionText?.substring(0, 50)
+                    });
+                  }
+                  
+                  globalQuestionIndex++;
+                  }
+                });
+              });
+            }
+            
+            console.log('[fetchQuestionnaireData] Loading answers for editing:', {
+              totalAnswers: latestAttempt.answers.length,
+              mappedKeys: Object.keys(answersMap).length,
+              sampleKeys: Object.keys(answersMap).slice(0, 5),
+              sampleValues: Object.keys(answersMap).slice(0, 5).map(k => `${k}=${answersMap[k]}`)
             });
             
             setQuestionnaireAnswers(answersMap);
             // Mark all sections as completed
             setCompletedSections(sections.map((s, idx) => idx));
             setCurrentSection(0);
+            setAssessmentAttemptNumber(1);
+          } else {
+            // Attempt exists but no valid answers (less than 50 answers or empty) - show fresh form
+            console.log('[Questionnaire] Attempt exists but insufficient answers - showing fresh form', {
+              attemptAnswersCount: latestAttempt?.answers?.length || 0
+            });
+            setQuestionnaireSubmitted(false);
+            setQuestionnaireAnswers({});
+            setCurrentSection(0);
+            setCompletedSections([]);
             setAssessmentAttemptNumber(1);
           }
         } else {
@@ -2165,7 +2251,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         const questionKey = `${section.sectionId}_${qIdx}`;
         const answer = questionnaireAnswers[questionKey];
         
-        if (question.required && !answer) {
+        if (question.required && (answer === undefined || answer === null)) {
           allAnswered = false;
         }
         
@@ -2175,7 +2261,7 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
           questionIndex: qIdx,
           questionId: question._id || questionKey,
           questionText: question.questionText?.english || question.questionText,
-          answer: answer || '',
+          answer: answer !== undefined && answer !== null ? answer : '',
           language: currentLanguage,
           submittedAt: new Date()
         });
@@ -2210,13 +2296,18 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
         setQuestionnaireSubmitted(true);
         setIsEditingQuestionnaire(false);
         setCurrentSection(0);
-        setCompletedSections([]);
+        // Keep answers in state - they're already there
+        // Mark all sections as completed since we just submitted
+        if (questionnaireData?.sections) {
+          setCompletedSections(questionnaireData.sections.map((s, idx) => idx));
+        }
         showSuccessToast(currentLanguage === 'en' 
           ? 'Complete assessment submitted successfully!' 
           : currentLanguage === 'kn'
           ? 'ಸಂಪೂರ್ಣ ಮೌಲ್ಯಮಾಪನವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸಲ್ಲಿಸಲಾಗಿದೆ!'
           : 'संपूर्ण मूल्यांकन सफलतापूर्वक सबमिट किया गया!');
-        fetchQuestionnaireData(); // Refresh data
+        // Refresh data to sync with server but preserve current answers in state
+        fetchQuestionnaireData(true);
       } else {
         showErrorToast(data.message || 'Failed to submit assessment');
       }
@@ -4819,8 +4910,18 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
       )}
 
       {/* Multi-Section Assessment - Zarit + DASS-7 + WHOQOL */}
+      {(() => {
+        console.log('[Render Check] Questionnaire rendering condition:', {
+          questionnaireEnabled,
+          hasQuestionnaireData: !!questionnaireData,
+          hasSections: !!questionnaireData?.sections,
+          sectionsLength: questionnaireData?.sections?.length || 0,
+          shouldRender: !!(questionnaireEnabled && questionnaireData && questionnaireData.sections)
+        });
+        return null;
+      })()}
       {questionnaireEnabled && questionnaireData && questionnaireData.sections && (
-        <div style={{
+        <div ref={questionnaireRef} style={{
           backgroundColor: '#faf5ff',
           border: '2px solid #a78bfa',
           borderRadius: '12px',
@@ -4893,7 +4994,16 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                   : 'मूल्यांकन पूर्ण करने के लिए धन्यवाद। आपकी प्रतिक्रियाएं दर्ज कर ली गई हैं।'}
               </p>
               <button
-                onClick={() => setIsEditingQuestionnaire(true)}
+                onClick={() => {
+                  console.log('[Edit Button] Current answers:', questionnaireAnswers);
+                  console.log('[Edit Button] Number of answers:', Object.keys(questionnaireAnswers).length);
+                  setIsEditingQuestionnaire(true);
+                  // Mark all sections as completed since we're editing an existing submission
+                  if (questionnaireData?.sections) {
+                    setCompletedSections(questionnaireData.sections.map((s, idx) => idx));
+                  }
+                  setCurrentSection(0);
+                }}
                 style={{
                   padding: '10px 20px',
                   backgroundColor: '#8b5cf6',
@@ -4913,7 +5023,25 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
               {/* Section Title and Description */}
               {(() => {
                 const section = questionnaireData.sections[currentSection];
-                if (!section) return null;
+                
+                console.log('[Section Render] Current section data:', {
+                  currentSection,
+                  hasSection: !!section,
+                  hasQuestions: !!section?.questions,
+                  questionsCount: section?.questions?.length || 0,
+                  sectionKeys: section ? Object.keys(section) : [],
+                  fullSection: section
+                });
+                
+                if (!section || !section.questions) {
+                  console.error('[Section Render] Invalid section or no questions!', { 
+                    section,
+                    allSections: questionnaireData.sections,
+                    currentSection,
+                    totalSections: questionnaireData.sections?.length
+                  });
+                  return null;
+                }
                 
                 const sectionTitle = section.sectionTitle?.[currentLanguage] || section.sectionTitle?.english || `Section ${currentSection + 1}`;
                 const sectionDesc = section.sectionDescription?.[currentLanguage] || section.sectionDescription?.english || '';
@@ -5070,9 +5198,17 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                       onClick={() => {
                         // Validate current section before proceeding
                         const section = questionnaireData.sections[currentSection];
+                        
+                        // Safety check
+                        if (!section || !section.questions || !Array.isArray(section.questions)) {
+                          console.error('[Next Section] Invalid section data:', { currentSection, section });
+                          showErrorToast('Error loading section. Please refresh the page.');
+                          return;
+                        }
+                        
                         const unanswered = section.questions.some((q, idx) => {
                           const key = `${section.sectionId}_${idx}`;
-                          return q.required && !questionnaireAnswers[key];
+                          return q.required && (questionnaireAnswers[key] === undefined || questionnaireAnswers[key] === null);
                         });
                         
                         if (unanswered) {
@@ -5085,7 +5221,11 @@ export default function SevenDayProgramDashboard({ caregiverId }) {
                           setCompletedSections([...completedSections, currentSection]);
                         }
                         setCurrentSection(currentSection + 1);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        
+                        // Scroll to questionnaire section
+                        if (questionnaireRef.current) {
+                          questionnaireRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
                       }}
                       style={{
                         padding: '12px 24px',

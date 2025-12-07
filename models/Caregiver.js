@@ -163,7 +163,7 @@ const CaregiverSchema = new mongoose.Schema({
   },
   questionnaireAnswers: [{
     questionId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
     },
     questionText: {
       type: String,
@@ -191,7 +191,7 @@ const CaregiverSchema = new mongoose.Schema({
     },
     answers: [{
       questionId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
       },
       questionText: {
         type: String,

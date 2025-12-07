@@ -70,7 +70,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      let assessment = await CaregiverAssessment.findOne({ isActive: true });
+      let assessment = await CaregiverAssessment.findOne({ isActive: true }).lean();
       
       // If no assessment exists, create default with all three sections
       if (!assessment) {

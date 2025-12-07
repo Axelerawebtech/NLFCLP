@@ -145,6 +145,9 @@ export default async function handler(req, res) {
       if (Array.isArray(answers)) {
         console.log('[Caregiver Submit API] Processing ARRAY format with', answers.length, 'items');
         formattedAnswers = answers.map(item => ({
+          sectionId: item.sectionId,
+          sectionTitle: item.sectionTitle,
+          questionIndex: item.questionIndex,
           questionId: item.questionId,
           questionText: item.questionText,
           answer: item.answer,
