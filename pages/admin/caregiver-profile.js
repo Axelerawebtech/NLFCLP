@@ -749,6 +749,272 @@ export default function CaregiverProfile() {
     doc.save(filename);
   };
 
+  const downloadDayAssessmentCSV = async (day) => {
+    const caregiver = profileData?.caregiver;
+    const dayData = statistics.daysProgress.find(d => d.day === day);
+    
+    if (!dayData || !dayData.dynamicTest || !dayData.dynamicTest.answers || dayData.dynamicTest.answers.length === 0) {
+      alert('No assessment data available for this day');
+      return;
+    }
+
+    const answers = dayData.dynamicTest.answers;
+    const testName = dayData.dynamicTest.testName || `Day ${day} Assessment`;
+    const completedAt = dayData.dynamicTest.completedAt;
+    const totalScore = dayData.dynamicTest.totalScore;
+    const scoreLevel = dayData.dynamicTest.scoreLevel;
+    const rawDynamicTest = dayData.dynamicTest.raw || dayData.dynamicTest;
+    
+    // Detect language - check raw data first
+    let language = rawDynamicTest.language || dayData.dynamicTest.language || 'en';
+
+    // Level shown in admin is typically stored as assignedLevel
+    const assignedLevel =
+      rawDynamicTest?.assignedLevel
+      || dayData.dynamicTest?.assignedLevel
+      || rawDynamicTest?.burdenLevel
+      || dayData.dynamicTest?.burdenLevel
+      || scoreLevel;
+
+    const assessmentTypeRaw = String(
+      rawDynamicTest?.assessmentType
+      || rawDynamicTest?.type
+      || dayData.dynamicTest?.assessmentType
+      || dayData.dynamicTest?.type
+      || ''
+    ).toLowerCase();
+
+    const assessmentKind = assessmentTypeRaw.includes('stress')
+      ? 'stress'
+      : assessmentTypeRaw.includes('whoqol')
+        ? 'whoqol'
+        : (day === 2 ? 'stress' : day === 3 ? 'whoqol' : 'burden');
+    
+    // Prepare patient info (will fetch asynchronously, non-blocking)
+    let patientInfo = { id: 'N/A', name: 'N/A' };
+    
+    // Debug logging
+    console.log('Day Assessment Export Debug:', {
+      day,
+      testName,
+      language,
+      totalAnswers: answers.length,
+      sampleAnswer: answers[0],
+      caregiverId: caregiver?.caregiverId,
+      assignedPatient: caregiver?.assignedPatient,
+      dynamicTest: dayData.dynamicTest
+    });
+    
+    // Fetch the assessment configuration to get questions and options
+    try {
+      // IMPORTANT: /api/admin/program/config returns waitTimes/contentRules (no questions)
+      // Assessment questions live under /api/admin/caregiver-assessment/config
+      const configResponse = await fetch('/api/admin/caregiver-assessment/config');
+      
+      if (!configResponse.ok) {
+        console.error('Config API error:', configResponse.status, configResponse.statusText);
+        alert(`Failed to fetch test configuration: ${configResponse.status} ${configResponse.statusText}`);
+        return;
+      }
+      
+      const configData = await configResponse.json();
+      console.log('Assessment config API response:', configData);
+
+      if (configData && configData.success === false) {
+        console.error('Assessment config API returned success=false:', configData);
+        alert(`Failed to fetch test configuration: ${configData.message || 'Unknown error'}`);
+        return;
+      }
+
+      const configRoot = (configData && configData.data) ? configData.data : configData;
+
+      // Support multiple config shapes:
+      // 1) { success: true, data: { sections: [...] } } (comprehensive assessment)
+      // 2) { success: true, data: { days: [...] } } (older day-based program)
+      // 3) { days: [...] } / { sections: [...] } (unwrapped)
+      let questions = [];
+
+      const assessmentTypeRaw = String(
+        rawDynamicTest?.assessmentType
+        || rawDynamicTest?.type
+        || dayData?.dynamicTest?.assessmentType
+        || dayData?.dynamicTest?.type
+        || ''
+      ).toLowerCase();
+
+      const desiredSectionId =
+        rawDynamicTest?.sectionId
+        || (assessmentTypeRaw.includes('stress') ? 'dass-7-stress'
+          : assessmentTypeRaw.includes('whoqol') ? 'whoqol'
+          : 'zarit-burden');
+
+      if (Array.isArray(configRoot?.days)) {
+        const dayConfig = configRoot.days.find(d => String(d.day) === String(day));
+        if (Array.isArray(dayConfig?.burdenTestQuestions)) {
+          questions = dayConfig.burdenTestQuestions;
+        } else if (Array.isArray(dayConfig?.sections)) {
+          questions = dayConfig.sections.flatMap(section => section?.questions || []);
+        }
+      } else if (Array.isArray(configRoot?.sections)) {
+        const desiredSection = configRoot.sections.find(s => s?.sectionId === desiredSectionId);
+        if (desiredSection && Array.isArray(desiredSection.questions)) {
+          questions = desiredSection.questions;
+        } else {
+          questions = configRoot.sections.flatMap(section => section?.questions || []);
+        }
+      }
+
+      if (!Array.isArray(questions) || questions.length === 0) {
+        console.error('No questions found in config:', {
+          day,
+          desiredSectionId,
+          assessmentTypeRaw,
+          configRootKeys: configRoot ? Object.keys(configRoot) : null,
+          sectionsCount: Array.isArray(configRoot?.sections) ? configRoot.sections.length : null
+        });
+        alert('Failed to fetch test configuration: No questions found');
+        return;
+      }
+
+      // Fetch patient details if assigned (non-blocking)
+      if (caregiver?.assignedPatient) {
+        try {
+          const patientResponse = await fetch(`/api/admin/patient/details?patientId=${caregiver.assignedPatient}`);
+          if (patientResponse.ok) {
+            const patientData = await patientResponse.json();
+            if (patientData.success && patientData.patient) {
+              patientInfo = {
+                id: patientData.patient.patientId || caregiver.assignedPatient,
+                name: patientData.patient.name || 'N/A'
+              };
+              console.log('✅ Patient details fetched:', patientInfo);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to fetch patient details:', error);
+          // Continue with N/A values
+        }
+      }
+
+      // CSV Headers with BOM for Excel compatibility
+      let csv = '\uFEFF'; // UTF-8 BOM
+      
+      // Header section with all required information
+      csv += 'Day Assessment Export\n';
+      csv += `Caregiver Name,${caregiver?.name || 'N/A'}\n`;
+      csv += `Caregiver ID,${caregiver?.caregiverId || 'N/A'}\n`;
+      csv += `Patient Name,${patientInfo.name}\n`;
+      csv += `Patient ID,${patientInfo.id}\n`;
+      csv += `Assessment Name,${testName}\n`;
+      csv += `Day,${day}\n`;
+      csv += `Language Used,${language === 'en' ? 'English' : language === 'hi' ? 'Hindi' : language === 'kn' ? 'Kannada' : language}\n`;
+      csv += `Total Score,${totalScore !== undefined && totalScore !== null ? totalScore : 'N/A'}\n`;
+      if (assessmentKind === 'burden') {
+        csv += `Assigned Burden Level,${assignedLevel || 'N/A'}\n`;
+      } else if (assessmentKind === 'stress') {
+        csv += `Assigned Stress Level,${assignedLevel || 'N/A'}\n`;
+      } else if (assessmentKind === 'whoqol') {
+        csv += `Assigned Quality of Life Level,${assignedLevel || 'N/A'}\n`;
+      } else {
+        csv += `Assigned Level,${assignedLevel || 'N/A'}\n`;
+      }
+      csv += `Completed At,${completedAt ? new Date(completedAt).toLocaleString() : 'N/A'}\n`;
+      csv += `Report Generated,${new Date().toLocaleString()}\n`;
+      csv += '\n';
+
+      // Question responses section - English labels only
+      csv += 'Question #,Question Text (English),Answer (English)\n';
+      
+      // Map answers with questions from config - Always use English labels in CSV
+      answers.forEach((answerValue, index) => {
+        const questionNumber = index + 1;
+        const question = questions[index];
+        
+        if (!question) {
+          console.warn(`Question ${questionNumber} not found in config`);
+          return;
+        }
+        
+        // Always get question text in English for CSV
+        const questionTextSource =
+          question?.questionText?.english
+          || question?.question?.english
+          || question?.questionText
+          || question?.text
+          || `Question ${questionNumber}`;
+
+        const questionText = String(questionTextSource).replace(/"/g, '""');
+
+        // Find the selected option based on the answer value (handle string/number mismatches)
+        const options = Array.isArray(question?.options) ? question.options : [];
+        const selectedOption = options.find(opt => {
+          if (opt == null) return false;
+          const optValue = opt.value;
+          if (optValue === answerValue) return true;
+          const optNum = Number(optValue);
+          const ansNum = Number(answerValue);
+          return Number.isFinite(optNum) && Number.isFinite(ansNum) && optNum === ansNum;
+        });
+        
+        let englishAnswer = 'N/A';
+        
+        if (selectedOption) {
+          // Always get answer in English for CSV
+          englishAnswer = selectedOption.label?.english
+            || selectedOption.text
+            || selectedOption.label
+            || String(answerValue);
+        } else {
+          // Fallback if option not found
+          englishAnswer = String(answerValue);
+        }
+        
+        // Ensure answer is string before replacing
+        const englishAnswerStr = String(englishAnswer);
+        
+        const row = [
+          questionNumber,
+          `"${questionText}"`,
+          `"${englishAnswerStr.replace(/"/g, '""')}"`
+        ];
+        csv += row.join(',') + '\n';
+      });
+
+    // Create download
+    try {
+      const filename = `Day${day}_Assessment_${caregiver?.name?.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+      } else {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.style.display = 'none';
+        link.href = url;
+        link.download = filename;
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 250);
+      }
+      
+      console.log('Day assessment CSV download initiated:', filename);
+    } catch (error) {
+      console.error('CSV download failed:', error);
+      alert('Failed to download CSV file: ' + error.message);
+    }
+    } catch (error) {
+      console.error('Error loading assessment data:', error);
+      alert('Failed to load assessment data: ' + error.message);
+    }
+  };
+
   const downloadAllFeedbackCSV = () => {
     const caregiver = profileData?.caregiver;
     const submissions = caregiver?.feedbackSubmissions || [];
@@ -1642,10 +1908,37 @@ export default function CaregiverProfile() {
                       <div key={`tasks-${day.day}`} style={styles.dayCard}>
                         <div style={styles.dayHeader}>
                           <div style={{ flex: 1 }}>
-                            <h4 style={styles.dayTitle}>Day {day.day}</h4>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                              <h4 style={styles.dayTitle}>Day {day.day}</h4>
+                              {day.hasDynamicTest && day.dynamicTestCompleted && day.dynamicTest?.answers?.length > 0 && (
+                                <button
+                                  onClick={() => downloadDayAssessmentCSV(day.day)}
+                                  style={{
+                                    ...styles.button,
+                                    backgroundColor: '#16a34a',
+                                    color: 'white',
+                                    fontSize: '0.75rem',
+                                    padding: '0.375rem 0.75rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem'
+                                  }}
+                                  onMouseOver={(e) => e.target.style.backgroundColor = '#15803d'}
+                                  onMouseOut={(e) => e.target.style.backgroundColor = '#16a34a'}
+                                  title="Download assessment responses as CSV with English translations"
+                                >
+                                  📥 Export Assessment CSV
+                                </button>
+                              )}
+                            </div>
                             <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
                               {day.videoTitle || 'Program Content'}
                             </p>
+                            {day.hasDynamicTest && day.dynamicTestCompleted && day.dynamicTest && (
+                              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#059669' }}>
+                                <strong>✅ Assessment Complete:</strong> Score: {day.dynamicTest.totalScore || 'N/A'} | Level: {day.dynamicTest.scoreLevel || 'N/A'} | {day.dynamicTest.answers?.length || 0} responses
+                              </div>
+                            )}
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <p style={{ fontSize: '1.75rem', fontWeight: '700', color: '#2563eb', margin: 0 }}>

@@ -69,7 +69,7 @@ const AudioPlayer = ({
   }, [audioUrl, onComplete, caregiverId, day, hasCompletedOnce]);
 
   const togglePlayPause = () => {
-    if (disabled || !isVideoCompleted) return;
+    if (disabled || (day === 0 && !isVideoCompleted)) return;
     
     const audio = audioRef.current;
     if (isPlaying) {
@@ -87,7 +87,7 @@ const AudioPlayer = ({
   };
 
   const handleSeek = (e) => {
-    if (disabled || !isVideoCompleted) return;
+    if (disabled || (day === 0 && !isVideoCompleted)) return;
     
     const audio = audioRef.current;
     const rect = e.target.getBoundingClientRect();
@@ -97,7 +97,7 @@ const AudioPlayer = ({
 
   if (!audioUrl) return null;
 
-  const isDisabled = disabled || !isVideoCompleted;
+  const isDisabled = disabled || (day === 0 && !isVideoCompleted);
 
   const defaultStyle = {
     background: isDisabled 
@@ -119,8 +119,8 @@ const AudioPlayer = ({
     <div style={defaultStyle}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
       
-      {/* Video completion requirement notice */}
-      {!isVideoCompleted && (
+      {/* Video completion requirement notice - Only for Day 0 */}
+      {!isVideoCompleted && day === 0 && (
         <div style={{
           position: 'absolute',
           top: 0,
